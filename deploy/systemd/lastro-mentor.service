@@ -1,0 +1,55 @@
+# Lastro — worker do mentor (Claude Code com a assinatura do dono, só ferramentas de leitura).
+[Unit]
+Description=Lastro - worker do mentor
+After=network-online.target patrimonio-agent-api.service
+Wants=network-online.target
+
+[Service]
+User=mentor
+Group=mentor
+SupplementaryGroups=lastro-sock
+Environment=HOME=/var/lib/mentor
+Environment=LASTRO_MENTOR_SOCKET=/run/lastro-mentor/mentor.sock
+Environment=LASTRO_SOCKET_GROUP=lastro-sock
+Environment=LASTRO_SOCKET_PEER_USER=patrimonio
+Environment=DISABLE_AUTOUPDATER=1
+Environment=LASTRO_MENTOR_WORKDIR=/var/lib/mentor/work
+Environment=LASTRO_MENTOR_CONCURRENCY=3
+Environment=MPA_AGENT_API_URL=http://127.0.0.1:8765
+Environment=MPA_AGENT_API_TOKEN_FILE=/etc/meu-patrimonio/mentor-token
+# Navegador de pesquisa (só fontes oficiais; sandbox do Chrome via perfil AppArmor lastro-chrome).
+Environment=LASTRO_BROWSER_EXECUTABLE=/opt/lastro-browsers/chrome-headless-shell-linux64/chrome-headless-shell
+Environment=LASTRO_BROWSER_SANDBOX=1
+WorkingDirectory=/opt/meu-patrimonio/backend
+ExecStart=/opt/meu-patrimonio/.venv/bin/python -m mentor.worker
+RuntimeDirectory=lastro-mentor
+RuntimeDirectoryMode=0755
+Restart=on-failure
+RestartSec=5
+
+# Precisa da internet (Anthropic), mas nunca de redes privadas: nem containers, nem o banco do prumo,
+# nem o serviço de metadados da nuvem. Loopback liberado só para a API de leitura.
+IPAddressAllow=localhost
+IPAddressDeny=10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10 fc00::/7 fe80::/10
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=/var/lib/mentor
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+# Esconde processos de outros usuários do host (o mentor lida com conteúdo da web).
+ProtectProc=invisible
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+UMask=0077
+MemoryMax=3G
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,37 @@
+# Segredos e configuração local
+.env
+.env.*
+!.env.example
+
+# Dados financeiros reais NUNCA entram no repositório
+data/
+backups/
+exports/
+extratos/
+*.db
+*.sqlite
+*.sqlite3
+*.ofx
+*.csv
+!tests/fixtures_synthetic/*.csv
+*.xlsx
+!tests/fixtures_synthetic/*.xlsx
+*.pdf
+
+# Python / Node
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+.next/
+dist/
+
+# Chaves e credenciais
+*.pem
+*.key
+credentials*.json
+.claude/
+
+# Capturas geradas pelos testes e2e
+.e2e-shots/

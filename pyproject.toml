@@ -1,0 +1,29 @@
+[project]
+name = "meu-patrimonio-ai"
+version = "0.1.0"
+description = "Mentor financeiro local-first: motor determinístico + API somente leitura para agentes."
+requires-python = ">=3.12"
+dependencies = [
+    "claude-agent-sdk>=0.2.165",
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "playwright>=1.63.0",
+    "uvicorn>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+]
+
+[tool.uv]
+package = false
+# Cadeia de suprimentos: só aceita versões publicadas há pelo menos ~2 semanas.
+# Atualize esta data conscientemente, após revisar changelogs.
+exclude-newer = "2026-10-12T00:00:00Z"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["backend"]
+addopts = "--import-mode=importlib"

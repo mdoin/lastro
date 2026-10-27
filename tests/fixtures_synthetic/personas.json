@@ -1,0 +1,60 @@
+{
+  "synthetic": true,
+  "as_of": "2026-10-26",
+  "note": "Personas 100% fictícias para desenvolvimento e testes. Nenhum dado real.",
+  "personas": [
+    {
+      "id": "iniciante-150",
+      "label": "Nunca investiu, R$ 150 disponíveis, sem reserva e sem dívida",
+      "net_monthly_income": "2800.00",
+      "essential_expenses": "1900.00",
+      "variable_expenses": "650.00",
+      "liquid_reserve": "0.00",
+      "available_this_month": "150.00",
+      "debts": []
+    },
+    {
+      "id": "cartao-rotativo",
+      "label": "R$ 300 disponíveis, dívida de cartão no rotativo, sem reserva",
+      "net_monthly_income": "4200.00",
+      "essential_expenses": "2600.00",
+      "variable_expenses": "700.00",
+      "liquid_reserve": "200.00",
+      "available_this_month": "300.00",
+      "debts": [
+        {"name": "Cartão de crédito (rotativo)", "balance": "2400.00", "monthly_rate": "0.12", "monthly_payment": "400.00"},
+        {"name": "Financiamento de moto", "balance": "6000.00", "monthly_rate": "0.018", "monthly_payment": "350.00"}
+      ]
+    },
+    {
+      "id": "sem-sobra",
+      "label": "Nenhum recurso disponível este mês",
+      "net_monthly_income": "2100.00",
+      "essential_expenses": "1700.00",
+      "variable_expenses": "400.00",
+      "liquid_reserve": "300.00",
+      "available_this_month": "0.00",
+      "debts": []
+    },
+    {
+      "id": "deficit",
+      "label": "Orçamento negativo, R$ 50 disponíveis",
+      "net_monthly_income": "2000.00",
+      "essential_expenses": "1800.00",
+      "variable_expenses": "350.00",
+      "liquid_reserve": "0.00",
+      "available_this_month": "50.00",
+      "debts": []
+    },
+    {
+      "id": "reserva-completa-1000",
+      "label": "Reserva completa, sem dívida, R$ 1.000 disponíveis",
+      "net_monthly_income": "9000.00",
+      "essential_expenses": "4000.00",
+      "variable_expenses": "2500.00",
+      "liquid_reserve": "26000.00",
+      "available_this_month": "1000.00",
+      "debts": []
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+# API somente leitura do Meu Patrimônio AI (consumida pelo mentor via MCP).
+[Unit]
+Description=Meu Patrimonio AI - API de leitura para o mentor
+After=network.target
+
+[Service]
+User=patrimonio
+Group=patrimonio
+EnvironmentFile=/etc/meu-patrimonio/agent-api.env
+Environment=LASTRO_DB=/var/lib/patrimonio/lastro.db
+WorkingDirectory=/opt/meu-patrimonio/backend
+ExecStart=/opt/meu-patrimonio/.venv/bin/python -m app.agent_api
+Restart=on-failure
+RestartSec=5
+
+# Confinamento: só loopback, sistema de arquivos somente leitura, sem privilégios.
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# Lê o banco em modo somente leitura; precisa de escrita no diretório só pelos arquivos -shm/-wal do SQLite.
+ReadWritePaths=/var/lib/patrimonio
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

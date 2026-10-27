@@ -1,0 +1,51 @@
+"""Nenhum segredo ou dado real versionado; .gitignore cobre o que precisa."""
+import json
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".pytest_cache"}
+SECRET_PATTERNS = [
+    re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"(?i)(api[_-]?key|secret|password|senha)\s*[:=]\s*['\"][^'\"\s]{8,}['\"]"),
+]
+CPF = re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b")
+CARD = re.compile(r"\b(?:\d[ -]?){15}\d\b")
+
+
+def repo_files():
+    for path in ROOT.rglob("*"):
+        if path.is_file() and not SKIP_DIRS & set(path.relative_to(ROOT).parts) and path.suffix not in {".lock"}:
+            yield path
+
+
+def test_no_secrets_or_identifiers_committed():
+    for path in repo_files():
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        if path.name == "test_repo_hygiene.py":
+            continue
+        for pattern in SECRET_PATTERNS + [CPF, CARD]:
+            assert not pattern.search(text), f"possível segredo/identificador em {path.relative_to(ROOT)}"
+
+
+def test_gitignore_covers_sensitive_paths():
+    ignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    for entry in (".env", "*.db", "*.sqlite", "data/", "backups/", "exports/", "*.ofx", "extratos/"):
+        assert entry in ignore, entry
+
+
+def test_env_example_has_no_values():
+    for line in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines():
+        if line and not line.startswith("#"):
+            assert line.endswith("="), f".env.example com valor preenchido: {line}"
+
+
+def test_all_fixtures_are_marked_synthetic():
+    for path in (ROOT / "tests" / "fixtures_synthetic").glob("*.json"):
+        assert json.loads(path.read_text(encoding="utf-8")).get("synthetic") is True, path.name

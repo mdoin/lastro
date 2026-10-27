@@ -1,0 +1,12 @@
+# Permite APENAS ao Chrome headless do Lastro criar o user namespace da própria sandbox.
+# Ubuntu 23.10+ restringe user namespaces sem privilégio; sem isto o Chrome teria de rodar com --no-sandbox.
+# Instalação (exige aprovação do dono do servidor):
+#   sudo install -m 0644 deploy/apparmor/lastro-chrome /etc/apparmor.d/lastro-chrome
+#   sudo apparmor_parser -r /etc/apparmor.d/lastro-chrome
+abi <abi/4.0>,
+include <tunables/global>
+
+profile lastro-chrome /opt/lastro-browsers/chrome-headless-shell-linux64/chrome-headless-shell flags=(unconfined) {
+  userns,
+  include if exists <local/lastro-chrome>
+}

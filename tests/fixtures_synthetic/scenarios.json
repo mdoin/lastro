@@ -1,0 +1,9 @@
+{
+  "synthetic": true,
+  "note": "Premissas ILUSTRATIVAS e fictícias para testar o motor. Não são previsão, nem dado de mercado verificado.",
+  "scenarios": [
+    {"name": "conservador", "annual_return": "0.08", "annual_inflation": "0.055", "annual_fee": "0.005"},
+    {"name": "base", "annual_return": "0.10", "annual_inflation": "0.045", "annual_fee": "0.005"},
+    {"name": "otimista", "annual_return": "0.12", "annual_inflation": "0.035", "annual_fee": "0.005"}
+  ]
+}

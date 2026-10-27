@@ -1,0 +1,5 @@
+#!/bin/sh
+# Administração do Lastro. Uso: sudo lastro-admin set-password | migrate | logout-all
+set -eu
+cd /opt/meu-patrimonio/backend
+exec sudo -u patrimonio env LASTRO_DB=/var/lib/patrimonio/lastro.db /opt/meu-patrimonio/.venv/bin/python -m app.admin "$@"

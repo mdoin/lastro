@@ -1,0 +1,46 @@
+# Lastro — HTTPS automático (Let's Encrypt) e proxy reverso para o web app em loopback.
+# Nenhum arquivo é servido direto do disco pelo Caddy.
+{
+	# API de administração só num socket Unix 0600 do usuário caddy: nenhuma outra conta local consegue
+	# reconfigurar a borda (em TCP de loopback qualquer processo do host poderia trocar o site).
+	admin "unix//var/lib/caddy/admin.sock|0600"
+}
+
+lastro.doinlabs.com.br {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		-Server
+		-Via
+	}
+
+	request_body {
+		max_size 1MB
+	}
+
+	# Compressão só para os arquivos estáticos; o chat usa SSE e não pode ficar em buffer.
+	@assets path /assets/*
+	encode @assets zstd gzip
+
+	reverse_proxy 127.0.0.1:8080 {
+		flush_interval -1
+		header_up -X-Forwarded-Host
+	}
+
+	log {
+		output file /var/log/caddy/lastro-access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+		format filter {
+			request>headers>Cookie delete
+			request>headers>Authorization delete
+			resp_headers>Set-Cookie delete
+			request>uri query {
+				delete token
+			}
+		}
+	}
+}
