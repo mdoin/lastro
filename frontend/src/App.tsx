@@ -20,6 +20,11 @@ const OpportunitiesPage = lazy(() => import("./pages/Opportunities").then((m) =>
 const OpportunityPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunityPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 
+// Galeria dos mascotes: só no `npm run dev` (import.meta.env.DEV vira false no build e o módulo some do pacote).
+const MascotGallery = import.meta.env.DEV
+  ? lazy(() => import("./pages/MascotGallery").then((m) => ({ default: m.MascotGallery })))
+  : null;
+
 const page = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>;
 
 /** Rotas autenticadas: verifica a sessão uma vez e manda para o login se necessário. */
@@ -101,6 +106,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      {MascotGallery && <Route path="/dev/mascotes" element={page(<MascotGallery />)} />}
       <Route element={<RequireAuth />}>
         <Route index element={<OverviewPage />} />
         <Route path="vida-financeira" element={page(<FinancesPage />)} />

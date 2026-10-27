@@ -20,6 +20,7 @@ import {
   type Rate,
   type Verdict,
 } from "../api/radar";
+import { AgentAvatar } from "../components/AgentAvatar";
 import { Icon } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
 import { Badge, Card, EmptyState, ErrorNotice, Field, Loading, Notice, PageHeader, Segmented, Tag } from "../components/ui";
@@ -28,7 +29,7 @@ import { formatDate, formatDateTime } from "../lib/dates";
 import { formatNumberBR } from "../lib/money";
 import { errorMessage, useAsync } from "../lib/useAsync";
 import "../styles/radar.css";
-import { PriorityBadge } from "./Radar";
+import { AgentStack, PriorityBadge } from "./Radar";
 
 const AGENT_NAMES: Record<string, string> = {
   mentor: "Mentor",
@@ -38,6 +39,15 @@ const AGENT_NAMES: Record<string, string> = {
   riscos: "Gestor de Riscos",
   comportamental: "Conselheiro",
   auditor: "Auditor",
+};
+
+const RUN_LABEL: Record<string, string> = {
+  succeeded: "concluída",
+  partial: "parcial (algum especialista falhou)",
+  failed: "falhou",
+  cancelled: "cancelada",
+  tempo_esgotado: "tempo esgotado",
+  indisponivel: "indisponível",
 };
 
 function VerdictBadge({ v }: { v: Verdict | null }) {
@@ -300,6 +310,7 @@ function History() {
                     <Link to={`/oportunidades/${o.id}`}>{o.asset_label}</Link>
                     <div className="tiny muted">{o.condition_text}</div>
                     <div className="row tiny">
+                      {o.agents.length > 0 && o.agents.map((id) => <AgentAvatar key={id} id={id} size={20} />)}
                       <Tag>{CATEGORY[o.category]}</Tag>
                       {o.alert_id ? <Tag>alerta</Tag> : <Tag>sem alerta</Tag>}
                       {o.redundant_of && <Tag>repetido</Tag>}
@@ -454,6 +465,9 @@ export function OpportunityPage() {
           Método de avaliação: {p.hipotese?.metodo} · referência: {p.hipotese?.benchmark ?? "—"} · horizontes:{" "}
           {(p.horizontes ?? []).join(", ")} dias
         </p>
+        {analysis && analysis.payload.pareceres?.length > 0 && (
+          <AgentStack ids={analysis.payload.pareceres.filter((o: { status: string }) => o.status === "ok").map((o: { agent_id: string }) => o.agent_id)} />
+        )}
         {!analysis && (
           <p className="small muted">
             {d.opportunity.state === "em_analise" || d.opportunity.state === "detectada"
@@ -466,7 +480,10 @@ export function OpportunityPage() {
             {analysis.payload.mentor && (
               <div className="radar-opinion">
                 <div className="row" style={{ justifyContent: "space-between" }}>
-                  <strong>Parecer do Mentor</strong>
+                  <span className="row">
+                    <AgentAvatar id="mentor" size={32} decorative />
+                    <strong>Parecer do Mentor</strong>
+                  </span>
                   {analysis.payload.mentor.auditoria && (
                     <Badge tone={analysis.payload.mentor.auditoria.verdict === "PASSA" ? "good" : analysis.payload.mentor.auditoria.verdict === "REPROVA" ? "critical" : "warning"} icon="shieldCheck">
                       Auditoria: {analysis.payload.mentor.auditoria.verdict}
@@ -481,14 +498,15 @@ export function OpportunityPage() {
             )}
             {(analysis.payload.pareceres ?? []).map((o: any) => (
               <details key={o.agent_id} className="radar-opinion">
-                <summary>
+                <summary className="radar-opinion-head">
+                  <AgentAvatar id={o.agent_id} size={28} decorative />
                   <strong>{AGENT_NAMES[o.agent_id] ?? o.agent_id}</strong>{" "}
                   {o.auditoria && <span className="tiny muted">· auditoria {o.auditoria.verdict}</span>}
                 </summary>
                 <Markdown text={o.texto} />
               </details>
             ))}
-            <p className="tiny muted">Execução {analysis.payload.run_status}.</p>
+            <p className="tiny muted">Execução: {RUN_LABEL[analysis.payload.run_status] ?? analysis.payload.run_status}.</p>
           </div>
         )}
       </Era>

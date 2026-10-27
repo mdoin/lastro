@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import {
@@ -22,7 +22,8 @@ import {
 } from "../api/endpoints";
 import { getRadarLink } from "../api/radar";
 import type { Agent, RunStep, TeamConversation, TeamEvent, TeamMessage, TeamRun } from "../api/types";
-import { Icon, type IconName } from "../components/Icon";
+import { AgentAvatar, type AvatarState } from "../components/AgentAvatar";
+import { Icon } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
 import { Badge, ErrorNotice, Loading, Notice } from "../components/ui";
 import { formatDate, formatDateTime } from "../lib/dates";
@@ -30,11 +31,6 @@ import { applyMention, filterCandidates, mentionAt, type MentionQuery } from "..
 import { useAsync } from "../lib/useAsync";
 import "../styles/team.css";
 
-const ICONS: Record<string, IconName> = {
-  mentor: "layers", planejador: "wallet", analista: "bars", economista: "globe", riscos: "alert",
-  comportamental: "spark", auditor: "shieldCheck", lastro: "info",
-};
-const FALLBACK_COLOR: Record<string, string> = { auditor: "var(--agent-auditor)", lastro: "var(--muted)" };
 const COUNCIL_STAGES = [
   ["conselho:enquadramento", "mentor", "Enquadramento"],
   ["conselho:planejador", "planejador", "Planejamento"],
@@ -67,13 +63,9 @@ function agentName(agents: AgentMap, id: string | null | undefined): string {
   return agents[id]?.name ?? "Agente";
 }
 
-function Avatar({ id, agents, size = 32 }: { id: string; agents: AgentMap; size?: number }) {
-  const color = agents[id]?.color ?? FALLBACK_COLOR[id] ?? "var(--muted)";
-  return (
-    <span className="team-avatar" style={{ "--c": color, width: size, height: size } as CSSProperties} aria-hidden="true">
-      <Icon name={ICONS[id] ?? "chat"} />
-    </span>
-  );
+/** Mascote do agente (o nome sempre aparece ao lado, então o avatar é decorativo para leitores de tela). */
+function Avatar({ id, agents, size = 32, state }: { id: string; agents: AgentMap; size?: number; state?: AvatarState }) {
+  return <AgentAvatar id={id} size={size} state={state} decorative className="team-avatar" label={agents[id]?.name} />;
 }
 
 function convLabel(c: TeamConversation, agents: AgentMap): string {
@@ -238,7 +230,7 @@ function TeamList(props: {
         <label className="visually-hidden" htmlFor="team-filter">Filtrar conversas</label>
         <input id="team-filter" className="input" placeholder="Filtrar…" value={filter} onChange={(e) => setFilter(e.target.value)} />
         {props.loading && <Loading />}
-        {history.map((c) => row(c, c.channel === "direct" ? c.agent_id ?? "mentor" : c.channel === "council" ? "auditor" : "mentor",
+        {history.map((c) => row(c, c.channel === "direct" ? c.agent_id ?? "mentor" : "mentor",
           `${convLabel(c, agentMap)}${c.channel === "routine" ? " · rotina" : ""}`))}
       </details>
     </div>
@@ -393,7 +385,7 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
     <div className="team-thread">
       <header className="team-chat-head">
         <Link to="/mentor" className="icon-btn team-back" aria-label="Voltar para a lista"><Icon name="chevronRight" style={{ transform: "rotate(180deg)" }} /></Link>
-        <Avatar id={c.channel === "direct" ? c.agent_id ?? "mentor" : c.channel === "council" ? "auditor" : "mentor"} agents={agents} size={38} />
+        <Avatar id={c.channel === "direct" ? c.agent_id ?? "mentor" : "mentor"} agents={agents} size={38} />
         <div className="team-chat-title">
           <h2>{convLabel(c, agents)}</h2>
           <p className="tiny muted">
@@ -428,7 +420,7 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
         ))}
         {working.map(([key, s]) => (
           <article key={key} className="msg assistant team-typing" aria-label={`${agentName(agents, s.agent_id)} está respondendo`}>
-            <Avatar id={s.agent_id} agents={agents} />
+            <Avatar id={s.agent_id} agents={agents} state={s.text ? "speaking" : "thinking"} />
             <div className="msg-who">{agentName(agents, s.agent_id)} <span className="msg-meta">{s.text ? "escrevendo…" : s.status === "retrying" ? "tentando de novo…" : "pensando…"}</span></div>
             {s.wait && <p className="tiny muted" role="status">{s.wait}</p>}
             {s.text ? <Markdown text={s.text} /> : <span className="typing" role="status"><span /><span /><span /></span>}
@@ -547,7 +539,7 @@ function CouncilProgress({ run, steps, live, agents }: { run: TeamRun; steps: Ru
           const st = state(key);
           return (
             <li key={key} data-state={st}>
-              <Avatar id={agent} agents={agents} size={26} />
+              <Avatar id={agent} agents={agents} size={26} state={st === "running" ? (live[key]?.text ? "speaking" : "thinking") : "idle"} />
               <span><strong>{title}</strong> <span className="tiny muted">{agentName(agents, agent)} · {label[st] ?? st}</span></span>
             </li>
           );

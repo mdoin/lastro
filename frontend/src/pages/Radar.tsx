@@ -30,6 +30,7 @@ import {
   type RuleKind,
   type SeriesItem,
 } from "../api/radar";
+import { AgentAvatar } from "../components/AgentAvatar";
 import { Icon } from "../components/Icon";
 import { Badge, Card, EmptyState, ErrorNotice, Field, Loading, Notice, PageHeader, Segmented, Tag } from "../components/ui";
 import { useApp } from "../lib/appContext";
@@ -345,6 +346,7 @@ function AlertCard({ alert: a, act }: { alert: Alert; act: (fn: () => Promise<un
       </h3>
       <p className="small">{a.condition_text}</p>
       <p className="tiny muted">Dado de referência: {formatDate(a.reference_date)} · estado: {a.state.replaceAll("_", " ")}</p>
+      {a.agents.length > 0 && <AgentStack ids={a.agents} />}
       <div className="row">
         <Link className="btn btn-primary btn-sm" to={`/oportunidades/${a.opportunity_id}`}>
           Abrir análise
@@ -377,6 +379,22 @@ function AlertCard({ alert: a, act }: { alert: Alert; act: (fn: () => Promise<un
         </button>
       </div>
     </article>
+  );
+}
+
+/** Quem do Conselho analisou: mascotes lado a lado, com os nomes para leitores de tela. */
+export function AgentStack({ ids, size = 24 }: { ids: string[]; size?: number }) {
+  return (
+    <span className="radar-agents">
+      <span className="tiny muted">Analisado por</span>
+      {ids.map((id) => (
+        <AgentAvatar key={id} id={id} size={size} />
+      ))}
+      <span className="mascot-mentor-tail">
+        <AgentAvatar id="mentor" size={size} />
+        <AgentAvatar id="auditor" size={size} />
+      </span>
+    </span>
   );
 }
 

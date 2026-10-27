@@ -107,6 +107,13 @@ def register(app: FastAPI, conn, *, current_user, radar: engine.Radar, bad_reque
     def now() -> str:
         return db.utcnow()
 
+    def with_agents(items: list[dict], key: str) -> list[dict]:
+        """Especialistas que de fato deram parecer (registro de análise); planejados e não executados não contam."""
+        for item in items:
+            analysis = journal.original(conn, item[key], "analise") or {}
+            item["agents"] = [p["agent_id"] for p in analysis.get("pareceres", []) if p.get("status") == "ok"]
+        return items
+
     def own_opp(opp_id: str, user: str) -> dict:
         try:
             uuid.UUID(opp_id)
@@ -227,7 +234,7 @@ def register(app: FastAPI, conn, *, current_user, radar: engine.Radar, bad_reque
     # --- alertas ---
     @app.get("/api/radar/alerts")
     async def radar_alerts(status: str | None = Query(None, max_length=20), user: str = Depends(current_user)):
-        return alerts.list_for(conn, user, status=status)
+        return with_agents(alerts.list_for(conn, user, status=status), "opportunity_id")
 
     @app.post("/api/radar/alerts/{alert_id}/status")
     async def radar_alert_status(alert_id: str, body: StatusIn, user: str = Depends(current_user)):
@@ -327,10 +334,10 @@ def register(app: FastAPI, conn, *, current_user, radar: engine.Radar, bad_reque
                             agent: str | None = Query(None, max_length=40), user: str = Depends(current_user)):
         if agent and agent not in AGENTS:
             raise HTTPException(status_code=422, detail="Agente desconhecido.")
-        return journal.list_for(conn, user, category=category, state=state, rule_id=rule_id, series=asset,
-                                since=since.isoformat() if since else None,
-                                until=f"{until.isoformat()}T23:59:59+99:99" if until else None,
-                                min_class=min_class, verdict=verdict, agent=agent)
+        return with_agents(journal.list_for(conn, user, category=category, state=state, rule_id=rule_id, series=asset,
+                                            since=since.isoformat() if since else None,
+                                            until=f"{until.isoformat()}T23:59:59+99:99" if until else None,
+                                            min_class=min_class, verdict=verdict, agent=agent), "id")
 
     @app.get("/api/radar/journal/{opp_id}")
     async def radar_journal_detail(opp_id: str, user: str = Depends(current_user)):

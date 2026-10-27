@@ -37,3 +37,4 @@
 | 2026-10-27 | Alertas agrupados por família de título (todos os vencimentos do IPCA+) | Por série | Reprodução com dados reais: 631 alertas em 8 meses viraram 88 |
 | 2026-10-27 | Cotações de ações, ETFs e FIIs só informadas pela pessoa | Raspagem de sites | Sem licença da B3; raspagem violaria termos |
 | 2026-10-27 | Métricas com `n` e `confiavel` (n ≥ 20); propostas de ajuste só com aprovação | Ajuste automático | Evita overfitting e mudança silenciosa de regra |
+| 2026-10-27 | Mascotes em pixel art desenhados como dados (grade 16×16 → SVG com `crispEdges`), um componente `AgentAvatar` | PNG/sprites; ícones de biblioteca | Nítido em qualquer tamanho e tema, leve (sem arquivo extra), testável (grade, paleta, silhuetas distintas) |

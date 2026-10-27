@@ -111,6 +111,8 @@ export interface Alert {
   state: OppState;
   condition_text: string;
   reference_date: string;
+  /** Especialistas escolhidos para analisar o sinal. */
+  agents: string[];
 }
 
 export interface OutcomeBrief {
@@ -136,6 +138,7 @@ export interface JournalItem {
   condition_text: string;
   reference_date: string;
   verdicts: OutcomeBrief[];
+  agents: string[];
 }
 
 export interface Snapshot {

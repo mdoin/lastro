@@ -58,3 +58,30 @@ Na interface, o ouro de texto é `#835F14` (claro, ≥ 4,5:1) / `#E2BE6E` (escur
 
 Não faça: distorcer ou girar o bloco, trocar o ouro por outra cor, inverter a direção da extrusão, aplicar sombra,
 contorno ou brilho extra, recompor o nome com outra fonte, usar o dourado em textos longos.
+
+## Mascotes dos agentes (pixel art)
+
+Sete robozinhos autorais, um por agente, desenhados numa grade 16×16 (`frontend/src/components/mascots.ts`) e
+renderizados como SVG nítido (`shape-rendering: crispEdges`, fundo transparente) pelo componente `AgentAvatar`.
+
+| Agente | Cor | Silhueta e acessório | Expressão |
+|---|---|---|---|
+| Mentor | grafite | coroa e gola douradas | atenta, sorriso discreto |
+| Planejador | verde-sálvia | cabeça redonda, prancheta com checklist | gentil, olhar para a tarefa |
+| Analista | azul | quadrado, monitor de gráfico de barras na cabeça | curiosa, olhar para cima |
+| Economista | turquesa | anel orbital atravessando a cabeça, pequena lua | pensativa, boca de lado |
+| Gestor de Riscos | terracota | largo e baixo, capacete com aleta, visor | desconfiada, mas simpática |
+| Conselheiro | lilás | pequeno e redondo, coração, bochechas rosadas | olhos fechados de alegria |
+| Auditor | cinza-azulado | alto e estreito, óculos quadrados | séria, uma sobrancelha erguida |
+
+Regras comuns: contorno de 1 px, luz no alto à esquerda, sombra embaixo à direita, olhos 2×3 nas mesmas colunas,
+paleta de 4 a 7 cores. No tema escuro o contorno vira um traço claro (`--mascot-outline`), para a silhueta não sumir
+no fundo. Legíveis de 24 a 96 px (16 px por pixel da grade divide exatamente 32, 48, 64 e 96).
+
+Animações (`styles/mascots.css`): piscar a cada ~7 s (fora de sincronia entre agentes, desligado abaixo de 24 px),
+subir 1 px no hover, olhar de lado a lado enquanto pensa e um pulinho único quando começa a responder. Tudo é
+desligado com `prefers-reduced-motion`. Quando o nome do agente já está escrito ao lado, o avatar é decorativo
+(`aria-hidden`); sozinho, tem texto alternativo. Id desconhecido mostra as iniciais; o Lastro (avisos) usa o símbolo.
+
+Galeria de comparação: `npm run dev` e abra `/dev/mascotes` (só existe no modo de desenvolvimento; o build de produção
+não inclui a página).
