@@ -141,3 +141,26 @@ O resultado final é salvo como mensagem numa conversa `kind: "panel"`.
 |---|---|
 | `GET /api/status` | `{"app_version", "engine_version", "mentor": {"available": bool, "logged_in": bool \| null, "subscription": str \| null, "busy": int, "queued": int, "limit_until": datetime \| null}, "data": {"latest_snapshot_as_of": date \| null, "stale": bool}}` |
 | `GET /api/export` | arquivo JSON com todos os dados do usuário (download) |
+
+## Equipe (Mentor, especialistas, grupos, Conselho) — ver `docs/MULTIAGENT.md`
+Toda rota exige sessão; conversas e execuções de outra pessoa respondem 404 (igual a inexistentes).
+
+| Método e rota | Corpo | Resposta |
+|---|---|---|
+| `GET /api/agents` | — | agentes de conversa: `id, name, handle, title, kind, summary, examples, tools, version` |
+| `GET /api/team/conversations` | — | conversas com `channel` (`direct`/`group`/`council`/`routine`), `agent_id`, `participants`, `last_message` |
+| `POST /api/team/conversations` | `{"channel", "agent_id"?, "title"?, "participants"?: [id]}` | 201 conversa. Grupo: Mentor + escolhidos; Conselho: todos |
+| `GET/PUT/DELETE /api/team/conversations/{id}` | PUT `{"title"}` | conversa; DELETE 409 se houver execução ativa |
+| `POST /api/team/conversations/{id}/participants` | `{"agent_id"}` | só grupos |
+| `DELETE /api/team/conversations/{id}/participants/{agent}` | — | o Mentor não sai |
+| `GET /api/team/conversations/{id}/messages` | — | mensagens com `agent_id, kind (message/analysis/notice), audit, sources, mentions, reply_to_id, run_id` |
+| `POST /api/team/conversations/{id}/messages` | `{"text", "client_id"?, "reply_to_id"?}` | 202 `{message, run, notices}`; mesmo `client_id` → mesma mensagem e execução |
+| `GET /api/team/conversations/{id}/runs` | — | execuções recentes com `steps` (agente, tipo, pai, profundidade, estado, erro) |
+| `POST /api/team/runs/{run_id}/cancel` | — | execução atualizada |
+| `GET /api/team/conversations/{id}/stream` | — | SSE (GET, compatível com EventSource): `snapshot`, `message`, `run`, `step`, `delta`, `tool`, `wait`, `fact_proposed`, `ping` |
+| `GET /api/team/memory` | — | `{facts, notes, market, not_connected}` |
+| `POST /api/team/facts` | `{"key", "value", "note"?}` | fato confirmado pela pessoa (substitui o anterior, com histórico) |
+| `POST /api/team/facts/{id}/confirm` · `/reject` | — | decide uma proposta de agente |
+| `DELETE /api/team/notes/{id}` | — | apaga uma anotação de agente |
+
+As rotas antigas `/api/conversations/*` e `/api/panels` continuam para compatibilidade (rotinas); a interface usa as da equipe.

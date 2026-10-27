@@ -5,7 +5,7 @@ sequência de eventos JSON, um por linha, terminando em `done` ou `error`.
 
 Operações:
 - turn       {conversation_id, text, session_id?, history?}  conversa contínua
-- ephemeral  {role, text}                                     sessão descartável (rotinas)
+- ephemeral  {role, text, mode?, effort?}                     sessão descartável (rotinas e agentes da equipe)
 - panel      {question, roles?}                               especialistas em paralelo + síntese + auditor
 - interrupt  {conversation_id}
 - status     {}
@@ -198,13 +198,16 @@ class MentorWorker:
         return await self._new_client(emit_source, session_id=str(uuid.uuid4())), handoff
 
     async def ephemeral(self, req: dict, emit: Emit) -> None:
-        outcome = await self._ephemeral_outcome(req["role"], str(req["text"])[:40000], emit)
+        effort = req.get("effort") if req.get("effort") in ("low", "medium", "high") else "high"
+        outcome = await self._ephemeral_outcome(req["role"], str(req["text"])[:60000], emit, effort=effort,
+                                                mode=req.get("mode"))
         await self._finish(emit, outcome)
 
-    async def _ephemeral_outcome(self, role: str, text: str, emit: Emit, effort: str = "high") -> TurnOutcome:
+    async def _ephemeral_outcome(self, role: str, text: str, emit: Emit, effort: str = "high",
+                                 mode: str | None = None) -> TurnOutcome:
         async def attempt() -> TurnOutcome:
             client = await self._new_client(lambda: emit, role=role, session_id=str(uuid.uuid4()), ephemeral=True,
-                                            effort=effort)
+                                            effort=effort, mode=mode)
             try:
                 return await run_turn(client, context_header() + text, emit)
             finally:
@@ -343,7 +346,8 @@ class MentorWorker:
             writer.close()
 
 
-_VERDICT = re.compile(r"VEREDITO:\s*(PASSA|REVISAR|BLOQUEAR)", re.IGNORECASE)
+_VERDICT = re.compile(r"VEREDITO:\s*(PASSA COM RESSALVAS|PASSA|REVISAR|BLOQUEAR|REPROVA)", re.IGNORECASE)
+_NEW_TO_LEGACY = {"PASSA COM RESSALVAS": REVISAR, "REPROVA": BLOQUEAR}
 
 
 def merge_verdicts(auditor_text: str, answer: str) -> tuple[str, list[str]]:
@@ -352,6 +356,7 @@ def merge_verdicts(auditor_text: str, answer: str) -> tuple[str, list[str]]:
     first_line = next((line.strip() for line in (auditor_text or "").splitlines() if line.strip()), "")
     match = _VERDICT.match(first_line)
     verdict = match.group(1).upper() if match else REVISAR
+    verdict = _NEW_TO_LEGACY.get(verdict, verdict)
     reasons = [line.lstrip("-• ").strip() for line in (auditor_text or "").splitlines()
                if line.strip().startswith(("-", "•"))][:5]
     if not match:
@@ -386,6 +391,15 @@ async def auth_status() -> dict:
     return result
 
 
+async def _dev_tcp_server(worker: "MentorWorker", address: str):
+    """Só para desenvolvimento local sem socket Unix. Recusa qualquer endereço que não seja loopback."""
+    host, _, port = re.sub(r"^tcp:[\\/]*", "", address).rpartition(":")
+    if host not in ("127.0.0.1", "::1", "localhost"):
+        raise RuntimeError("Modo TCP do worker só escuta em loopback.")
+    log.warning("worker em modo TCP de desenvolvimento (%s); em produção use o socket Unix", address)
+    return await asyncio.start_server(worker.handle, host=host, port=int(port), limit=MAX_REQUEST_BYTES)
+
+
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     # httpx loga cada URL (com a query, que leva valores das projeções) em INFO: fica fora do journal.
@@ -407,6 +421,10 @@ async def main() -> None:
         import pwd
 
         worker.allowed_peer_uids = {pwd.getpwnam(peer_user).pw_uid}
+    if str(socket_path).startswith("tcp:"):
+        server = await _dev_tcp_server(worker, str(socket_path))
+        async with server:
+            await server.serve_forever()
     if socket_path.exists():
         socket_path.unlink()
     old_umask = os.umask(0o177)  # o socket nasce 0600; o grupo é ajustado antes de abrir para 0660

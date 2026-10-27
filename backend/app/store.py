@@ -5,6 +5,7 @@ strings decimais; a conversão para Decimal acontece no motor financeiro.
 """
 
 import json
+import re
 import sqlite3
 import uuid
 from decimal import Decimal
@@ -204,16 +205,21 @@ def delete_goal(conn: sqlite3.Connection, goal_id: str) -> bool:
 
 # ---------- conversas ----------
 
-def create_conversation(conn: sqlite3.Connection, title: str, kind: str = "chat") -> dict:
+def create_conversation(conn: sqlite3.Connection, title: str, kind: str = "chat", *, channel: str | None = None,
+                        agent_id: str | None = None, user_id: str = OWNER) -> dict:
     conv_id, now = new_id(), utcnow()
-    conn.execute("INSERT INTO conversations (id, kind, title, created_at, updated_at) VALUES (?,?,?,?,?)",
-                 (conv_id, kind, (title or "Nova conversa").strip()[:120], now, now))
+    channel = channel or {"panel": "council", "routine": "routine"}.get(kind, "direct")
+    if channel == "direct":
+        agent_id = agent_id or "mentor"
+    conn.execute("INSERT INTO conversations (id, kind, title, channel, agent_id, user_id, created_at, updated_at) "
+                 "VALUES (?,?,?,?,?,?,?,?)",
+                 (conv_id, kind, (title or "Nova conversa").strip()[:120], channel, agent_id, user_id, now, now))
     return get_conversation(conn, conv_id)
 
 
 def get_conversation(conn: sqlite3.Connection, conv_id: str) -> dict | None:
-    row = conn.execute("SELECT id, kind, title, claude_session_id, created_at, updated_at FROM conversations WHERE id = ?",
-                       (conv_id,)).fetchone()
+    row = conn.execute("SELECT id, kind, title, claude_session_id, channel, agent_id, user_id, created_at, updated_at "
+                       "FROM conversations WHERE id = ?", (conv_id,)).fetchone()
     return dict(row) if row else None
 
 
@@ -230,24 +236,52 @@ def set_claude_session(conn: sqlite3.Connection, conv_id: str, session_id: str) 
     conn.execute("UPDATE conversations SET claude_session_id = ? WHERE id = ?", (session_id, conv_id))
 
 
+MESSAGE_COLUMNS = ("id, role, content, status, tools_json, audit_json, created_at, agent_id, run_id, step_key, client_id, "
+                   "reply_to_id, mentions_json, sources_json, kind")
+
+
 def add_message(conn: sqlite3.Connection, conv_id: str, role: str, content: str,
-                status: str = "ok", tools: list | None = None, audit: dict | None = None) -> dict:
+                status: str = "ok", tools: list | None = None, audit: dict | None = None, *,
+                agent_id: str | None = None, run_id: str | None = None, step_key: str | None = None,
+                client_id: str | None = None, reply_to_id: str | None = None, mentions: list | None = None,
+                sources: list | None = None, kind: str = "message") -> dict:
+    """Grava uma mensagem. Com (run_id, step_key) ou client_id repetidos, devolve a já existente (idempotente)."""
+    if role == "assistant" and agent_id is None:
+        agent_id = "mentor"
     msg_id, now = new_id(), utcnow()
-    conn.execute("INSERT INTO messages (id, conversation_id, role, content, status, tools_json, audit_json, created_at) "
-                 "VALUES (?,?,?,?,?,?,?,?)",
-                 (msg_id, conv_id, role, content, status, json.dumps(tools or [], ensure_ascii=False),
-                  json.dumps(audit, ensure_ascii=False) if audit else None, now))
+    cur = conn.execute(
+        "INSERT OR IGNORE INTO messages (id, conversation_id, role, content, status, tools_json, audit_json, created_at, "
+        "agent_id, run_id, step_key, client_id, reply_to_id, mentions_json, sources_json, kind) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (msg_id, conv_id, role, content, status, json.dumps(tools or [], ensure_ascii=False),
+         json.dumps(audit, ensure_ascii=False) if audit else None, now, agent_id, run_id, step_key, client_id,
+         reply_to_id, json.dumps(mentions or []), json.dumps(sources or [], ensure_ascii=False), kind))
+    if cur.rowcount == 0:
+        where, args = (("run_id = ? AND step_key = ?", (run_id, step_key)) if run_id
+                       else ("conversation_id = ? AND client_id = ?", (conv_id, client_id)))
+        row = conn.execute(f"SELECT {MESSAGE_COLUMNS} FROM messages WHERE {where}", args).fetchone()
+        return {**_message_row(row), "duplicate": True}
     conn.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, conv_id))
-    return {"id": msg_id, "role": role, "content": content, "status": status, "tools": tools or [],
-            "audit": audit, "created_at": now}
+    return get_message(conn, msg_id)
+
+
+def _message_row(r: sqlite3.Row) -> dict:
+    return {"id": r["id"], "role": r["role"], "content": r["content"], "status": r["status"],
+            "tools": json.loads(r["tools_json"]), "audit": json.loads(r["audit_json"]) if r["audit_json"] else None,
+            "created_at": r["created_at"], "agent_id": r["agent_id"], "run_id": r["run_id"], "step_key": r["step_key"],
+            "client_id": r["client_id"], "reply_to_id": r["reply_to_id"], "mentions": json.loads(r["mentions_json"]),
+            "sources": json.loads(r["sources_json"]), "kind": r["kind"]}
+
+
+def get_message(conn: sqlite3.Connection, msg_id: str) -> dict | None:
+    row = conn.execute(f"SELECT {MESSAGE_COLUMNS} FROM messages WHERE id = ?", (msg_id,)).fetchone()
+    return _message_row(row) if row else None
 
 
 def list_messages(conn: sqlite3.Connection, conv_id: str) -> list[dict]:
-    rows = conn.execute("SELECT id, role, content, status, tools_json, audit_json, created_at FROM messages "
-                        "WHERE conversation_id = ? ORDER BY created_at, rowid", (conv_id,)).fetchall()
-    return [{"id": r["id"], "role": r["role"], "content": r["content"], "status": r["status"],
-             "tools": json.loads(r["tools_json"]), "audit": json.loads(r["audit_json"]) if r["audit_json"] else None,
-             "created_at": r["created_at"]} for r in rows]
+    rows = conn.execute(f"SELECT {MESSAGE_COLUMNS} FROM messages WHERE conversation_id = ? ORDER BY created_at, rowid",
+                        (conv_id,)).fetchall()
+    return [_message_row(r) for r in rows]
 
 
 # ---------- decisões ----------
@@ -290,6 +324,216 @@ def export_all(conn: sqlite3.Connection) -> dict:
         conversations.append({**conv, "messages": list_messages(conn, conv["id"])})
     routines = [dict(r) for r in conn.execute("SELECT * FROM routines").fetchall()]
     runs = [dict(r) for r in conn.execute("SELECT * FROM routine_runs ORDER BY scheduled_for").fetchall()]
-    return {"exported_at": utcnow(), "snapshots": snapshots, "assumptions": get_assumptions(conn),
+    facts = [dict(r) for r in conn.execute("SELECT * FROM financial_facts ORDER BY created_at")]
+    notes = [dict(r) for r in conn.execute("SELECT * FROM agent_notes ORDER BY created_at")]
+    return {"exported_at": utcnow(), "snapshots": snapshots, "financial_facts": facts, "agent_notes": notes, "assumptions": get_assumptions(conn),
             "goals": list_goals(conn), "decisions": list_decisions(conn), "conversations": conversations,
             "routines": routines, "routine_runs": runs}
+
+
+# ---------- equipe: conversas e participantes ----------
+
+def list_user_conversations(conn: sqlite3.Connection, user_id: str) -> list[dict]:
+    rows = conn.execute(
+        "SELECT c.id, c.kind, c.channel, c.agent_id, c.title, c.created_at, c.updated_at, m.content AS last_message, "
+        "m.agent_id AS last_agent_id FROM conversations c LEFT JOIN messages m ON m.rowid = ("
+        "SELECT rowid FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC, rowid DESC LIMIT 1) "
+        "WHERE c.user_id = ? ORDER BY c.updated_at DESC", (user_id,)).fetchall()
+    out = []
+    for r in rows:
+        conv = dict(r)
+        conv["participants"] = participants(conn, conv["id"])
+        conv["last_message"] = (conv["last_message"] or "")[:140]
+        out.append(conv)
+    return out
+
+
+def user_conversation(conn: sqlite3.Connection, conv_id: str, user_id: str) -> dict | None:
+    """A conversa só existe para o dono dela: a de outra pessoa responde igual a uma inexistente."""
+    conv = get_conversation(conn, conv_id)
+    if not conv or conv["user_id"] != user_id:
+        return None
+    return {**conv, "participants": participants(conn, conv_id)}
+
+
+def participants(conn: sqlite3.Connection, conv_id: str) -> list[str]:
+    conv = conn.execute("SELECT channel, agent_id FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+    if conv and conv["channel"] == "direct":
+        return [conv["agent_id"] or "mentor"]
+    return [r[0] for r in conn.execute("SELECT agent_id FROM conversation_participants WHERE conversation_id = ? "
+                                       "ORDER BY added_at, rowid", (conv_id,))]
+
+
+def add_participant(conn: sqlite3.Connection, conv_id: str, agent_id: str) -> None:
+    conn.execute("INSERT OR IGNORE INTO conversation_participants (conversation_id, agent_id, added_at) VALUES (?,?,?)",
+                 (conv_id, agent_id, utcnow()))
+
+
+def remove_participant(conn: sqlite3.Connection, conv_id: str, agent_id: str) -> bool:
+    return conn.execute("DELETE FROM conversation_participants WHERE conversation_id = ? AND agent_id = ?",
+                        (conv_id, agent_id)).rowcount > 0
+
+
+def rename_conversation(conn: sqlite3.Connection, conv_id: str, title: str) -> None:
+    conn.execute("UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?", (title.strip()[:120], utcnow(), conv_id))
+
+
+# ---------- equipe: execuções e passos ----------
+
+def create_run(conn: sqlite3.Connection, conv: dict, message_id: str, kind: str, route: dict) -> dict:
+    """Uma execução por mensagem e tipo (UNIQUE): reenviar a mesma mensagem não enfileira de novo."""
+    conn.execute("INSERT OR IGNORE INTO runs (id, conversation_id, user_id, message_id, kind, status, route_json, created_at) "
+                 "VALUES (?,?,?,?,?,'queued',?,?)",
+                 (new_id(), conv["id"], conv["user_id"], message_id, kind, json.dumps(route, ensure_ascii=False), utcnow()))
+    row = conn.execute("SELECT id FROM runs WHERE message_id = ? AND kind = ?", (message_id, kind)).fetchone()
+    return get_run(conn, row["id"])
+
+
+def _run_row(r: sqlite3.Row) -> dict:
+    data = {k: r[k] for k in r.keys() if k != "route_json"}
+    return {**data, "route": json.loads(r["route_json"]), "cancel_requested": bool(r["cancel_requested"])}
+
+
+def get_run(conn: sqlite3.Connection, run_id: str) -> dict | None:
+    row = conn.execute("SELECT * FROM runs WHERE id = ?", (run_id,)).fetchone()
+    return _run_row(row) if row else None
+
+
+def set_run(conn: sqlite3.Connection, run_id: str, **fields) -> None:
+    cols = ", ".join(f"{k} = ?" for k in fields)  # chaves vêm só do código, nunca da requisição
+    conn.execute(f"UPDATE runs SET {cols} WHERE id = ?", (*fields.values(), run_id))
+
+
+def list_runs(conn: sqlite3.Connection, conv_id: str, limit: int = 20) -> list[dict]:
+    rows = conn.execute("SELECT * FROM runs WHERE conversation_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?",
+                        (conv_id, limit)).fetchall()
+    return [{**_run_row(r), "steps": list_steps(conn, r["id"])} for r in rows]
+
+
+def queued_runs(conn: sqlite3.Connection) -> list[dict]:
+    return [_run_row(r) for r in conn.execute("SELECT * FROM runs WHERE status = 'queued' ORDER BY created_at, rowid")]
+
+
+def recover_runs(conn: sqlite3.Connection) -> int:
+    """Depois de um reinício, o que estava rodando volta para a fila; passos concluídos são reaproveitados."""
+    conn.execute("UPDATE run_steps SET status = 'failed', error = 'interrompido por reinício', finished_at = ? "
+                 "WHERE status = 'running'", (utcnow(),))
+    return conn.execute("UPDATE runs SET status = 'queued' WHERE status = 'running'").rowcount
+
+
+def _step_row(r: sqlite3.Row) -> dict:
+    return {**{k: r[k] for k in r.keys() if k != "tools_json"}, "tools": json.loads(r["tools_json"])}
+
+
+def get_step(conn: sqlite3.Connection, run_id: str, step_key: str) -> dict | None:
+    row = conn.execute("SELECT * FROM run_steps WHERE run_id = ? AND step_key = ?", (run_id, step_key)).fetchone()
+    return _step_row(row) if row else None
+
+
+def list_steps(conn: sqlite3.Connection, run_id: str) -> list[dict]:
+    return [_step_row(r) for r in conn.execute("SELECT * FROM run_steps WHERE run_id = ? ORDER BY started_at, rowid",
+                                               (run_id,))]
+
+
+def start_step(conn: sqlite3.Connection, run_id: str, step_key: str, *, agent_id: str, kind: str, task: str,
+               parent_key: str | None = None, depth: int = 0) -> None:
+    conn.execute("INSERT INTO run_steps (run_id, step_key, agent_id, kind, parent_key, depth, status, task, attempts, "
+                 "started_at) VALUES (?,?,?,?,?,?,'running',?,1,?) "
+                 "ON CONFLICT(run_id, step_key) DO UPDATE SET status = 'running', attempts = attempts + 1, error = NULL, "
+                 "finished_at = NULL",
+                 (run_id, step_key, agent_id, kind, parent_key, depth, task[:20000], utcnow()))
+
+
+def finish_step(conn: sqlite3.Connection, run_id: str, step_key: str, status: str, *, output: str = "",
+                tools: list | None = None, error: str | None = None) -> None:
+    conn.execute("UPDATE run_steps SET status = ?, output = ?, tools_json = ?, error = ?, finished_at = ? "
+                 "WHERE run_id = ? AND step_key = ?",
+                 (status, output, json.dumps(tools or [], ensure_ascii=False), error, utcnow(), run_id, step_key))
+
+
+def reject_step(conn: sqlite3.Connection, run_id: str, step_key: str, *, agent_id: str, parent_key: str, depth: int,
+                task: str, reason: str) -> None:
+    now = utcnow()
+    conn.execute("INSERT OR IGNORE INTO run_steps (run_id, step_key, agent_id, kind, parent_key, depth, status, task, "
+                 "error, started_at, finished_at) VALUES (?,?,?,'delegate',?,?,'rejected',?,?,?,?)",
+                 (run_id, step_key, agent_id, parent_key, depth, task[:2000], reason, now, now))
+
+
+# ---------- equipe: memória financeira (fatos com fonte, data e histórico) ----------
+
+FACT_KEY = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
+
+
+def list_facts(conn: sqlite3.Connection, user_id: str, status: str | None = None) -> list[dict]:
+    sql, args = "SELECT * FROM financial_facts WHERE user_id = ?", [user_id]
+    if status:
+        sql, args = sql + " AND status = ?", [*args, status]
+    return [dict(r) for r in conn.execute(sql + " ORDER BY key, created_at DESC", args)]
+
+
+def add_fact(conn: sqlite3.Connection, user_id: str, key: str, value: str, *, source: str, status: str,
+             as_of: str, note: str = "", source_ref: str | None = None) -> dict:
+    key = str(key).strip().lower()
+    if not FACT_KEY.match(key):
+        raise ValueError("key: use letras minúsculas, números e _ (ex.: horizonte_meses).")
+    value = str(value).strip()[:500]
+    if not value:
+        raise ValueError("value: obrigatório.")
+    fact_id, now = new_id(), utcnow()
+    previous = None
+    if status == "confirmed":
+        previous = conn.execute("SELECT id FROM financial_facts WHERE user_id = ? AND key = ? AND status = 'confirmed'",
+                                (user_id, key)).fetchone()
+        conn.execute("UPDATE financial_facts SET status = 'superseded' WHERE user_id = ? AND key = ? AND status = 'confirmed'",
+                     (user_id, key))
+    conn.execute("INSERT INTO financial_facts (id, user_id, key, value, status, source, source_ref, note, as_of, "
+                 "supersedes_id, created_at, decided_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                 (fact_id, user_id, key, value, status, source, source_ref, str(note)[:500], as_of,
+                  previous["id"] if previous else None, now, now if status == "confirmed" else None))
+    return dict(conn.execute("SELECT * FROM financial_facts WHERE id = ?", (fact_id,)).fetchone())
+
+
+def decide_fact(conn: sqlite3.Connection, user_id: str, fact_id: str, confirm: bool, as_of: str) -> dict | None:
+    """Confirmar uma proposta cria o fato confirmado (com histórico); rejeitar só marca a proposta."""
+    row = conn.execute("SELECT * FROM financial_facts WHERE id = ? AND user_id = ? AND status = 'proposed'",
+                       (fact_id, user_id)).fetchone()
+    if not row:
+        return None
+    conn.execute("UPDATE financial_facts SET status = 'rejected', decided_at = ? WHERE id = ?", (utcnow(), fact_id))
+    if not confirm:
+        return dict(conn.execute("SELECT * FROM financial_facts WHERE id = ?", (fact_id,)).fetchone())
+    return add_fact(conn, user_id, row["key"], row["value"], source=row["source"], status="confirmed", as_of=as_of,
+                    note=f"confirmado pela pessoa (proposta {fact_id[:8]})", source_ref=row["source_ref"])
+
+
+# ---------- equipe: memória individual dos agentes ----------
+
+def _own_direct(conv: dict, agent_id: str) -> bool:
+    return conv["channel"] == "direct" and (conv.get("agent_id") or "mentor") == agent_id
+
+
+def add_note(conn: sqlite3.Connection, user_id: str, agent_id: str, conv: dict, content: str, source_ref: str) -> None:
+    scope = "private" if _own_direct(conv, agent_id) else "conversation"
+    conn.execute("INSERT INTO agent_notes (id, user_id, agent_id, scope, conversation_id, content, source_ref, created_at) "
+                 "VALUES (?,?,?,?,?,?,?,?)",
+                 (new_id(), user_id, agent_id, scope, conv["id"], content.strip()[:500], source_ref, utcnow()))
+
+
+def notes_for(conn: sqlite3.Connection, user_id: str, agent_id: str, conv: dict, limit: int = 12) -> list[dict]:
+    """Notas privadas só entram nas conversas individuais do próprio agente; as demais, só onde nasceram."""
+    if _own_direct(conv, agent_id):
+        where, args = "scope = 'private'", ()
+    else:
+        where, args = "scope = 'conversation' AND conversation_id = ?", (conv["id"],)
+    rows = conn.execute(f"SELECT * FROM agent_notes WHERE user_id = ? AND agent_id = ? AND {where} "
+                        "ORDER BY created_at DESC LIMIT ?", (user_id, agent_id, *args, limit)).fetchall()
+    return [dict(r) for r in reversed(rows)]
+
+
+def list_notes(conn: sqlite3.Connection, user_id: str) -> list[dict]:
+    return [dict(r) for r in conn.execute("SELECT * FROM agent_notes WHERE user_id = ? ORDER BY created_at DESC",
+                                          (user_id,))]
+
+
+def delete_note(conn: sqlite3.Connection, user_id: str, note_id: str) -> bool:
+    return conn.execute("DELETE FROM agent_notes WHERE id = ? AND user_id = ?", (note_id, user_id)).rowcount > 0

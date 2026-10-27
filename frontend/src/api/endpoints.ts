@@ -1,18 +1,21 @@
 /** Funções tipadas, uma por rota de `docs/WEB_API.md`. */
-import { api, postStream } from "./client";
+import { api } from "./client";
 import type {
+  Agent,
+  Fact,
+  SubmitResult,
+  TeamConversation,
+  TeamMemory,
+  TeamMessage,
+  TeamRun,
   AppStatus,
   AssumptionsResponse,
   AuthState,
-  ChatEvent,
-  Conversation,
   Decision,
   DecisionInput,
   Diagnosis,
   Goal,
   GoalInput,
-  Message,
-  PanelEvent,
   ProjectionRequest,
   ProjectionResponse,
   Routine,
@@ -59,28 +62,6 @@ export const createGoal = (g: GoalInput) => api.post<Goal>("/api/goals", g);
 export const updateGoal = (id: UUID, g: GoalInput) => api.put<Goal>(`/api/goals/${enc(id)}`, g);
 export const deleteGoal = (id: UUID) => api.del(`/api/goals/${enc(id)}`);
 
-// Mentor
-export const getConversations = () => api.get<Conversation[]>("/api/conversations");
-export const createConversation = (title?: string) =>
-  api.post<Conversation>("/api/conversations", title ? { title } : {});
-export const deleteConversation = (id: UUID) => api.del(`/api/conversations/${enc(id)}`);
-export const getMessages = (id: UUID) => api.get<Message[]>(`/api/conversations/${enc(id)}/messages`);
-export const interruptConversation = (id: UUID) => api.post<void>(`/api/conversations/${enc(id)}/interrupt`);
-export const streamMessage = (id: UUID, text: string, onEvent: (e: ChatEvent) => void, signal?: AbortSignal) =>
-  postStream<ChatEvent>(`/api/conversations/${enc(id)}/messages`, { text }, onEvent, signal);
-export const streamPanel = (
-  question: string,
-  conversationId: UUID | null,
-  onEvent: (e: PanelEvent) => void,
-  signal?: AbortSignal,
-) =>
-  postStream<PanelEvent>(
-    "/api/panels",
-    conversationId ? { question, conversation_id: conversationId } : { question },
-    onEvent,
-    signal,
-  );
-
 // Rotinas e caixa de entrada
 export const getRoutines = () => api.get<Routine[]>("/api/routines");
 export const createRoutine = (r: RoutineInput) => api.post<Routine>("/api/routines", r);
@@ -98,3 +79,32 @@ export const createDecision = (d: DecisionInput) => api.post<Decision>("/api/dec
 // Estado e dados
 export const getStatus = () => api.get<AppStatus>("/api/status");
 export const EXPORT_URL = "/api/export";
+
+// Equipe
+export const getAgents = () => api.get<Agent[]>("/api/agents");
+export const getTeamConversations = () => api.get<TeamConversation[]>("/api/team/conversations");
+export const createTeamConversation = (body: {
+  channel: "direct" | "group" | "council";
+  agent_id?: string;
+  title?: string;
+  participants?: string[];
+}) => api.post<TeamConversation>("/api/team/conversations", body);
+export const getTeamConversation = (id: UUID) => api.get<TeamConversation>(`/api/team/conversations/${enc(id)}`);
+export const renameTeamConversation = (id: UUID, title: string) =>
+  api.put<TeamConversation>(`/api/team/conversations/${enc(id)}`, { title });
+export const deleteTeamConversation = (id: UUID) => api.del(`/api/team/conversations/${enc(id)}`);
+export const addParticipant = (id: UUID, agent_id: string) =>
+  api.post<TeamConversation>(`/api/team/conversations/${enc(id)}/participants`, { agent_id });
+export const removeParticipant = (id: UUID, agent_id: string) =>
+  api.del<TeamConversation>(`/api/team/conversations/${enc(id)}/participants/${enc(agent_id)}`);
+export const getTeamMessages = (id: UUID) => api.get<TeamMessage[]>(`/api/team/conversations/${enc(id)}/messages`);
+export const sendTeamMessage = (id: UUID, body: { text: string; client_id: string; reply_to_id?: string }) =>
+  api.post<SubmitResult>(`/api/team/conversations/${enc(id)}/messages`, body);
+export const getTeamRuns = (id: UUID) => api.get<TeamRun[]>(`/api/team/conversations/${enc(id)}/runs`);
+export const cancelRun = (runId: UUID) => api.post<TeamRun>(`/api/team/runs/${enc(runId)}/cancel`);
+export const teamStreamUrl = (id: UUID) => `/api/team/conversations/${enc(id)}/stream`;
+export const getTeamMemory = () => api.get<TeamMemory>("/api/team/memory");
+export const addFact = (body: { key: string; value: string; note?: string }) => api.post<Fact>("/api/team/facts", body);
+export const decideFact = (id: UUID, decision: "confirm" | "reject") =>
+  api.post<Fact>(`/api/team/facts/${enc(id)}/${decision}`);
+export const deleteNote = (id: UUID) => api.del(`/api/team/notes/${enc(id)}`);

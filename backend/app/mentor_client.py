@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -14,8 +15,13 @@ class MentorClient:
 
     async def stream(self, request: dict) -> AsyncIterator[dict]:
         try:
-            reader, writer = await asyncio.open_unix_connection(str(self.socket_path), limit=STREAM_LIMIT)
-        except (FileNotFoundError, ConnectionRefusedError, PermissionError):
+            address = str(self.socket_path)
+            if address.startswith("tcp:"):  # desenvolvimento local sem socket Unix (o worker só aceita loopback)
+                host, _, port = re.sub(r"^tcp:[\\/]*", "", address).rpartition(":")
+                reader, writer = await asyncio.open_connection(host, int(port), limit=STREAM_LIMIT)
+            else:
+                reader, writer = await asyncio.open_unix_connection(address, limit=STREAM_LIMIT)
+        except (FileNotFoundError, ConnectionRefusedError, PermissionError, OSError):
             yield {"type": "error", "kind": "network", "message": "O mentor está indisponível no momento."}
             return
         try:

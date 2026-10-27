@@ -27,6 +27,7 @@ IMPORT_ALLOWLIST = {
     "mentor/tools.py": {"httpx"},  # só loopback; garantido por test_mentor_tools_refuse_non_loopback
     "mentor/browser.py": {"playwright"},  # só fontes oficiais; garantido pelos testes de allowlist abaixo
     "mentor/worker.py": {"socket"},  # só as constantes de SO_PEERCRED do socket Unix já aberto; nenhuma conexão
+    "integrations/collector.py": {"httpx"},  # só APIs oficiais do catálogo; serviço próprio, fora do web e do worker
 }
 
 
@@ -234,6 +235,7 @@ def test_owner_data_and_open_browser_never_share_a_session():
 
     from mentor.browser import ResearchBrowser
     from mentor.session import ROLES, mentor_options
+    from mentor.tools import ROLE_CAPABILITIES
 
     browser_name, data_name = "mcp__patrimonio__ler_pagina_oficial", "mcp__patrimonio__situacao_atual"
     browser = ResearchBrowser("/nao/existe")
@@ -242,10 +244,12 @@ def test_owner_data_and_open_browser_never_share_a_session():
         allowed = {name for name in ("mcp__patrimonio__" + n for n in (
             "situacao_atual", "diagnostico", "projecao", "metas", "premissas", "decisoes", "sem_novidade",
             "ler_pagina_oficial")) if isinstance(asyncio.run(options.can_use_tool(name, {}, None)), PermissionResultAllow)}
-        if role == "pesquisa":
-            assert allowed == {browser_name}, role  # pesquisa navega na allowlist inteira, sem dados do dono
-        elif role == "coordenador":
+        caps = ROLE_CAPABILITIES[role]
+        if caps.browser == "research":
+            assert browser_name in allowed and data_name not in allowed, role  # allowlist inteira, sem dados do dono
+        elif role in ("coordenador", "mentor"):
             assert browser_name in allowed and data_name in allowed  # chat: navegador restrito (testado abaixo)
+            assert caps.browser == "owner"
         else:
             assert browser_name not in allowed, role  # rotinas e demais especialistas não navegam
         assert ("mcp__patrimonio__sem_novidade" in allowed) == (role == "rotina"), role

@@ -7,7 +7,7 @@ set -euo pipefail
 
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 DEST=/opt/meu-patrimonio
-UNITS=(patrimonio-agent-api.service lastro-mentor.service lastro-web.service)
+UNITS=(patrimonio-agent-api.service lastro-mentor.service lastro-web.service lastro-coletor.service)
 
 [ "$(id -u)" -eq 0 ] || { echo "Rode com sudo." >&2; exit 1; }
 
@@ -36,6 +36,8 @@ chmod -R go-w "$DEST"
 install -d -m 0755 -o root -g root /etc/meu-patrimonio
 [ -f /etc/meu-patrimonio/agent-api.env ] && chown root:patrimonio /etc/meu-patrimonio/agent-api.env \
   && chmod 0640 /etc/meu-patrimonio/agent-api.env
+[ -f /etc/meu-patrimonio/coletor.env ] && chown root:patrimonio /etc/meu-patrimonio/coletor.env \
+  && chmod 0640 /etc/meu-patrimonio/coletor.env
 [ -f /etc/meu-patrimonio/mentor-token ] && chown root:mentor /etc/meu-patrimonio/mentor-token \
   && chmod 0640 /etc/meu-patrimonio/mentor-token
 

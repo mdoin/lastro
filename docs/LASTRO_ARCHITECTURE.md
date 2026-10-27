@@ -36,7 +36,11 @@ O binário do Claude usado é o embutido no SDK, também em `/opt` (o `mentor` n
 | Arquivo | Papel |
 |---|---|
 | `backend/app/web.py` | rotas de `docs/WEB_API.md`, cabeçalhos de segurança, CSRF (`X-Lastro` + Origin), SPA |
-| `backend/app/turns.py` | turnos do chat/painel em segundo plano (sobrevivem ao fechamento da aba) |
+| `backend/app/orchestrator.py` | equipe: fila persistente, roteamento, delegação, Conselho, auditoria (ver `MULTIAGENT.md`) |
+| `backend/team/` | registro de agentes, roteamento/@menções, auditor determinístico (sem rede, sem banco) |
+| `backend/financial_engine/calculator.py` | calculadora única dos agentes (ferramenta `calcular`) |
+| `backend/integrations/` | catálogo e coletor de séries oficiais (serviço `lastro-coletor`) |
+| `backend/app/turns.py` | turnos legados do chat/painel (rotinas) em segundo plano |
 | `backend/app/routines.py` | agenda (fuso IANA), idempotência, perdidas (`skip`/`run_once`), sobreposição, `quiet` |
 | `backend/app/auth.py` | scrypt, sessões só como hash, bloqueio por cliente (IP; IPv6 por /64) + atraso global limitado |
 | `backend/app/views.py` | diagnóstico/projeção/metas compartilhados entre web e API de leitura |

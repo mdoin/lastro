@@ -22,3 +22,10 @@
 | 2026-10-27 | Navegador: guarda busca cada requisição com `max_redirects=0`; Chrome com proxy morto, resolvedor travado e sem WebRTC | Só `context.route` | Auditoria: redirecionamentos e WebSockets passavam ao largo da guarda |
 | 2026-10-27 | Capacidades por papel: navegador livre só na `pesquisa` (sem dados do dono); chat com hosts exatos e sem query; rotinas sem navegador | Todos os papéis com tudo | Pista da auditoria: dado do dono poderia sair numa URL após injeção indireta |
 | 2026-10-27 | `max_turns` por papel + prazo por tentativa (600 s chat, 420 s efêmero) | Sem limite | Pista da auditoria: loop de ferramentas segurava vagas e suprimia rotinas |
+| 2026-10-27 | Equipe = registro versionado + sessões descartáveis por passo, orquestradas no web app | Um processo vivo por agente; sessão longa do Claude por conversa | Contexto montado pelo Lastro isola memória por conversa, sobrevive a reinício e é auditável |
+| 2026-10-27 | Fila persistente em SQLite (`runs`, `run_steps`) no próprio web app | Fila externa (Redis/Celery) | Uma pessoa, poucas execuções; sem dependência nova; idempotência por UNIQUE |
+| 2026-10-27 | Delegação só via ferramenta "registrada" + limites no orquestrador | Agentes chamando agentes direto | Rastreável, sem acesso às capacidades de outro agente, ciclo/profundidade/total em código |
+| 2026-10-27 | Auditor determinístico em toda mensagem; semântico (modelo) só no Conselho (`LASTRO_SEMANTIC_AUDIT`) | Modelo auditando tudo | Custo; texto de modelo não prova correção, só endurece o veredito |
+| 2026-10-27 | Economista sem dados do dono (é quem lê a web) | Todos com tudo | Mesmo princípio de capacidades por papel: injeção em página nunca convive com o patrimônio |
+| 2026-10-27 | Coletor de séries em serviço próprio (BCB/SGS; FRED com chave); só número e data entram | Agentes buscando dados na web | Web app sem rede; agentes sem internet irrestrita; texto de terceiros fora do prompt |
+| 2026-10-27 | Compactação de contexto determinística (autor, data, início) | Resumo gerado por modelo | Verificável e sem custo; trocar se conversas longas perderem fatos (comentário `shortcut:`) |

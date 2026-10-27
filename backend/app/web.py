@@ -8,6 +8,7 @@ import asyncio
 import decimal
 import json
 import os
+import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import datetime as dt
@@ -17,12 +18,18 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from financial_engine import ENGINE_VERSION
 from financial_engine.budget import Guidance
 
+from integrations import catalog
+from team.agents import AGENTS, SPECIALISTS, chat_agents
+
 from . import auth, db, routines, store, views
+from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
 from .turns import ConversationBusy, TurnManager
 
@@ -41,6 +48,7 @@ class Settings:
     static_dir: Path | None = None
     cookie_secure: bool = True
     run_scheduler: bool = True
+    run_orchestrator: bool = True
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -121,6 +129,33 @@ class PanelIn(BaseModel):
     conversation_id: str | None = None
 
 
+class TeamConversationIn(BaseModel):
+    channel: Literal["direct", "group", "council"]
+    agent_id: str | None = Field(None, max_length=40)
+    title: str | None = Field(None, max_length=120)
+    participants: list[str] = Field(default_factory=list, max_length=10)
+
+
+class TeamMessageIn(BaseModel):
+    text: str = Field(min_length=1, max_length=20000)
+    client_id: str | None = Field(None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    reply_to_id: str | None = Field(None, max_length=64)
+
+
+class TitleIn(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+
+
+class ParticipantIn(BaseModel):
+    agent_id: str = Field(max_length=40)
+
+
+class FactIn(BaseModel):
+    key: str = Field(max_length=40)
+    value: str = Field(min_length=1, max_length=500)
+    note: str = Field("", max_length=500)
+
+
 class RoutineIn(BaseModel):
     name: str = Field(max_length=120)
     instruction: str = Field(max_length=4000)
@@ -151,17 +186,21 @@ def create_app(settings: Settings) -> FastAPI:
     mentor = MentorClient(settings.mentor_socket)
     turns = TurnManager(conn, mentor)
     scheduler = routines.Scheduler(conn, turns.routine_executor)
+    orchestrator = Orchestrator(conn, mentor.stream, today=today)
 
     @asynccontextmanager
     async def lifespan(_app):
-        task = asyncio.create_task(scheduler.run_forever()) if settings.run_scheduler else None
+        tasks = [asyncio.create_task(scheduler.run_forever())] if settings.run_scheduler else []
+        if settings.run_orchestrator:
+            tasks.append(asyncio.create_task(orchestrator.run_forever()))
         yield
-        if task:
+        for task in tasks:
             task.cancel()
 
     app = FastAPI(title="Lastro", version=APP_VERSION, docs_url=None, redoc_url=None, openapi_url=None,
                   lifespan=lifespan)
     app.state.conn, app.state.turns, app.state.scheduler = conn, turns, scheduler
+    app.state.orchestrator = orchestrator
 
     @app.middleware("http")
     async def security(request: Request, call_next):
@@ -309,8 +348,8 @@ def create_app(settings: Settings) -> FastAPI:
     @app.post("/api/conversations/{conv_id}/messages", dependencies=private)
     async def messages_send(conv_id: str, body: MessageIn):
         conv = _conversation(conv_id)
-        if conv["kind"] != "chat":
-            raise HTTPException(status_code=409, detail="Esta conversa não aceita mensagens.")
+        if conv["kind"] != "chat" or conv["channel"] != "direct" or conv["agent_id"] != "mentor":
+            raise HTTPException(status_code=409, detail="Esta conversa não aceita mensagens por esta rota.")
         try:
             turn = turns.start_chat(conv_id, body.text)
         except ConversationBusy as exc:
@@ -331,6 +370,162 @@ def create_app(settings: Settings) -> FastAPI:
         except ConversationBusy as exc:
             raise HTTPException(status_code=409, detail="Aguarde a resposta anterior terminar.") from exc
         return sse(turn.subscribe())
+
+    # --- equipe: Mentor, especialistas, grupos e Conselho ---
+    # shortcut: um login (o dono); tudo da equipe já filtra por user_id, então contas adicionais só exigem login por usuário.
+    async def current_user(request: Request) -> str:
+        await require_session(request)
+        return store.OWNER
+
+    def log_access(user: str, action: str, resource: str, outcome: str = "ok") -> None:
+        conn.execute("INSERT INTO audit_log (id, actor, action, resource, timestamp, outcome) VALUES (?,?,?,?,?,?)",
+                     (store.new_id(), user, action, resource[:200], db.utcnow(), outcome))
+
+    def owned(conv_id: str, user: str) -> dict:
+        try:
+            uuid.UUID(conv_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Conversa inexistente.") from None
+        conv = store.user_conversation(conn, conv_id, user)
+        if not conv:  # de outra pessoa ou inexistente: mesma resposta (sem enumeração)
+            raise HTTPException(status_code=404, detail="Conversa inexistente.")
+        return conv
+
+    def chat_agent(agent_id: str) -> str:
+        if agent_id not in AGENTS or not AGENTS[agent_id].chat_enabled:
+            raise HTTPException(status_code=422, detail="Agente desconhecido.")
+        return agent_id
+
+    @app.get("/api/agents", dependencies=private)
+    async def agents_list():
+        return [a.public() for a in chat_agents()]
+
+    @app.get("/api/team/conversations")
+    async def team_conversations(user: str = Depends(current_user)):
+        return store.list_user_conversations(conn, user)
+
+    @app.post("/api/team/conversations", status_code=201)
+    async def team_conversation_create(body: TeamConversationIn, user: str = Depends(current_user)):
+        if body.channel == "direct":
+            agent = chat_agent(body.agent_id or "mentor")
+            conv = store.create_conversation(conn, body.title or f"Conversa com {AGENTS[agent].name}",
+                                             channel="direct", agent_id=agent, user_id=user)
+        else:
+            members = ["mentor"] if body.channel == "group" else ["mentor", *SPECIALISTS]
+            members += [chat_agent(a) for a in body.participants if a not in members]
+            if body.channel == "group" and len(members) < 2:
+                raise HTTPException(status_code=422, detail="Escolha pelo menos um especialista para o grupo.")
+            default = "Novo grupo" if body.channel == "group" else "Conselho do Lastro"
+            conv = store.create_conversation(conn, body.title or default, kind="panel" if body.channel == "council"
+                                             else "chat", channel=body.channel, user_id=user)
+            for agent in sorted(set(members), key=members.index):
+                store.add_participant(conn, conv["id"], agent)
+        log_access(user, "conversation.create", conv["id"])
+        return store.user_conversation(conn, conv["id"], user)
+
+    @app.get("/api/team/conversations/{conv_id}")
+    async def team_conversation_get(conv_id: str, user: str = Depends(current_user)):
+        return owned(conv_id, user)
+
+    @app.put("/api/team/conversations/{conv_id}")
+    async def team_conversation_rename(conv_id: str, body: TitleIn, user: str = Depends(current_user)):
+        owned(conv_id, user)
+        store.rename_conversation(conn, conv_id, body.title)
+        return owned(conv_id, user)
+
+    @app.delete("/api/team/conversations/{conv_id}", status_code=204)
+    async def team_conversation_delete(conv_id: str, user: str = Depends(current_user)):
+        owned(conv_id, user)
+        if any(r["status"] in ("queued", "running") for r in store.list_runs(conn, conv_id, limit=5)):
+            raise HTTPException(status_code=409, detail="Há uma execução em andamento; cancele antes de apagar.")
+        store.delete_conversation(conn, conv_id)
+        log_access(user, "conversation.delete", conv_id)
+
+    @app.post("/api/team/conversations/{conv_id}/participants")
+    async def team_participant_add(conv_id: str, body: ParticipantIn, user: str = Depends(current_user)):
+        conv = owned(conv_id, user)
+        if conv["channel"] != "group":
+            raise HTTPException(status_code=409, detail="Só grupos aceitam novos participantes.")
+        store.add_participant(conn, conv_id, chat_agent(body.agent_id))
+        return owned(conv_id, user)
+
+    @app.delete("/api/team/conversations/{conv_id}/participants/{agent_id}")
+    async def team_participant_remove(conv_id: str, agent_id: str, user: str = Depends(current_user)):
+        conv = owned(conv_id, user)
+        if conv["channel"] != "group" or agent_id == "mentor":
+            raise HTTPException(status_code=409, detail="O Mentor coordena o grupo e não pode sair.")
+        if not store.remove_participant(conn, conv_id, agent_id):
+            raise HTTPException(status_code=404, detail="Esse agente não participa do grupo.")
+        return owned(conv_id, user)
+
+    @app.get("/api/team/conversations/{conv_id}/messages")
+    async def team_messages(conv_id: str, user: str = Depends(current_user)):
+        owned(conv_id, user)
+        return store.list_messages(conn, conv_id)
+
+    @app.post("/api/team/conversations/{conv_id}/messages", status_code=202)
+    async def team_message_send(conv_id: str, body: TeamMessageIn, user: str = Depends(current_user)):
+        conv = owned(conv_id, user)
+        if conv["channel"] == "routine":
+            raise HTTPException(status_code=409, detail="Conversas de rotina são só leitura.")
+        return orchestrator.submit(conv, body.text, client_id=body.client_id, reply_to_id=body.reply_to_id)
+
+    @app.get("/api/team/conversations/{conv_id}/runs")
+    async def team_runs(conv_id: str, user: str = Depends(current_user)):
+        owned(conv_id, user)
+        return store.list_runs(conn, conv_id)
+
+    @app.post("/api/team/runs/{run_id}/cancel")
+    async def team_run_cancel(run_id: str, user: str = Depends(current_user)):
+        run = store.get_run(conn, run_id)
+        if not run or run["user_id"] != user:
+            raise HTTPException(status_code=404, detail="Execução inexistente.")
+        if run["status"] not in ("queued", "running"):
+            return run
+        log_access(user, "run.cancel", run_id)
+        return await orchestrator.cancel(run)
+
+    @app.get("/api/team/conversations/{conv_id}/stream")
+    async def team_stream(conv_id: str, request: Request, user: str = Depends(current_user)):
+        owned(conv_id, user)
+        queue = orchestrator.bus.subscribe(conv_id)
+
+        async def events():
+            try:
+                yield orchestrator.snapshot(conv_id)
+                while not await request.is_disconnected():
+                    try:
+                        yield await asyncio.wait_for(queue.get(), timeout=15)
+                    except TimeoutError:
+                        yield {"type": "ping"}
+            finally:
+                orchestrator.bus.unsubscribe(conv_id, queue)
+        return sse(events())
+
+    @app.get("/api/team/memory")
+    async def team_memory(user: str = Depends(current_user)):
+        return {"facts": store.list_facts(conn, user), "notes": store.list_notes(conn, user),
+                "market": catalog.latest(conn, today()), "not_connected": list(catalog.NOT_CONNECTED)}
+
+    @app.post("/api/team/facts", status_code=201)
+    async def team_fact_add(body: FactIn, user: str = Depends(current_user)):
+        fact = bad_request(store.add_fact, conn, user, body.key, body.value, source="pessoa", status="confirmed",
+                           as_of=today().isoformat(), note=body.note)
+        log_access(user, "fact.add", fact["id"])
+        return fact
+
+    @app.post("/api/team/facts/{fact_id}/{decision}")
+    async def team_fact_decide(fact_id: str, decision: Literal["confirm", "reject"], user: str = Depends(current_user)):
+        fact = store.decide_fact(conn, user, fact_id, decision == "confirm", today().isoformat())
+        if not fact:
+            raise HTTPException(status_code=404, detail="Proposta inexistente ou já decidida.")
+        log_access(user, f"fact.{decision}", fact_id)
+        return fact
+
+    @app.delete("/api/team/notes/{note_id}", status_code=204)
+    async def team_note_delete(note_id: str, user: str = Depends(current_user)):
+        if not store.delete_note(conn, user, note_id):
+            raise HTTPException(status_code=404, detail="Nota inexistente.")
 
     # --- rotinas ---
     @app.get("/api/routines", dependencies=private)

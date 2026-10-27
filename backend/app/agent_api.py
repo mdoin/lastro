@@ -25,6 +25,8 @@ from financial_engine import ENGINE_VERSION
 from financial_engine.budget import Debt, FinancialSnapshot, monthly_guidance, reserve_status
 from financial_engine.projection import Assumptions, Plan, compare_scenarios
 
+from integrations import catalog
+
 from . import db, store, views
 
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
@@ -199,6 +201,30 @@ def _add_owner_routes(app: FastAPI, auth: list, db_path: Path) -> None:
     @app.get("/v1/me/decisions", dependencies=auth)
     def my_decisions():
         return read(lambda conn: {"data_kind": "owner", "decisions": store.list_decisions(conn)[:20]})
+
+    @app.get("/v1/me/facts", dependencies=auth)
+    def my_facts():
+        def build(conn):
+            facts = [{k: f[k] for k in ("key", "value", "source", "as_of", "created_at")}
+                     for f in store.list_facts(conn, store.OWNER, "confirmed")]
+            snap = store.latest_snapshot(conn)
+            return {"data_kind": "owner", "confirmed_facts": facts,
+                    "note": "Só fatos confirmados pela pessoa. Propostas de agentes não aparecem aqui.",
+                    "latest_snapshot": {"as_of": snap["as_of"], "source": "retrato financeiro registrado pela pessoa"}
+                    if snap else None}
+        return read(build)
+
+    @app.get("/v1/market", dependencies=auth)
+    def market(series_id: str | None = Query(None, max_length=40)):
+        def build(conn):
+            data = {"series": catalog.latest(conn, today()), "not_connected": list(catalog.NOT_CONNECTED),
+                    "note": "Valores históricos coletados de fontes oficiais; não são cotações em tempo real."}
+            if series_id:
+                if series_id not in catalog.SERIES:
+                    raise ValueError("série desconhecida")
+                data["history"] = catalog.history(conn, series_id)
+            return data
+        return read(build)
 
 
 def serve(host: str = "127.0.0.1", port: int = 8765):

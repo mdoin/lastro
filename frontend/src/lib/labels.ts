@@ -1,9 +1,7 @@
 import type {
-  AuditVerdict,
   GoalStatus,
   GuidanceStage,
   Liquidity,
-  PanelRole,
   RunStatus,
   Schedule,
   ScheduleKind,
@@ -50,20 +48,6 @@ export const RUN_STATUS: Record<RunStatus, { label: string; tone: Tone }> = {
   missed: { label: "Perdida", tone: "warning" },
 };
 
-export const AUDIT_VERDICT: Record<AuditVerdict, { label: string; tone: Tone; help: string }> = {
-  PASSA: { label: "PASSA", tone: "good", help: "O Auditor não encontrou problemas na resposta." },
-  REVISAR: { label: "REVISAR", tone: "warning", help: "O Auditor recomenda revisar pontos antes de agir." },
-  BLOQUEAR: { label: "BLOQUEAR", tone: "critical", help: "O Auditor bloqueou a resposta. Não aja com base nela." },
-};
-
-export const PANEL_ROLE_LABEL: Record<PanelRole, string> = {
-  diagnostico: "Diagnóstico",
-  simulacao: "Simulação",
-  riscos: "Riscos",
-  educacao: "Educação",
-  pesquisa: "Pesquisa",
-};
-
 export const WEEKDAYS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"];
 
 export const SCHEDULE_KIND_LABEL: Record<ScheduleKind, string> = {
@@ -86,30 +70,4 @@ export function describeSchedule(s: Schedule): string {
     default:
       return s.time;
   }
-}
-
-/** Nome técnico da ferramenta → frase curta para o chip ("Consultou diagnóstico"). */
-const TOOL_LABEL: Record<string, string> = {
-  diagnostico: "Consultou diagnóstico",
-  diagnosis: "Consultou diagnóstico",
-  projecao: "Simulou projeção",
-  projection: "Simulou projeção",
-  listar_personas: "Consultou perfis de exemplo",
-  snapshot: "Consultou retrato financeiro",
-  metas: "Consultou metas",
-  goals: "Consultou metas",
-  premissas: "Consultou premissas",
-  assumptions: "Consultou premissas",
-  decisoes: "Consultou diário de decisões",
-  WebSearch: "Pesquisou na web",
-  WebFetch: "Leu uma página da web",
-};
-
-export function toolLabel(name: string): string {
-  if (name.startsWith("painel:")) {
-    const role = name.slice("painel:".length) as PanelRole;
-    return `Especialista: ${PANEL_ROLE_LABEL[role] ?? role}`;
-  }
-  const short = name.includes("__") ? (name.split("__").pop() ?? name) : name;
-  return TOOL_LABEL[short] ?? `Usou ferramenta: ${short.replace(/_/g, " ")}`;
 }

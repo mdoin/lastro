@@ -12,7 +12,7 @@ import { OverviewPage } from "./pages/Overview";
 const FinancesPage = lazy(() => import("./pages/Finances").then((m) => ({ default: m.FinancesPage })));
 const FuturePage = lazy(() => import("./pages/Future").then((m) => ({ default: m.FuturePage })));
 const GoalsPage = lazy(() => import("./pages/Goals").then((m) => ({ default: m.GoalsPage })));
-const MentorPage = lazy(() => import("./pages/Mentor").then((m) => ({ default: m.MentorPage })));
+const TeamPage = lazy(() => import("./pages/Team").then((m) => ({ default: m.TeamPage })));
 const RoutinesPage = lazy(() => import("./pages/Routines").then((m) => ({ default: m.RoutinesPage })));
 const DecisionsPage = lazy(() => import("./pages/Decisions").then((m) => ({ default: m.DecisionsPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
@@ -82,7 +82,7 @@ export function App() {
       "/vida-financeira": "Minha vida financeira",
       "/futuro": "Meu futuro",
       "/metas": "Metas",
-      "/mentor": "Mentor",
+      "/mentor": "Mentor e especialistas",
       "/rotinas": "Rotinas",
       "/diario": "Diário de decisões",
       "/configuracoes": "Configurações",
@@ -101,8 +101,8 @@ export function App() {
         <Route path="vida-financeira" element={page(<FinancesPage />)} />
         <Route path="futuro" element={page(<FuturePage />)} />
         <Route path="metas" element={page(<GoalsPage />)} />
-        <Route path="mentor" element={page(<MentorPage />)} />
-        <Route path="mentor/:conversationId" element={page(<MentorPage />)} />
+        <Route path="mentor" element={page(<TeamPage />)} />
+        <Route path="mentor/:conversationId" element={page(<TeamPage />)} />
         <Route path="rotinas" element={page(<RoutinesPage />)} />
         <Route path="diario" element={page(<DecisionsPage />)} />
         <Route path="configuracoes" element={page(<SettingsPage />)} />

@@ -1,0 +1,1 @@
+Contexto: grupo com vários agentes e a pessoa, como num aplicativo de mensagens. Escreva só a SUA mensagem (sem falar por outros agentes), curta e direta, podendo concordar ou discordar de mensagens anteriores citando quem disse. Se você é o Mentor e a pergunta é de um especialista presente, peça com `solicitar_especialista` e escreva só uma frase de encaminhamento.

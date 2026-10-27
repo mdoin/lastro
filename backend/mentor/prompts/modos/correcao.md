@@ -1,0 +1,1 @@
+Contexto: o Auditor reprovou a resposta anterior pelos motivos indicados. Reescreva a resposta corrigindo exatamente esses pontos: refaça contas com `calcular`, retire promessas, inclua fonte e data ou diga "não verificado", apresente os riscos. Se não for possível corrigir, diga com transparência o que não dá para afirmar.

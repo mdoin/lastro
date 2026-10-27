@@ -7,12 +7,15 @@ O processo do mentor roda como o usuário de sistema `mentor`, sem acesso ao ban
 
 import json
 import os
-from dataclasses import dataclass
+
 from urllib.parse import urlsplit
 
 import httpx
 from claude_agent_sdk import create_sdk_mcp_server, tool
 from mcp.types import ToolAnnotations
+
+from financial_engine.calculator import OPERATIONS, CalculationError, calculate
+from team.agents import AGENTS, Capabilities
 
 SERVER_NAME = "patrimonio"
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
@@ -109,36 +112,132 @@ async def sem_novidade(args: dict) -> dict:
     return {"content": [{"type": "text", "text": "Registrado: sem novidade."}]}
 
 
+def _text(data) -> dict:
+    return {"content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False)}]}
+
+
+CALC_OPERATIONS_HELP = {
+    "juros_simples": "principal, rate, periods",
+    "juros_compostos": "principal, rate, periods",
+    "valor_futuro": "initial?, contribution?, rate, periods, timing? (fim|inicio)",
+    "valor_presente": "future_value?, payment?, rate, periods",
+    "inflacao_acumulada": "rates (lista por período), amount?",
+    "taxa_real": "nominal, inflation",
+    "converter_taxa": "rate, from (anual|mensal)",
+    "amortizacao": "principal, monthly_rate, months, system (price|sac)",
+    "aporte_para_meta": "target, initial?, monthly_rate, months",
+    "meses_para_meta": "target, initial?, contribution, monthly_rate",
+    "projecao_hipotetica": "initial?, contribution, months, annual_return, annual_inflation?, annual_fee?, "
+                           "contribution_annual_increase?",
+    "comparar_rendimentos": "amount, months, annual_inflation?, alternatives [{name, annual_rate, annual_fee?, tax_rate?}]",
+    "metricas_risco": "returns (lista de retornos por período), periods_per_year?",
+    "correlacao": "series_a, series_b",
+    "concentracao": "positions [{name, value}]",
+    "cenario_estresse": "positions [{name, value, shock}] (shock -0.3 = queda de 30%)",
+}
+
+
+@tool("calcular",
+      "Motor financeiro determinístico (Decimal). TODA conta com dinheiro, taxa ou prazo passa por aqui; nunca calcule "
+      "de cabeça. Valores como texto com ponto decimal ('1000.00'); taxas em fração ('0.01' = 1% no período). "
+      "Operações e parâmetros: " + "; ".join(f"{k}({v})" for k, v in CALC_OPERATIONS_HELP.items()) +
+      ". O resultado diz se é cálculo ou projeção hipotética; cite a natureza e o fingerprint.",
+      {"type": "object", "properties": {"operacao": {"type": "string", "enum": sorted(OPERATIONS)},
+                                        "parametros": {"type": "object"}},
+       "required": ["operacao", "parametros"], "additionalProperties": False},
+      annotations=READ_ONLY)
+async def calcular(args: dict) -> dict:
+    try:
+        return _text(calculate(str(args.get("operacao")), args.get("parametros") or {}))
+    except CalculationError as exc:
+        return {"content": [{"type": "text", "text": f"Entrada inválida: {exc}"}], "is_error": True}
+
+
+@tool("dados_mercado",
+      "Séries oficiais já coletadas (Selic meta, CDI, IPCA mensal e 12 meses, dólar PTAX, Fed Funds, Treasury 10 anos) "
+      "com fonte, data de referência, hora da coleta, unidade e validade (valido/desatualizado/indisponivel). Não são "
+      "cotações em tempo real. Passe series_id para ver o histórico recente.",
+      {"type": "object", "properties": {"series_id": {"type": "string"}}, "additionalProperties": False},
+      annotations=READ_ONLY)
+async def dados_mercado(args: dict) -> dict:
+    return await _get("/v1/market", {"series_id": args["series_id"]} if args.get("series_id") else None)
+
+
+@tool("memoria_financeira",
+      "Fatos financeiros CONFIRMADOS pela pessoa (objetivos, horizonte, perfil de risco, preferências), com fonte e data. "
+      "Inferências suas não são fatos: para registrar algo novo use propor_fato.",
+      {}, annotations=READ_ONLY)
+async def memoria_financeira(_args: dict) -> dict:
+    return await _get("/v1/me/facts")
+
+
+@tool("solicitar_especialista",
+      "Pede a análise de outro especialista. O orquestrador do Lastro decide (limites de profundidade, ciclos e "
+      "duplicatas) e devolve o parecer num próximo passo. Use só quando a pergunta exigir a especialidade do outro.",
+      {"type": "object", "properties": {
+          "especialista": {"type": "string", "enum": sorted(a for a in AGENTS if AGENTS[a].kind == "specialist")},
+          "pergunta": {"type": "string", "maxLength": 1500}, "motivo": {"type": "string", "maxLength": 300}},
+       "required": ["especialista", "pergunta"], "additionalProperties": False},
+      annotations=READ_ONLY)
+async def solicitar_especialista(_args: dict) -> dict:
+    return _text("Pedido registrado. Termine sua resposta com o que você já sabe; o parecer chegará num próximo passo.")
+
+
+@tool("anotar_memoria",
+      "Guarda uma nota curta para você lembrar em conversas futuras (ex.: 'a pessoa está revisando a reserva'). Vale só "
+      "neste contexto (sua conversa individual ou este grupo). Não guarde valores como fatos confirmados.",
+      {"type": "object", "properties": {"nota": {"type": "string", "maxLength": 300}}, "required": ["nota"],
+       "additionalProperties": False},
+      annotations=READ_ONLY)
+async def anotar_memoria(_args: dict) -> dict:
+    return _text("Nota registrada.")
+
+
+@tool("propor_fato",
+      "Propõe um fato para a memória financeira (chave em snake_case, ex.: horizonte_meses, perfil_risco, "
+      "objetivo_principal). Fica PENDENTE até a pessoa confirmar; só proponha o que ela disse explicitamente.",
+      {"type": "object", "properties": {"chave": {"type": "string", "maxLength": 40},
+                                        "valor": {"type": "string", "maxLength": 300},
+                                        "justificativa": {"type": "string", "maxLength": 300}},
+       "required": ["chave", "valor", "justificativa"], "additionalProperties": False},
+      annotations=READ_ONLY)
+async def propor_fato(_args: dict) -> dict:
+    return _text("Proposta registrada; a pessoa confirma ou descarta.")
+
+
 DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes]
 TOOLS = DATA_TOOLS + [sem_novidade]
+TEAM_TOOLS = {"facts": [memoria_financeira], "market": [dados_mercado], "calc": [calcular],
+              "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato]}
+# Ferramentas que não fazem nada no worker: o orquestrador lê o pedido (entrada) e decide o que fazer com ele.
+RECORDED_TOOLS = {"solicitar_especialista", "anotar_memoria", "propor_fato"}
 BROWSER_TOOL_NAME = "ler_pagina_oficial"
 QUIET_TOOL = f"mcp__{SERVER_NAME}__sem_novidade"
-TOOL_NAMES = [f"mcp__{SERVER_NAME}__{t.name}" for t in TOOLS] + [f"mcp__{SERVER_NAME}__{BROWSER_TOOL_NAME}"]
-
-
-@dataclass(frozen=True)
-class Capabilities:
-    """O que cada papel enxerga. Navegador e dados do dono só convivem no chat, com o navegador restrito."""
-    data: bool = True                 # ferramentas /v1/me/* (dados do dono)
-    browser: str | None = None        # None | "owner" (hosts exatos, sem query) | "research" (allowlist inteira)
-    quiet: bool = False               # sem_novidade (só rotinas)
-
+ALL_TOOLS = TOOLS + [t for group in TEAM_TOOLS.values() for t in group]
+TOOL_NAMES = [f"mcp__{SERVER_NAME}__{t.name}" for t in ALL_TOOLS] + [f"mcp__{SERVER_NAME}__{BROWSER_TOOL_NAME}"]
 
 ROLE_CAPABILITIES = {
     "coordenador": Capabilities(browser="owner"),
     "pesquisa": Capabilities(data=False, browser="research"),
     "rotina": Capabilities(quiet=True),
-    **{role: Capabilities() for role in ("diagnostico", "simulacao", "riscos", "educacao", "sintese", "auditor")},
+    **{role: Capabilities() for role in ("diagnostico", "simulacao", "educacao", "sintese")},
+    **{agent_id: spec.caps for agent_id, spec in AGENTS.items()},
 }
+
+
+def _team_tools(caps: Capabilities) -> list:
+    return [t for group, tools in TEAM_TOOLS.items() if getattr(caps, group) for t in tools]
 
 
 def tool_names(caps: Capabilities, browser=None) -> set[str]:
     names = {t.name for t in DATA_TOOLS} if caps.data else set()
+    names |= {t.name for t in _team_tools(caps)}
     if caps.quiet:
         names.add(sem_novidade.name)
     if caps.browser and browser is not None:
         names.add(BROWSER_TOOL_NAME)
     return {f"mcp__{SERVER_NAME}__{n}" for n in names}
+
 
 
 def browser_tool(browser, frame_sink=None, *, owner_context: bool = False):
@@ -171,7 +270,7 @@ def browser_tool(browser, frame_sink=None, *, owner_context: bool = False):
 
 def build_server(browser=None, frame_sink=None, caps: Capabilities | None = None):
     caps = caps or Capabilities(browser="owner", quiet=True)
-    tools = list(DATA_TOOLS) if caps.data else []
+    tools = (list(DATA_TOOLS) if caps.data else []) + _team_tools(caps)
     if caps.quiet:
         tools.append(sem_novidade)
     if caps.browser and browser is not None:

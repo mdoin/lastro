@@ -14,6 +14,7 @@ MIGRATIONS = (
     (2, APP_DIR / "migrations" / "002_lastro_app.sql"),
     (3, APP_DIR / "migrations" / "003_message_audit.sql"),
     (4, APP_DIR / "migrations" / "004_login_attempt_client.sql"),
+    (5, APP_DIR / "migrations" / "005_team.sql"),
 )
 LATEST_VERSION = MIGRATIONS[-1][0]
 

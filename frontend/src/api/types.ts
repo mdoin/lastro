@@ -316,3 +316,154 @@ export interface AppStatus {
     stale: boolean;
   };
 }
+
+// ---------- Equipe: Mentor, especialistas, grupos e Conselho ----------
+
+export type AgentId = "mentor" | "planejador" | "analista" | "economista" | "riscos" | "comportamental";
+export type Channel = "direct" | "group" | "council" | "routine";
+export type TeamVerdict = "PASSA" | "PASSA COM RESSALVAS" | "REPROVA";
+
+export interface Agent {
+  id: AgentId;
+  name: string;
+  handle: string;
+  title: string;
+  kind: "coordinator" | "specialist";
+  icon: string;
+  color: string;
+  summary: string;
+  examples: string[];
+  tools: string[];
+  version: string;
+}
+
+export interface TeamConversation {
+  id: UUID;
+  kind: string;
+  channel: Channel;
+  agent_id: AgentId | null;
+  title: string;
+  participants: AgentId[];
+  created_at: ISODateTime;
+  updated_at: ISODateTime;
+  last_message?: string;
+  last_agent_id?: string | null;
+}
+
+export interface Source {
+  kind: "dados" | "memoria" | "motor" | "pagina" | "mercado" | "especialista";
+  label: string;
+  url?: string;
+  source?: string;
+  reference_date?: string;
+  fetched_at?: string;
+  validity?: "valido" | "desatualizado" | "indisponivel";
+}
+
+export interface TeamAudit {
+  verdict: TeamVerdict | AuditVerdict;
+  reasons: string[];
+  checked_numbers?: number;
+}
+
+export interface TeamMessage {
+  id: UUID;
+  role: "user" | "assistant";
+  content: string;
+  status: MessageStatus;
+  tools: ToolUse[];
+  audit: TeamAudit | null;
+  created_at: ISODateTime;
+  agent_id: string | null;
+  run_id: UUID | null;
+  step_key: string | null;
+  client_id: string | null;
+  reply_to_id: UUID | null;
+  mentions: string[];
+  sources: Source[];
+  kind: "message" | "analysis" | "notice";
+}
+
+export type RunState = "queued" | "running" | "succeeded" | "partial" | "failed" | "cancelled";
+export type StepState = "running" | "succeeded" | "failed" | "cancelled" | "rejected" | "retrying";
+
+export interface RunStep {
+  step_key: string;
+  agent_id: string;
+  kind: string;
+  parent_key: string | null;
+  depth: number;
+  status: StepState;
+  output?: string;
+  error: string | null;
+  attempts?: number;
+}
+
+export interface TeamRun {
+  id: UUID;
+  conversation_id: UUID;
+  message_id: UUID;
+  kind: "reply" | "council";
+  status: RunState;
+  route: { agents?: string[]; via_router?: boolean; reason?: string };
+  error: string | null;
+  created_at: ISODateTime;
+  steps?: RunStep[];
+}
+
+export interface SubmitResult {
+  message: TeamMessage;
+  run: TeamRun | null;
+  notices: TeamMessage[];
+}
+
+export interface Fact {
+  id: UUID;
+  key: string;
+  value: string;
+  status: "confirmed" | "proposed" | "rejected" | "superseded";
+  source: string;
+  note: string;
+  as_of: string;
+  created_at: ISODateTime;
+}
+
+export interface AgentNote {
+  id: UUID;
+  agent_id: string;
+  scope: "private" | "conversation";
+  conversation_id: UUID | null;
+  content: string;
+  created_at: ISODateTime;
+}
+
+export interface MarketSeries {
+  series_id: string;
+  label: string;
+  source: string;
+  unit: string;
+  value: string | null;
+  reference_date: string | null;
+  fetched_at: string | null;
+  validity: "valido" | "desatualizado" | "indisponivel";
+  url: string;
+}
+
+export interface TeamMemory {
+  facts: Fact[];
+  notes: AgentNote[];
+  market: MarketSeries[];
+  not_connected: string[];
+}
+
+/** Eventos ao vivo do GET /api/team/conversations/{id}/stream. */
+export type TeamEvent =
+  | { type: "snapshot"; runs: TeamRun[]; partials: Record<string, Record<string, { agent_id: string; text: string }>> }
+  | { type: "message"; message: TeamMessage }
+  | { type: "run"; run: TeamRun }
+  | { type: "step"; run_id: UUID; step_key: string; agent_id: string; status: StepState; kind?: string; parent_key?: string | null; error?: string }
+  | { type: "delta"; run_id: UUID; step_key: string; agent_id: string; text: string }
+  | { type: "tool"; run_id: UUID; step_key: string; agent_id: string; name: string }
+  | { type: "wait"; run_id: UUID; step_key: string; agent_id: string; kind: "queued" | "waiting_limit"; message?: string }
+  | { type: "fact_proposed"; run_id: UUID; agent_id: string; key: string }
+  | { type: "ping" };

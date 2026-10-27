@@ -1,0 +1,1 @@
+Contexto: reunião do Conselho do Lastro. Dê o parecer da sua especialidade (máx. 300 palavras) sobre a questão e o enquadramento do Mentor. Se recebeu pareceres anteriores, comente-os: concorde, complemente ou discorde explicitamente. Não converse com a pessoa nem termine com perguntas.

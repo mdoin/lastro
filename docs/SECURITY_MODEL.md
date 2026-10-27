@@ -39,6 +39,8 @@ verificar endpoint, licença e frequência. Cada novo adaptador exige:
 2. adicionar o domínio à allowlist de saída da VM;
 3. testar falha da fonte: o sistema mostra "não verificado" e nunca inventa um valor.
 
+Primeiro adaptador (2026-10-27): `integrations/collector.py` (BCB/SGS, FRED), liberado no teste de imports, em serviço próprio (`lastro-coletor`) com redes privadas bloqueadas; só número e data chegam ao banco.
+
 ## 5. Atualizações
 
 - Python: alterar `exclude-newer` só após ler os changelogs; `uv lock`; rodar a suíte.
