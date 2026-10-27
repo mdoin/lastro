@@ -1,6 +1,6 @@
 # Instalação (Linux + Docker Compose)
 
-Testado em Ubuntu 24.04 e Debian 12. Requisitos: Docker Engine 24+ com o plugin Compose v2, 2 GB de RAM (4 GB com
+Feito para Ubuntu 24.04 e Debian 12 (o CI roda em Ubuntu 24.04). Requisitos: Docker Engine 24+ com o plugin Compose v2, 2 GB de RAM (4 GB com
 Claude Code ou Codex), 5 GB de disco.
 
 ## 1. Preparar
