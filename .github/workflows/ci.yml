@@ -67,7 +67,7 @@ jobs:
           docker compose --profile https config --quiet
       - name: Constrói a imagem (sem executáveis opcionais)
         run: docker compose build web
-      - name: Instalação limpa: sobe, espera ficar saudável e confere a API
+      - name: "Instalação limpa — sobe, espera ficar saudável e confere a API"
         run: |
           docker compose up -d web mentor agent-api collector
           for i in $(seq 1 30); do

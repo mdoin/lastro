@@ -106,3 +106,8 @@ def test_current_systemd_installation_keeps_working():
     assert "LASTRO_PROVIDERS_FILE=/var/lib/mentor/providers.json" in unit
     deploy = (ROOT / "scripts" / "deploy.sh").read_text(encoding="utf-8")
     assert "--extra claude-code --extra browser" in deploy
+
+
+def test_ci_workflow_is_valid_yaml_with_all_jobs():
+    workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+    assert set(workflow["jobs"]) == {"dco", "backend", "frontend", "install", "secrets", "dependencies"}
