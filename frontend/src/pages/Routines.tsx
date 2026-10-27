@@ -490,7 +490,7 @@ function RoutineForm({
             <input type="checkbox" checked={v.use_panel} onChange={(e) => setV({ ...v, use_panel: e.target.checked })} />
             <span>
               Usar o painel de especialistas
-              <span className="help muted tiny" style={{ display: "block" }}>Análise mais completa, com Auditor; consome mais da assinatura.</span>
+              <span className="help muted tiny" style={{ display: "block" }}>Análise mais completa, com Auditor; consome mais do seu provedor de IA.</span>
             </span>
           </label>
           <label className="check">

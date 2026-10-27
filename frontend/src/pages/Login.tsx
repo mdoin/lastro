@@ -21,6 +21,7 @@ export function LoginPage() {
     getAuthState()
       .then((s) => {
         if (s.authenticated) navigate(next, { replace: true });
+        else if (s.setup_required) navigate("/instalar", { replace: true });
         else setState(s);
       })
       .catch((e) => setStateError(e instanceof ApiError ? e.detail : "Servidor indisponível."));
@@ -58,31 +59,6 @@ export function LoginPage() {
 
         {stateError && <Notice tone="error">{stateError}</Notice>}
         {!state && !stateError && <Loading />}
-
-        {state?.setup_required && (
-          <section className="panel" aria-labelledby="setup-title">
-            <div className="panel-head">
-              <div>
-                <div className="eyebrow">Primeiro acesso</div>
-                <h2 id="setup-title">Defina a senha no servidor</h2>
-              </div>
-            </div>
-            <div className="panel-body stack">
-              <p className="small">
-                Ainda não há senha configurada. Por segurança, ela é definida apenas no servidor, nunca pela web. Num
-                terminal do servidor, rode:
-              </p>
-              <pre className="card sunken mono" style={{ margin: 0, padding: "12px 14px", overflowX: "auto" }}>
-                sudo lastro-admin set-password
-              </pre>
-              <p className="small muted">Depois, recarregue esta página.</p>
-              <button type="button" className="btn btn-secondary" onClick={() => window.location.reload()}>
-                <Icon name="refresh" />
-                Recarregar
-              </button>
-            </div>
-          </section>
-        )}
 
         {state && !state.setup_required && (
           <form className="panel" onSubmit={submit} noValidate aria-labelledby="login-title">

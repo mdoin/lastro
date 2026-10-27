@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { EXPORT_URL, getStatus, logout } from "../api/endpoints";
 import { Icon } from "../components/Icon";
+import { AgentModels, ProviderManager } from "../components/Providers";
 import { ThemeSwitch } from "../components/ThemeSwitch";
 import { Badge, Card, ErrorNotice, Loading, PageHeader } from "../components/ui";
 import { useApp } from "../lib/appContext";
@@ -66,30 +67,25 @@ export function SettingsPage() {
             <dl className="kv small">
               <dt>Disponível</dt>
               <dd>{s.mentor.available ? <Badge tone="good">Sim</Badge> : <Badge tone="critical">Não</Badge>}</dd>
-              <dt>Conectado à assinatura</dt>
-              <dd>
-                {s.mentor.logged_in === null ? (
-                  <span className="muted">desconhecido</span>
-                ) : s.mentor.logged_in ? (
-                  <Badge tone="good">Sim</Badge>
-                ) : (
-                  <Badge tone="warning">Não</Badge>
-                )}
-              </dd>
-              <dt>Assinatura</dt>
-              <dd>{s.mentor.subscription ?? "—"}</dd>
+              <dt>Provedor padrão</dt>
+              <dd>{s.mentor.connection ? s.mentor.connection.label : <Badge tone="warning">nenhum</Badge>}</dd>
+              {s.mentor.connection?.type === "claude_code" && (
+                <>
+                  <dt>Login do Claude Code</dt>
+                  <dd>
+                    {s.mentor.logged_in === null ? <span className="muted">desconhecido</span>
+                      : s.mentor.logged_in ? <Badge tone="good">{s.mentor.subscription ?? "Sim"}</Badge>
+                      : <Badge tone="warning">Não</Badge>}
+                  </dd>
+                </>
+              )}
               <dt>Turnos em andamento</dt>
               <dd>{s.mentor.busy}</dd>
               <dt>Na fila</dt>
               <dd>{s.mentor.queued}</dd>
-              <dt>Limite da assinatura</dt>
+              <dt>Limite do provedor</dt>
               <dd>{s.mentor.limit_until ? `até ${formatDateTime(s.mentor.limit_until)}` : "livre"}</dd>
             </dl>
-            {s.mentor.logged_in === false && (
-              <p className="tiny muted" style={{ marginTop: 12 }}>
-                A conexão com a assinatura é feita no servidor pelo administrador, nunca pela web.
-              </p>
-            )}
           </Card>
 
           <Card title="Seus dados" eyebrow="Atualização">
@@ -123,6 +119,15 @@ export function SettingsPage() {
         </div>
       )}
 
+      <Card title="Contas de IA" eyebrow="Provedores"
+        footer={<span>Chaves e logins ficam só no servidor. Provedores externos recebem o contexto de cada pergunta.</span>}>
+        <ProviderManager />
+      </Card>
+
+      <Card title="Modelo de cada agente" eyebrow="Equipe">
+        <AgentModels />
+      </Card>
+
       <Card title="Tema" eyebrow="Aparência"
         footer={<span>A escolha vale para este navegador. Automático segue o tema claro ou escuro do aparelho.</span>}>
         <ThemeSwitch />
@@ -154,7 +159,8 @@ export function SettingsPage() {
           </>
         }>
         <p className="small">
-          A senha é definida apenas no servidor (<code className="tag">sudo lastro-admin set-password</code>). A sessão usa
+          A senha do Lastro é independente das contas de IA. Para trocá-la, use o servidor
+          (<code className="tag">lastro-admin set-password</code>). A sessão usa
           um cookie protegido, que o navegador não expõe a scripts.
         </p>
       </Card>

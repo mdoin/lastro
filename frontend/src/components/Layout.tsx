@@ -37,7 +37,8 @@ function mentorState(status: AppStatus | null): { tone: string; label: string; d
   if (!m) return { tone: "", label: "Mentor", detail: "Verificando…" };
   if (!m.available) return { tone: "critical", label: "Mentor indisponível", detail: "O serviço não respondeu." };
   if (m.limit_until)
-    return { tone: "warning", label: "Mentor em pausa", detail: `Limite da assinatura até ${formatTime(m.limit_until)}.` };
+    return { tone: "warning", label: "Mentor em pausa", detail: `Limite do provedor de IA até ${formatTime(m.limit_until)}.` };
+  if (m.ai_configured === false) return { tone: "warning", label: "Mentor sem IA", detail: "Conecte um provedor em Configurações." };
   if (m.logged_in === false) return { tone: "warning", label: "Mentor desconectado", detail: "Veja Configurações." };
   if (m.busy > 0)
     return { tone: "running", label: "Mentor trabalhando", detail: m.queued ? `${m.busy} em andamento · ${m.queued} na fila` : `${m.busy} em andamento` };

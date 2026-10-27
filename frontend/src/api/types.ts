@@ -12,6 +12,88 @@ export type UUID = string;
 export interface AuthState {
   authenticated: boolean;
   setup_required: boolean;
+  onboarding_done: boolean;
+}
+
+export interface SetupState {
+  onboarding_done: boolean;
+  timezone: string;
+  currency: string;
+  locale: string;
+  app_version: string;
+}
+
+// --- Provedores de IA (conexões ficam no worker; segredos nunca chegam aqui) --------
+export interface ProviderCapabilities {
+  streaming: boolean;
+  tools: boolean;
+  cancel: boolean;
+  native_resume: boolean;
+  usage: boolean;
+  model_listing: boolean;
+  api_key: boolean;
+  oauth: boolean;
+  revocation: boolean;
+  external_login: boolean;
+  experimental: boolean;
+  notes: string;
+}
+
+export interface ProviderType {
+  type: string;
+  label: string;
+  capabilities: ProviderCapabilities;
+  settings: Record<string, string>;
+  installed: boolean;
+  default_base_url: string | null;
+}
+
+export interface ProviderConnection {
+  id: string;
+  type: string;
+  label: string;
+  settings: Record<string, string>;
+  has_secret: boolean;
+  secret_hint: string | null;
+  configured: boolean;
+  capabilities: ProviderCapabilities;
+  default: boolean;
+}
+
+export interface AgentModelChoice {
+  connection: string;
+  model: string;
+  updated_at?: string;
+}
+
+export interface ProvidersOverview {
+  types: ProviderType[];
+  connections: ProviderConnection[];
+  default: string | null;
+  agent_models: Record<string, AgentModelChoice>;
+  agents: { id: string; name: string; title: string }[];
+}
+
+export interface ProviderResult {
+  ok?: boolean;
+  detail?: string;
+  kind?: string;
+  // login: "paste" (Claude Code: link + código colado) ou "device_code" (Codex: código para digitar na OpenAI)
+  state?: "starting" | "waiting_code" | "verifying" | "done" | "failed" | "cancelled" | "idle";
+  url?: string | null;
+  code?: string;
+  login_id?: string;
+  error?: string | null;
+  models?: { id: string; label: string }[];
+}
+
+export interface ProviderInput {
+  type: string;
+  label?: string;
+  settings?: Record<string, string>;
+  api_key?: string;
+  id?: string;
+  make_default?: boolean;
 }
 
 // --- Snapshots ----------------------------------------------------------------
@@ -423,6 +505,8 @@ export interface AppStatus {
     available: boolean;
     logged_in: boolean | null;
     subscription: string | null;
+    ai_configured: boolean | null;
+    connection: { id: string; type: string; label: string } | null;
     busy: number;
     queued: number;
     limit_until: ISODateTime | null;

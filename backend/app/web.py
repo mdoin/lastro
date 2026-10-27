@@ -34,7 +34,7 @@ from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
 from .turns import ConversationBusy, TurnManager
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.3.0"
 USER_TZ = ZoneInfo(os.environ.get("LASTRO_TZ") or "America/Sao_Paulo")  # fuso da instalação
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "

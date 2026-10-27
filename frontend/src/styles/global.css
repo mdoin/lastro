@@ -709,6 +709,12 @@ pre {
   min-width: 0;
 }
 
+.stack-sm {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 @media (min-width: 960px) {
   .stack-lg {
     gap: 26px;
@@ -4421,6 +4427,33 @@ details[open] > summary {
   width: min(100%, 420px);
   display: grid;
   gap: 22px;
+}
+
+/* Assistente inicial: mesmo fundo do login, cartão mais largo e passos numerados. */
+.login-card.setup-card {
+  width: min(100%, 720px);
+}
+
+.setup-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-steps li {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.setup-steps li[aria-current="step"] {
+  color: var(--ink);
+  border-color: var(--ink);
 }
 
 .login-brand {

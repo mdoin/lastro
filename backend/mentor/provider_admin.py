@@ -97,7 +97,8 @@ class ProviderAdmin:
         if self.claude_login:
             await self.claude_login.cancel()
         self.claude_login = CodeLogin([str(cli), "auth", "login", "--claudeai"], _cli_env())
-        return {"ok": True, "kind": "paste", **await self.claude_login.start()}
+        started = await self.claude_login.start()
+        return {"ok": started["state"] == "waiting_code", "kind": "paste", **started}
 
     async def _login_submit(self, req) -> dict:
         if self.claude_login is None:

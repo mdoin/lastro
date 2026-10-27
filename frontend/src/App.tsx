@@ -18,6 +18,7 @@ const DecisionsPage = lazy(() => import("./pages/Decisions").then((m) => ({ defa
 const RadarPage = lazy(() => import("./pages/Radar").then((m) => ({ default: m.RadarPage })));
 const OpportunitiesPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunitiesPage })));
 const OpportunityPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunityPage })));
+const SetupPage = lazy(() => import("./pages/Setup").then((m) => ({ default: m.SetupPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 
 // Galeria dos mascotes: só no `npm run dev` (import.meta.env.DEV vira false no build e o módulo some do pacote).
@@ -30,12 +31,13 @@ const page = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>
 /** Rotas autenticadas: verifica a sessão uma vez e manda para o login se necessário. */
 function RequireAuth() {
   const location = useLocation();
-  const [state, setState] = useState<"checking" | "ok" | "login" | "offline">("checking");
+  const [state, setState] = useState<"checking" | "ok" | "login" | "setup" | "offline">("checking");
 
   useEffect(() => {
     let alive = true;
     getAuthState()
-      .then((s) => alive && setState(s.authenticated ? "ok" : "login"))
+      .then((s) => alive && setState(!s.authenticated ? (s.setup_required ? "setup" : "login")
+        : s.onboarding_done ? "ok" : "setup"))
       .catch(() => alive && setState("offline"));
     return () => {
       alive = false;
@@ -49,6 +51,7 @@ function RequireAuth() {
       </div>
     );
   }
+  if (state === "setup") return <Navigate to="/instalar" replace />;
   if (state === "login") {
     const next = location.pathname + location.search;
     return <Navigate to={`/login${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`} replace />;
@@ -97,6 +100,7 @@ export function App() {
       "/diario": "Diário de decisões",
       "/configuracoes": "Configurações",
       "/login": "Entrar",
+      "/instalar": "Configuração inicial",
     };
     const base = "/" + (location.pathname.split("/")[1] ?? "");
     const t = titles[base];
@@ -106,6 +110,7 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/instalar" element={page(<SetupPage />)} />
       {MascotGallery && <Route path="/dev/mascotes" element={page(<MascotGallery />)} />}
       <Route element={<RequireAuth />}>
         <Route index element={<OverviewPage />} />

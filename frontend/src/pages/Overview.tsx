@@ -447,9 +447,11 @@ function AttentionCard({
   const unread = inbox.filter((r) => !r.read && r.status !== "failed").length;
   if (unread) items.push({ text: `${unread} resultado(s) de rotina não lido(s).`, to: "/rotinas", tone: "neutral" });
   if (status?.mentor.limit_until)
-    items.push({ text: `Mentor em pausa pelo limite da assinatura até ${formatDateTime(status.mentor.limit_until)}.`, tone: "warning" });
-  if (status && status.mentor.available && status.mentor.logged_in === false)
-    items.push({ text: "Mentor desconectado da assinatura no servidor.", to: "/configuracoes", tone: "warning" });
+    items.push({ text: `Mentor em pausa pelo limite do provedor de IA até ${formatDateTime(status.mentor.limit_until)}.`, tone: "warning" });
+  if (status && status.mentor.available && status.mentor.ai_configured === false)
+    items.push({ text: "Nenhum provedor de IA conectado: o Mentor e os especialistas estão parados.", to: "/configuracoes", tone: "warning" });
+  else if (status && status.mentor.available && status.mentor.logged_in === false)
+    items.push({ text: "O Claude Code do servidor está sem login.", to: "/configuracoes", tone: "warning" });
 
   return (
     <Card title="O que precisa de atenção" eyebrow="Pendências" aside={<Tag>{items.length}</Tag>}>

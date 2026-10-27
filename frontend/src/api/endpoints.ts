@@ -11,6 +11,12 @@ import type {
   AppStatus,
   AssumptionsResponse,
   AuthState,
+  AgentModelChoice,
+  ProviderConnection,
+  ProviderInput,
+  ProviderResult,
+  ProvidersOverview,
+  SetupState,
   DecisionDraft,
   DiaryDecision,
   DiaryOverview,
@@ -37,6 +43,27 @@ export const getAuthState = () => api.get<AuthState>("/api/auth/state", { noAuth
 export const login = (password: string) =>
   api.post<void>("/api/auth/login", { password }, { noAuthRedirect: true });
 export const logout = () => api.post<void>("/api/auth/logout", undefined, { noAuthRedirect: true });
+
+// Assistente inicial
+export const setupPassword = (token: string, password: string) =>
+  api.post<void>("/api/setup/password", { token, password }, { noAuthRedirect: true });
+export const getSetupState = () => api.get<SetupState>("/api/setup/state");
+export const completeSetup = () => api.post<void>("/api/setup/complete");
+
+// Provedores de IA e modelo por agente
+export type ProviderAction = "test" | "models" | "account" | "default" | "revoke" | "login_start" | "login_status"
+  | "login_cancel";
+export const getProviders = () => api.get<ProvidersOverview>("/api/providers");
+export const saveProvider = (body: ProviderInput) => api.post<ProviderConnection>("/api/providers", body);
+export const deleteProvider = (id: string) => api.del<void>(`/api/providers/${enc(id)}`);
+export const providerAction = (id: string, action: ProviderAction, loginId?: string) =>
+  api.post<ProviderResult>(`/api/providers/${enc(id)}/${action}`, loginId ? { login_id: loginId } : undefined);
+export const submitLoginCode = (id: string, code: string) =>
+  api.post<ProviderResult>(`/api/providers/${enc(id)}/login_submit`, { code });
+export const codexApiKey = (id: string, apiKey: string) =>
+  api.post<ProviderResult>(`/api/providers/${enc(id)}/codex_api_key`, { api_key: apiKey });
+export const putAgentModels = (models: Record<string, AgentModelChoice>) =>
+  api.put<Record<string, AgentModelChoice>>("/api/agents/models", { models });
 
 // Snapshots
 export const getLatestSnapshot = () => api.get<Snapshot | null>("/api/snapshot/latest");
