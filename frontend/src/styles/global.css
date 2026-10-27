@@ -36,6 +36,8 @@
   --gold-soft: rgba(179, 131, 40, 0.12);
   --gold-grad: linear-gradient(180deg, #e7c677 0%, #c9993a 55%, #a8791f 100%);
   --mark-front: #121211;
+  --chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9.5 6 6 6-6' fill='none' stroke='%2363635d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 14.5 6-6 6 6' fill='none' stroke='%2363635d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --focus: #9a6f1c;
 
   /* Ações */
@@ -117,6 +119,8 @@
     --gold-lo: #b4852a;
     --gold-soft: rgba(215, 176, 90, 0.13);
     --mark-front: #f3efe6;
+    --chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9.5 6 6 6-6' fill='none' stroke='%2394938b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    --chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 14.5 6-6 6 6' fill='none' stroke='%2394938b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --focus: #e2be6e;
     --primary-bg: #f2f1ec;
     --primary-fg: #0b0b0a;
@@ -174,6 +178,8 @@
   --gold-lo: #b4852a;
   --gold-soft: rgba(215, 176, 90, 0.13);
   --mark-front: #f3efe6;
+  --chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9.5 6 6 6-6' fill='none' stroke='%2394938b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 14.5 6-6 6 6' fill='none' stroke='%2394938b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --focus: #e2be6e;
   --primary-bg: #f2f1ec;
   --primary-fg: #0b0b0a;
@@ -1523,10 +1529,47 @@ pre {
 
 /* ================================================================ Formulários */
 
+/* Campos lado a lado alinhados: rótulo, controle e ajuda de cada campo ocupam as mesmas três faixas da
+   linha (subgrid). Um rótulo que quebra em duas linhas aumenta a faixa de rótulos da linha inteira, e os
+   controles continuam na mesma altura. 7 px entre as faixas + 11 px no fim de cada campo = 18 px entre linhas. */
 .form-grid {
   display: grid;
-  gap: 18px 20px;
+  column-gap: 20px;
+  row-gap: 7px;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  /* compensa o respiro do último campo (o espaço depois do formulário fica igual ao de antes) */
+  margin-bottom: -11px;
+}
+
+.form-grid > .field {
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  row-gap: 7px;
+  padding-bottom: 11px;
+}
+
+.form-grid > .field > label,
+.form-grid > .field > .field-label {
+  align-self: end;
+}
+
+/* Ações dentro do grid (ex.: Filtrar/Limpar) ocupam as mesmas faixas e se alinham aos controles. */
+.form-grid > .row {
+  grid-row: span 3;
+  align-self: end;
+  padding-bottom: 11px;
+}
+
+/* Quando o próprio cartão é o grid, o desconto vai no recuo interno (a margem negativa puxaria o que vem depois). */
+.card.form-grid {
+  margin-bottom: 0;
+  padding-bottom: 9px;
+}
+
+@media (min-width: 720px) {
+  .card.form-grid {
+    padding-bottom: 13px;
+  }
 }
 
 .field {
@@ -1875,6 +1918,11 @@ input[type="time"] {
   font-variant-numeric: tabular-nums;
 }
 
+input[type="time"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
 input[type="time"]::-webkit-datetime-edit-hour-field:focus,
 input[type="time"]::-webkit-datetime-edit-minute-field:focus {
   background: var(--gold-soft);
@@ -2115,35 +2163,30 @@ input[type="time"]::-webkit-datetime-edit-minute-field:focus {
     appearance: base-select;
   }
 
+  /* O texto escolhido fica numa linha só (a caixa mantém a altura dos outros campos) e é cortado no fim do
+     conteúdo: a seta mora no recuo da direita, como imagem de fundo, e nunca é empurrada para fora. */
   .select {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding-right: 12px;
-    background-image: none;
+    padding-right: 40px;
     cursor: pointer;
+    white-space: nowrap;
+    overflow: clip;
+    overflow-clip-margin: content-box;
+    background-image: var(--chevron-down);
+    background-position: right 13px center;
+    background-size: 15px 15px;
+    background-repeat: no-repeat;
   }
 
   .select::picker-icon {
-    content: "";
-    width: 15px;
-    height: 15px;
-    background: var(--muted);
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9.5 6 6 6-6' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-      center / contain no-repeat;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m6 9.5 6 6 6-6' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
-      center / contain no-repeat;
-    transition: rotate 0.2s var(--ease);
+    display: none;
   }
 
   .select:open {
     border-color: var(--focus);
     box-shadow: 0 0 0 4px var(--gold-soft);
-  }
-
-  .select:open::picker-icon {
-    rotate: 180deg;
+    background-image: var(--chevron-up);
   }
 
   .select::picker(select) {
