@@ -692,3 +692,19 @@ def test_semiannual_coupon_periods_are_not_evaluated_by_v1():
     assert outcomes._coupon_between("2033-01-01", "2026-06-01", "2026-08-01")      # pré com juros: jan e jul
     assert outcomes.ir_rate(180) == Decimal("0.225") and outcomes.ir_rate(721) == Decimal("0.15")
     assert outcomes.iof_rate(1) == Decimal("0.96") and outcomes.iof_rate(30) == 0
+
+
+def test_stale_data_signal_tracks_whether_the_source_came_back(conn):
+    observations.ensure_series(conn, "cdi", source="bcb_sgs", label="CDI", unit="% a.a.", frequency="diaria",
+                               category="macro", max_age_days=10, now=stamp(T0, 0))
+    observations.record(conn, "cdi", "2025-12-01", "14.90", fetched_at=stamp(date(2025, 12, 1)))
+    only(conn, "sistema-dados")
+    radar_at(conn, T0).tick(force=True)
+    radar_at(conn, T0 + timedelta(1)).tick(force=True)  # mesma última observação: não repete
+    [opp] = opportunities(conn)
+    assert opp["classification"] == 1 and not alerts.list_for(conn, store.OWNER)  # informativo: sem alerta
+    observations.record(conn, "cdi", "2026-01-08", "14.90", fetched_at=stamp(date(2026, 1, 8)))
+    radar_at(conn, date(2026, 1, 20)).tick()
+    [r] = outcomes.list_for(conn, opp["id"])
+    assert r["status"] == "calculado" and r["verdict"] == "sem_hipotese"
+    assert r["result"]["voltou_a_publicar"] is False  # horizonte de 7 dias: dado de 01/12 → até 08/12, nada

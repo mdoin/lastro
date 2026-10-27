@@ -264,6 +264,12 @@ def method_macro(conn, detection: dict, horizon: int, today: date):
     d1 = _due(t0, horizon)
     slack = 45 if detection["serie"]["frequency"] == "mensal" else HORIZON_SLACK_DAYS
     end = _first_from(history(conn, sid, since=d1), d1, slack=slack)
+    if detection["sinal"].get("valor_observado") is None:
+        # Sinal de dado desatualizado: o que se acompanha é se a fonte voltou a publicar.
+        back = next(iter(history(conn, sid, since=(date.fromisoformat(t0) + timedelta(1)).isoformat(), until=d1)), None)
+        return "calculado", "sem_hipotese", {
+            "metodo": "serie_macro", "versao_metodo": METHOD_VERSION, "data_inicial": t0, "data_final": d1,
+            "voltou_a_publicar": back is not None, "primeiro_dado_depois": back.reference_date if back else None}
     if end is None:
         return _wait_or_fail(d1, today, "série ainda sem dado para o horizonte", slack)
     v0 = to_decimal(detection["sinal"]["valor_observado"])
