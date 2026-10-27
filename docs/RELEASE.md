@@ -4,10 +4,10 @@ Publicar o repositório ou uma imagem é decisão da autora. Este checklist prec
 
 ## Bloqueadores (resolver antes de tornar público)
 - [x] Licença escolhida e aplicada: AGPL-3.0-or-later, DCO, política de marca ([LICENSING.md](LICENSING.md)).
-- [ ] `LASTRO_SOURCE_URL` padrão (`backend/app/web.py`) aponta para o repositório público definitivo.
-- [ ] Decisão sobre o histórico Git ([OPEN_SOURCE_AUDIT.md](OPEN_SOURCE_AUDIT.md) §8): o histórico contém o e-mail
-      pessoal da autora em um commit e o domínio/IP da instância pessoal. Recomendado: publicar um repositório novo a
-      partir de um commit limpo, mantendo o histórico atual privado.
+- [x] `LASTRO_SOURCE_URL` padrão (`backend/app/web.py`) aponta para o repositório definitivo (`mdoin/lastro`).
+- [x] Decisão sobre o histórico Git (2026-10-27): publicar o próprio `mdoin/lastro` com o histórico como está. A autora
+      aceitou que o e-mail pessoal de um commit e o domínio/IP da instância pessoal fiquem visíveis no histórico.
+      Consequência: tratar esse domínio/IP como públicos (endurecimento do servidor já documentado no RUNBOOK).
 - [ ] Gitleaks sem achados no histórico que será publicado (job `secrets` do CI).
 - [ ] Nenhuma credencial exposta: se algo aparecer, revogar/rotacionar **antes** de publicar.
 

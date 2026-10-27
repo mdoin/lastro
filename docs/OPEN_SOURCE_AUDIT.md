@@ -113,10 +113,9 @@ Licença: **AGPL-3.0-or-later** (decidida em 2026-10-27), com DCO e política de
 mesma do deploy. O CI criado roda em Linux.
 
 ## 8. Decisões que dependem de você
-1. **Histórico**: o e-mail pessoal (commit `9560e1c`), o domínio e o IP do servidor ficam no histórico.
-   Opções: (a) publicar como está; (b) publicar um repositório novo a partir de um único commit limpo
-   (não destrói o histórico privado); (c) reescrever o histórico (destrutivo, exige sua autorização).
-   Recomendo (b).
+1. ~~Histórico~~: decidido em 2026-10-27 — o repositório publicado é o próprio `mdoin/lastro`, com o
+   histórico como está; a autora aceitou a exposição do e-mail pessoal (um commit) e do domínio/IP da
+   instância pessoal. Nenhuma reescrita.
 2. ~~Licença~~: decidida, AGPL-3.0-or-later (ver `LICENSING.md`).
 3. **Uso da assinatura do Claude na instância pessoal** (§4).
 4. **Sign in with ChatGPT** (token sharing): a página de pedido de client id diz que o recurso é oferecido a parceiros
