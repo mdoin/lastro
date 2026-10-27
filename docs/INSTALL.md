@@ -6,7 +6,7 @@ Claude Code ou Codex), 5 GB de disco.
 ## 1. Preparar
 
 ```bash
-git clone <URL-do-repositório> lastro && cd lastro
+git clone https://github.com/mdoin/lastro.git && cd lastro
 sh scripts/init-env.sh
 ```
 

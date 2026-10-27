@@ -18,7 +18,7 @@ uma equipe de agentes (Mentor, especialistas, Conselho e Auditor) que roda no mo
 ## Instalação rápida (Linux + Docker)
 
 ```bash
-git clone <URL-do-repositório> lastro && cd lastro
+git clone https://github.com/mdoin/lastro.git && cd lastro
 sh scripts/init-env.sh            # cria .env com segredos aleatórios
 docker compose build
 docker compose up -d
