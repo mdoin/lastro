@@ -485,8 +485,11 @@ def test_unauthorized_tools_are_blocked():
             options = mentor_options(role=role, workdir=Path("."))
             assert isinstance(asyncio.run(options.can_use_tool(native, {}, None)), PermissionResultDeny)
             assert options.tools == []
+    from providers.claude_code import sdk_tool
+
     for t in ALL_TOOLS:
-        assert t.annotations.read_only_hint is True and t.annotations.destructive_hint is False
+        annotations = sdk_tool(t).annotations
+        assert annotations.read_only_hint is True and annotations.destructive_hint is False
 
 
 def test_orchestrator_ignores_side_effect_tools_from_agents_without_capability(conn):

@@ -319,7 +319,7 @@ def test_endless_chat_turn_hits_deadline_and_drops_client(tmp_path, monkeypatch)
     worker = MentorWorker(tmp_path, client_factory=lambda options: EndlessClient(options, endless_tools))
     events = asyncio.run(collect(worker.turn, {"conversation_id": CONV, "text": "oi"}))
     assert events[-1]["kind"] == "timeout"
-    assert worker.conversations[CONV].client is None and worker.busy == 0
+    assert worker.conversations[CONV].session is None and worker.busy == 0
 
 
 def test_every_role_has_a_turn_cap(tmp_path):

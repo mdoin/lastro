@@ -84,8 +84,11 @@ def test_mentor_tools_are_read_only():
 
     assert {t.name for t in TOOLS} == {"situacao_atual", "diagnostico", "projecao", "metas", "premissas",
                                        "decisoes", "sem_novidade"}
+    from providers.claude_code import sdk_tool
+
     for t in TOOLS:
-        assert t.annotations.read_only_hint is True and t.annotations.destructive_hint is False
+        annotations = sdk_tool(t).annotations  # o que o Claude Code enxerga
+        assert annotations.read_only_hint is True and annotations.destructive_hint is False
         assert not FORBIDDEN_ACTIONS.search(t.name)
 
 
@@ -221,7 +224,11 @@ def test_browser_tool_name_is_gated_and_read_only():
 
     assert "mcp__patrimonio__ler_pagina_oficial" in TOOL_NAMES
     tool_obj = browser_tool(ResearchBrowser("/nao/existe"))
-    assert tool_obj.annotations.read_only_hint is True and tool_obj.annotations.destructive_hint is False
+    from providers.claude_code import sdk_tool
+
+    annotations = sdk_tool(tool_obj).annotations
+    assert annotations.read_only_hint is True and annotations.destructive_hint is False
+    assert tool_obj.open_world and annotations.open_world_hint is True
     blocked = asyncio.run(tool_obj.handler({"url": "https://attacker.example/"}))
     assert blocked["is_error"] and "Bloqueado" in blocked["content"][0]["text"]
 

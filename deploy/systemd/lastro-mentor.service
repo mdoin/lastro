@@ -1,4 +1,4 @@
-# Lastro — worker do mentor (Claude Code com a assinatura do dono, só ferramentas de leitura).
+# Lastro — worker do mentor (AI Provider Runtime; só ferramentas de leitura).
 [Unit]
 Description=Lastro - worker do mentor
 After=network-online.target patrimonio-agent-api.service
@@ -13,6 +13,10 @@ Environment=LASTRO_MENTOR_SOCKET=/run/lastro-mentor/mentor.sock
 Environment=LASTRO_SOCKET_GROUP=lastro-sock
 Environment=LASTRO_SOCKET_PEER_USER=patrimonio
 Environment=DISABLE_AUTOUPDATER=1
+# Sem conexões salvas, usa o Claude Code já logado no servidor (comportamento anterior à v0.3).
+Environment=LASTRO_IMPLICIT_CLAUDE_CODE=1
+# Conexões de IA desta instalação (arquivo 0600, só o worker lê).
+Environment=LASTRO_PROVIDERS_FILE=/var/lib/mentor/providers.json
 Environment=LASTRO_MENTOR_WORKDIR=/var/lib/mentor/work
 Environment=LASTRO_MENTOR_CONCURRENCY=3
 Environment=MPA_AGENT_API_URL=http://127.0.0.1:8765
@@ -27,7 +31,7 @@ RuntimeDirectoryMode=0755
 Restart=on-failure
 RestartSec=5
 
-# Precisa da internet (Anthropic), mas nunca de redes privadas: nem containers, nem o banco do prumo,
+# Precisa da internet (provedores de IA), mas nunca de redes privadas: nem containers, nem outros bancos,
 # nem o serviço de metadados da nuvem. Loopback liberado só para a API de leitura.
 IPAddressAllow=localhost
 IPAddressDeny=10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10 fc00::/7 fe80::/10
