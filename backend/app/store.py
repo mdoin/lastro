@@ -218,8 +218,8 @@ def create_conversation(conn: sqlite3.Connection, title: str, kind: str = "chat"
 
 
 def get_conversation(conn: sqlite3.Connection, conv_id: str) -> dict | None:
-    row = conn.execute("SELECT id, kind, title, claude_session_id, channel, agent_id, user_id, created_at, updated_at "
-                       "FROM conversations WHERE id = ?", (conv_id,)).fetchone()
+    row = conn.execute("SELECT id, kind, title, claude_session_id, session_connection, channel, agent_id, user_id, "
+                       "created_at, updated_at FROM conversations WHERE id = ?", (conv_id,)).fetchone()
     return dict(row) if row else None
 
 
@@ -232,8 +232,45 @@ def delete_conversation(conn: sqlite3.Connection, conv_id: str) -> bool:
     return conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,)).rowcount > 0
 
 
-def set_claude_session(conn: sqlite3.Connection, conv_id: str, session_id: str) -> None:
-    conn.execute("UPDATE conversations SET claude_session_id = ? WHERE id = ?", (session_id, conv_id))
+def set_provider_session(conn: sqlite3.Connection, conv_id: str, session_id: str, connection: str | None) -> None:
+    """Sessão nativa do provedor (cache descartável); o histórico de verdade são as mensagens desta conversa."""
+    conn.execute("UPDATE conversations SET claude_session_id = ?, session_connection = ? WHERE id = ?",
+                 (session_id, connection, conv_id))
+
+
+# ---------- provedor de IA por agente e configurações da instalação ----------
+
+def agent_models(conn: sqlite3.Connection) -> dict[str, dict]:
+    rows = conn.execute("SELECT agent_id, connection_id, model, updated_at FROM agent_models").fetchall()
+    return {r["agent_id"]: {"connection": r["connection_id"], "model": r["model"], "updated_at": r["updated_at"]}
+            for r in rows}
+
+
+def set_agent_model(conn: sqlite3.Connection, agent_id: str, connection_id: str | None, model: str = "") -> None:
+    if not connection_id:
+        conn.execute("DELETE FROM agent_models WHERE agent_id = ?", (agent_id,))
+        return
+    conn.execute("INSERT INTO agent_models (agent_id, connection_id, model, updated_at) VALUES (?,?,?,?) "
+                 "ON CONFLICT(agent_id) DO UPDATE SET connection_id = excluded.connection_id, model = excluded.model, "
+                 "updated_at = excluded.updated_at", (agent_id, connection_id, model or "", utcnow()))
+
+
+def ai_route(conn: sqlite3.Connection, agent_id: str) -> dict:
+    """Campos `connection`/`model` para a requisição ao worker. Vazio = conexão padrão da instalação."""
+    row = conn.execute("SELECT connection_id, model FROM agent_models WHERE agent_id = ?", (agent_id,)).fetchone()
+    if not row:
+        return {}
+    return {"connection": row["connection_id"], **({"model": row["model"]} if row["model"] else {})}
+
+
+def get_setting(conn: sqlite3.Connection, key: str, default: str | None = None) -> str | None:
+    row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
+    conn.execute("INSERT INTO app_settings (key, value, updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET "
+                 "value = excluded.value, updated_at = excluded.updated_at", (key, value, utcnow()))
 
 
 MESSAGE_COLUMNS = ("id, role, content, status, tools_json, audit_json, created_at, agent_id, run_id, step_key, client_id, "

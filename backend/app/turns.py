@@ -71,8 +71,9 @@ class TurnManager:
         turn = Turn(conv_id)
         self.active[conv_id] = turn
         request = {"op": "turn", "conversation_id": conv_id, "text": text,
-                   "session_id": conv.get("claude_session_id"),
-                   "history": [{"role": m["role"], "content": m["content"]} for m in history]}
+                   "session_id": conv.get("claude_session_id"), "session_connection": conv.get("session_connection"),
+                   "history": [{"role": m["role"], "content": m["content"]} for m in history],
+                   **store.ai_route(self.conn, "mentor")}
         self._spawn(self._run_chat(turn, request))
         return turn
 
@@ -87,7 +88,8 @@ class TurnManager:
                     tools.append({"name": event["name"], "input": event.get("input", {})})
                 if kind == "done":
                     if event.get("session_id"):
-                        store.set_claude_session(self.conn, turn.conversation_id, event["session_id"])
+                        store.set_provider_session(self.conn, turn.conversation_id, event["session_id"],
+                                                   event.get("connection"))
                     status = "interrupted" if event.get("status") == "interrupted" else "ok"
                     message = store.add_message(self.conn, turn.conversation_id, "assistant",
                                                 event.get("text") or text, status=status, tools=event.get("tools") or tools)
@@ -117,7 +119,7 @@ class TurnManager:
         store.add_message(self.conn, conv_id, "user", question)
         turn = Turn(conv_id)
         self.active[conv_id] = turn
-        self._spawn(self._run_panel(turn, {"op": "panel", "question": question}))
+        self._spawn(self._run_panel(turn, {"op": "panel", "question": question, **store.ai_route(self.conn, "mentor")}))
         return turn
 
     async def _run_panel(self, turn: Turn, request: dict) -> None:
@@ -157,6 +159,7 @@ class TurnManager:
             request = {"op": "panel", "question": routine["instruction"]}
         else:
             request = {"op": "ephemeral", "role": "rotina", "text": f"Rotina: {routine['name']}\n\n{routine['instruction']}"}
+        request.update(store.ai_route(self.conn, "mentor"))
         final = {}
         async for event in self.mentor.stream(request):
             final = event

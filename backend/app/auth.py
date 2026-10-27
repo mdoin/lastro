@@ -1,6 +1,7 @@
 """Autenticação do dono do app: senha (scrypt) + sessão por cookie.
 
-- A senha só é definida no servidor (`lastro-admin set-password`), nunca pela web.
+- A senha é definida no servidor (`lastro-admin set-password`) ou, na primeira vez, pela web com o token de
+  instalação lido no servidor (app/setup.py); depois disso, só no servidor.
 - O token de sessão é aleatório; o banco guarda apenas o sha256 dele.
 - Tentativas de login são limitadas por cliente (IP; IPv6 por /64): quem erra demais é bloqueado,
   mas um terceiro nunca consegue bloquear o dono. No total, falhas demais só deixam o login mais lento.
@@ -113,6 +114,12 @@ def attempt_login(conn: sqlite3.Connection, password: str, client: str) -> str |
                  (_hash_token(token), now.isoformat(timespec="seconds"),
                   (now + timedelta(days=SESSION_DAYS)).isoformat(timespec="seconds"), now.isoformat(timespec="seconds")))
     return token
+
+
+def record_failure(conn: sqlite3.Connection, client: str) -> None:
+    """Falha que conta para o mesmo limitador do login (ex.: token de instalação errado)."""
+    prune_attempts(conn)
+    conn.execute("INSERT INTO login_attempts (at, success, client) VALUES (?, 0, ?)", (utcnow(), client))
 
 
 def unlock(conn: sqlite3.Connection) -> int:

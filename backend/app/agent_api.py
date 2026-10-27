@@ -35,7 +35,7 @@ ALLOWED_METHODS = {"GET"}
 MIN_TOKEN_LENGTH = 32
 MAX_MONTHS = 12 * 80
 DECIMAL_PATTERN = r"^\d{1,12}(\.\d{1,8})?$"
-USER_TZ = ZoneInfo("America/Sao_Paulo")
+USER_TZ = ZoneInfo(os.environ.get("LASTRO_TZ") or "America/Sao_Paulo")  # fuso da instalação
 
 
 class DataNotAllowed(Exception):

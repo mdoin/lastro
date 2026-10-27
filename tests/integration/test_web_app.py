@@ -1,8 +1,10 @@
-"""Web app do Lastro de ponta a ponta, com um worker do mentor falso num socket Unix real."""
+"""Web app do Lastro de ponta a ponta, com um worker do mentor falso num socket Unix real (TCP de loopback
+onde não há socket Unix, como no Windows de desenvolvimento)."""
 import asyncio
 import json
 import threading
 import time
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -43,7 +45,9 @@ class FakeMentor:
         elif op == "ephemeral":
             events = [{"type": "done", "text": "Relatório do mês.", "quiet": False}]
         elif op == "status":
-            events = [{"type": "done", "busy": 0, "queued": 0, "limit_until": None, "logged_in": True, "subscription": "team"}]
+            events = [{"type": "done", "busy": 0, "queued": 0, "limit_until": None, "logged_in": True, "subscription": "team",
+                       "ai_configured": True, "default_connection": {"id": "claude-code", "type": "claude_code",
+                                                                     "label": "Claude Code"}}]
         else:
             events = [{"type": "done"}]
         for e in events:
@@ -53,7 +57,13 @@ class FakeMentor:
 
     def __enter__(self):
         self.thread.start()
-        asyncio.run_coroutine_threadsafe(asyncio.start_unix_server(self.handle, path=str(self.path)), self.loop).result()
+        if hasattr(asyncio, "start_unix_server"):
+            start = asyncio.start_unix_server(self.handle, path=str(self.path))
+        else:
+            start = asyncio.start_server(self.handle, "127.0.0.1", 0)
+        server = asyncio.run_coroutine_threadsafe(start, self.loop).result()
+        if not hasattr(asyncio, "start_unix_server"):
+            self.path = Path(f"tcp:127.0.0.1:{server.sockets[0].getsockname()[1]}")
         return self
 
     def __exit__(self, *exc):
@@ -63,7 +73,7 @@ class FakeMentor:
 @pytest.fixture
 def env(tmp_path):
     with FakeMentor(tmp_path / "mentor.sock") as mentor:
-        app = create_app(Settings(db_path=tmp_path / "lastro.db", mentor_socket=tmp_path / "mentor.sock",
+        app = create_app(Settings(db_path=tmp_path / "lastro.db", mentor_socket=mentor.path,
                                   cookie_secure=False, run_scheduler=False))
         with TestClient(app, base_url="http://lastro.test") as client:
             yield client, app, mentor
@@ -88,7 +98,8 @@ def sse_events(response):
 
 def test_auth_flow_and_protections(env):
     client, app, _ = env
-    assert client.get("/api/auth/state").json() == {"authenticated": False, "setup_required": True}
+    assert client.get("/api/auth/state").json() == {"authenticated": False, "setup_required": True,
+                                                    "onboarding_done": False}
     assert client.get("/api/snapshot/latest").status_code == 401
     auth.set_password(app.state.conn, PASSWORD)
     assert client.post("/api/auth/login", json={"password": "errada"}, headers=H).status_code == 401
@@ -251,7 +262,8 @@ def test_status(env):
     s = client.get("/api/status").json()
     assert "Não é ordem" in s["disclaimer"]
     assert s["mentor"] == {"available": True, "logged_in": True, "subscription": "team", "busy": 0, "queued": 0,
-                           "limit_until": None}
+                           "limit_until": None, "ai_configured": True,
+                           "connection": {"id": "claude-code", "type": "claude_code", "label": "Claude Code"}}
 
 
 # ---------- rotinas ----------

@@ -447,7 +447,8 @@ class Orchestrator:
         return None
 
     async def _call(self, ctx: RunContext, key: str, agent_id: str, mode: str | None, prompt: str) -> dict:
-        request = {"op": "ephemeral", "role": agent_id, "text": prompt, "effort": get(agent_id).effort}
+        request = {"op": "ephemeral", "role": agent_id, "text": prompt, "effort": get(agent_id).effort,
+                   **store.ai_route(self.conn, agent_id)}
         if mode:
             request["mode"] = mode
         partial = self.partials.setdefault(ctx.run["id"], {}).setdefault(key, {"agent_id": agent_id, "text": ""})

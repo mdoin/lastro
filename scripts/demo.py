@@ -23,6 +23,7 @@ INVESTING_STAGE = "investir_para_metas"
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")  # o texto tem ≠, ≈ e acentos; consoles Windows usam cp1252
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("persona", nargs="?", default="iniciante-150")
     parser.add_argument("aporte", nargs="?", help="aporte mensal da projeção; padrão: sobra mensal estimada")

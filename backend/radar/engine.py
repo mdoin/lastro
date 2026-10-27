@@ -21,7 +21,7 @@ from team.agents import get as get_agent
 from . import alerts, evaluator, journal, metrics, observations, outcomes, rules
 
 log = logging.getLogger("lastro.radar")
-USER_TZ = ZoneInfo("America/Sao_Paulo")
+USER_TZ = ZoneInfo(os.environ.get("LASTRO_TZ") or "America/Sao_Paulo")  # fuso da instalação
 ANALYSIS_TIMEOUT = timedelta(hours=3)
 HISTORY_DAYS = 400
 MACRO_CONTEXT = ("selic_meta", "cdi", "ipca_12m")

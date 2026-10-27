@@ -29,13 +29,13 @@ from team.agents import AGENTS, SPECIALISTS, chat_agents
 
 from radar.engine import Radar
 
-from . import auth, db, diary_web, radar_web, routines, store, views
+from . import auth, db, diary_web, providers_web, radar_web, routines, setup, store, views
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
 from .turns import ConversationBusy, TurnManager
 
 APP_VERSION = "0.2.0"
-USER_TZ = ZoneInfo("America/Sao_Paulo")
+USER_TZ = ZoneInfo(os.environ.get("LASTRO_TZ") or "America/Sao_Paulo")  # fuso da instalação
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
        "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; "
@@ -68,6 +68,11 @@ def today() -> date:
 # ---------- modelos de entrada ----------
 
 class LoginIn(BaseModel):
+    password: str = Field(max_length=512)
+
+
+class SetupPasswordIn(BaseModel):
+    token: str = Field(min_length=8, max_length=200)
     password: str = Field(max_length=512)
 
 
@@ -173,6 +178,7 @@ class RoutineIn(BaseModel):
 def create_app(settings: Settings) -> FastAPI:
     conn = db.connect(settings.db_path)
     db.migrate(conn)
+    setup_token = None if auth.password_is_set(conn) else setup.ensure_token(settings.db_path.parent)
     mentor = MentorClient(settings.mentor_socket)
     turns = TurnManager(conn, mentor)
     scheduler = routines.Scheduler(conn, turns.routine_executor)
@@ -231,7 +237,37 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/api/auth/state")
     async def auth_state(request: Request):
         return {"authenticated": auth.session_is_valid(conn, request.cookies.get(auth.SESSION_COOKIE)),
-                "setup_required": not auth.password_is_set(conn)}
+                "setup_required": not auth.password_is_set(conn),
+                "onboarding_done": store.get_setting(conn, "onboarding_done") == "1"}
+
+    @app.post("/api/setup/password", status_code=204)
+    async def setup_password(body: SetupPasswordIn, request: Request, response: Response):
+        """Primeira senha pela web, só com o token de instalação (lido no servidor) e só enquanto não há senha."""
+        if auth.password_is_set(conn):
+            raise HTTPException(status_code=409, detail="A senha já foi definida. Entre normalmente.")
+        client = auth.client_key(request.client.host if request.client else None)
+        if auth.too_many_failures(conn, client):
+            raise HTTPException(status_code=429, detail="Muitas tentativas. Aguarde 15 minutos.")
+        if not setup.token_matches(setup_token, body.token):
+            auth.record_failure(conn, client)
+            raise HTTPException(status_code=403, detail="Token de instalação incorreto.")
+        try:
+            auth.set_password(conn, body.password)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        setup.discard_token(settings.db_path.parent)
+        token = auth.attempt_login(conn, body.password, client)
+        response.set_cookie(auth.SESSION_COOKIE, token, max_age=auth.SESSION_DAYS * 86400, httponly=True,
+                            secure=settings.cookie_secure, samesite="strict", path="/")
+
+    @app.get("/api/setup/state", dependencies=private)
+    async def setup_state():
+        return {"onboarding_done": store.get_setting(conn, "onboarding_done") == "1", "timezone": USER_TZ.key,
+                "currency": "BRL", "locale": "pt-BR", "app_version": APP_VERSION}
+
+    @app.post("/api/setup/complete", status_code=204, dependencies=private)
+    async def setup_complete():
+        store.set_setting(conn, "onboarding_done", "1")
 
     @app.post("/api/auth/login", status_code=204)
     async def login(body: LoginIn, request: Request, response: Response):
@@ -574,6 +610,8 @@ def create_app(settings: Settings) -> FastAPI:
                 "disclaimer": Guidance.__dataclass_fields__["disclaimer"].default,
                 "mentor": {"available": available, "logged_in": worker.get("logged_in") if available else None,
                            "subscription": worker.get("subscription"), "busy": worker.get("busy", 0),
+                           "ai_configured": worker.get("ai_configured") if available else None,
+                           "connection": worker.get("default_connection") if available else None,
                            "queued": worker.get("queued", 0), "limit_until": worker.get("limit_until")},
                 "data": views.data_freshness(conn, today())}
 
@@ -586,6 +624,9 @@ def create_app(settings: Settings) -> FastAPI:
     # --- Radar e Diário de Oportunidades ---
     radar_web.register(app, conn, current_user=current_user, radar=radar, bad_request=bad_request,
                        log_access=log_access, today=today)
+
+    # --- provedores de IA (conexões no worker) e provedor/modelo por agente ---
+    providers_web.register(app, conn, mentor=mentor, current_user=current_user, log_access=log_access)
 
     # --- Diário de Decisões ---
     diary_web.register(app, conn, current_user=current_user, bad_request=bad_request, log_access=log_access,

@@ -7,7 +7,8 @@ DEMO = Path(__file__).resolve().parents[2] / "scripts" / "demo.py"
 
 
 def run(*args):
-    return subprocess.run([sys.executable, str(DEMO), *args], capture_output=True, text=True, check=True).stdout
+    return subprocess.run([sys.executable, str(DEMO), *args], capture_output=True, text=True, encoding="utf-8",
+                          check=True).stdout
 
 
 def test_projection_hidden_when_next_step_is_paying_debt():

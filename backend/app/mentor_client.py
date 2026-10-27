@@ -19,8 +19,10 @@ class MentorClient:
             if address.startswith("tcp:"):  # desenvolvimento local sem socket Unix (o worker só aceita loopback)
                 host, _, port = re.sub(r"^tcp:[\\/]*", "", address).rpartition(":")
                 reader, writer = await asyncio.open_connection(host, int(port), limit=STREAM_LIMIT)
-            else:
+            elif hasattr(asyncio, "open_unix_connection"):
                 reader, writer = await asyncio.open_unix_connection(address, limit=STREAM_LIMIT)
+            else:  # Windows de desenvolvimento sem socket Unix: use LASTRO_MENTOR_SOCKET=tcp:127.0.0.1:PORTA
+                raise FileNotFoundError(address)
         except (FileNotFoundError, ConnectionRefusedError, PermissionError, OSError):
             yield {"type": "error", "kind": "network", "message": "O mentor está indisponível no momento."}
             return

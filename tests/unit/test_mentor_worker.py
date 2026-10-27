@@ -1,6 +1,7 @@
 """Worker do mentor com um Claude falso (nenhuma chamada real à assinatura)."""
 import asyncio
 import json
+import sys
 import time
 
 import pytest
@@ -228,6 +229,7 @@ def test_quiet_only_when_the_text_is_really_nothing_new():
 
 # ---------- socket Unix ----------
 
+@pytest.mark.skipif(sys.platform == "win32", reason="socket Unix e SO_PEERCRED: só Linux")
 def test_socket_refuses_unexpected_peer(tmp_path):
     import os
 
@@ -250,6 +252,7 @@ def test_socket_refuses_unexpected_peer(tmp_path):
     assert asyncio.run(go()) == b""  # nenhuma resposta: conexão encerrada antes de ler a operação
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="socket Unix e SO_PEERCRED: só Linux")
 def test_unix_socket_protocol(tmp_path):
     w = make_worker(tmp_path, SIMPLE)
     sock = tmp_path / "m.sock"
