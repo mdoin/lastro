@@ -11,7 +11,7 @@ interface NavItem {
   label: string;
   short: string;
   icon: IconName;
-  group: "Painel" | "Mentor" | "Sistema";
+  group: "Painel" | "Mentor" | "Radar" | "Sistema";
 }
 
 const NAV: NavItem[] = [
@@ -22,10 +22,12 @@ const NAV: NavItem[] = [
   { to: "/mentor", label: "Mentor e especialistas", short: "Equipe", icon: "chat", group: "Mentor" },
   { to: "/rotinas", label: "Rotinas", short: "Rotinas", icon: "clock", group: "Mentor" },
   { to: "/diario", label: "Diário de decisões", short: "Diário", icon: "book", group: "Mentor" },
+  { to: "/radar", label: "Radar", short: "Radar", icon: "pulse", group: "Radar" },
+  { to: "/oportunidades", label: "Diário de oportunidades", short: "Oportunidades", icon: "bars", group: "Radar" },
   { to: "/configuracoes", label: "Configurações e auditoria", short: "Ajustes", icon: "settings", group: "Sistema" },
 ];
 
-const GROUPS: NavItem["group"][] = ["Painel", "Mentor", "Sistema"];
+const GROUPS: NavItem["group"][] = ["Painel", "Mentor", "Radar", "Sistema"];
 const PRIMARY_MOBILE = ["/", "/vida-financeira", "/futuro", "/mentor"];
 
 /** Estado do mentor em uma linha: ponto de status + rótulo + detalhe. */

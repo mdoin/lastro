@@ -39,7 +39,9 @@ O binário do Claude usado é o embutido no SDK, também em `/opt` (o `mentor` n
 | `backend/app/orchestrator.py` | equipe: fila persistente, roteamento, delegação, Conselho, auditoria (ver `MULTIAGENT.md`) |
 | `backend/team/` | registro de agentes, roteamento/@menções, auditor determinístico (sem rede, sem banco) |
 | `backend/financial_engine/calculator.py` | calculadora única dos agentes (ferramenta `calcular`) |
-| `backend/integrations/` | catálogo e coletor de séries oficiais (serviço `lastro-coletor`) |
+| `backend/integrations/` | catálogo e coletor de séries oficiais e do Tesouro Direto (serviço `lastro-coletor`) |
+| `backend/radar/` | Radar e Diário de Oportunidades: regras, avaliação, alertas, registro imutável, avaliação posterior (`RADAR.md`) |
+| `backend/app/radar_web.py` | rotas `/api/radar/*` |
 | `backend/app/turns.py` | turnos legados do chat/painel (rotinas) em segundo plano |
 | `backend/app/routines.py` | agenda (fuso IANA), idempotência, perdidas (`skip`/`run_once`), sobreposição, `quiet` |
 | `backend/app/auth.py` | scrypt, sessões só como hash, bloqueio por cliente (IP; IPv6 por /64) + atraso global limitado |

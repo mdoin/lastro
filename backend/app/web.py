@@ -28,7 +28,9 @@ from financial_engine.budget import Guidance
 from integrations import catalog
 from team.agents import AGENTS, SPECIALISTS, chat_agents
 
-from . import auth, db, routines, store, views
+from radar.engine import Radar
+
+from . import auth, db, radar_web, routines, store, views
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
 from .turns import ConversationBusy, TurnManager
@@ -49,6 +51,7 @@ class Settings:
     cookie_secure: bool = True
     run_scheduler: bool = True
     run_orchestrator: bool = True
+    run_radar: bool = True          # o laço do Radar roda junto com o agendador (run_scheduler)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -187,12 +190,15 @@ def create_app(settings: Settings) -> FastAPI:
     turns = TurnManager(conn, mentor)
     scheduler = routines.Scheduler(conn, turns.routine_executor)
     orchestrator = Orchestrator(conn, mentor.stream, today=today)
+    radar = Radar(conn, orchestrator=orchestrator, tz=USER_TZ)
 
     @asynccontextmanager
     async def lifespan(_app):
         tasks = [asyncio.create_task(scheduler.run_forever())] if settings.run_scheduler else []
         if settings.run_orchestrator:
             tasks.append(asyncio.create_task(orchestrator.run_forever()))
+        if settings.run_scheduler and settings.run_radar:
+            tasks.append(asyncio.create_task(radar.run_forever()))
         yield
         for task in tasks:
             task.cancel()
@@ -200,7 +206,7 @@ def create_app(settings: Settings) -> FastAPI:
     app = FastAPI(title="Lastro", version=APP_VERSION, docs_url=None, redoc_url=None, openapi_url=None,
                   lifespan=lifespan)
     app.state.conn, app.state.turns, app.state.scheduler = conn, turns, scheduler
-    app.state.orchestrator = orchestrator
+    app.state.orchestrator, app.state.radar = orchestrator, radar
 
     @app.middleware("http")
     async def security(request: Request, call_next):
@@ -597,6 +603,10 @@ def create_app(settings: Settings) -> FastAPI:
         payload = json.dumps(store.export_all(conn), ensure_ascii=False, indent=2)
         return Response(payload, media_type="application/json",
                         headers={"Content-Disposition": f'attachment; filename="lastro-{today().isoformat()}.json"'})
+
+    # --- Radar e Diário de Oportunidades ---
+    radar_web.register(app, conn, current_user=current_user, radar=radar, bad_request=bad_request,
+                       log_access=log_access, today=today)
 
     @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "DELETE"])
     async def api_not_found(rest: str):

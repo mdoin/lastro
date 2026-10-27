@@ -26,6 +26,26 @@ Fonte da verdade: `backend/app/schema.sql`. Convenções:
 | `decision_log` | Diário de decisões; `confirmed` separa plano de aporte efetivo | **Append-only**; revisão = novo registro (`review_of_id`) |
 | `audit_log` | Trilha de acesso | **Append-only** |
 
+## Radar e Diário de Oportunidades (migração 006, ver `RADAR.md`)
+| Tabela | Finalidade | Regras de integridade |
+|---|---|---|
+| `market_series` | Metadados por série (fonte, unidade, moeda, frequência, categoria, validade, vencimento) | — |
+| `market_observations` | Observações com revisão (`revision`, `supersedes_id`) e qualidade | Sem UPDATE; usada por sinal não pode ser apagada; retenção apaga a data inteira |
+| `market_source_status` | Estado por fonte (próxima tentativa, `Last-Modified`) | — |
+| `radar_rules` | Regras versionadas (PK `id, version`) | Sem UPDATE/DELETE |
+| `radar_rule_state`, `radar_rule_proposals` | Última avaliação; propostas de ajuste | Proposta só vale aprovada |
+| `radar_signals` | Sinal (`fingerprint UNIQUE`, versão da regra, observação de origem) | Imutável |
+| `radar_opportunities` | Diário: estado operacional, classificação original, `redundant_of` | Sem DELETE; classificação e score imutáveis |
+| `radar_snapshots` | Registros de detecção, análise e correção encadeados por SHA-256 | Imutáveis |
+| `radar_events` | Linha do tempo | Append-only |
+| `radar_outcomes` | Avaliação por horizonte e versão de método | `UNIQUE(oportunidade, horizonte, versão)`; calculada é imutável |
+| `radar_alerts`, `radar_deliveries` | Alerta (1 por oportunidade); histórico de entrega por canal | — |
+| `radar_prefs`, `radar_channels`, `radar_mutes` | Preferências, canais com consentimento, silenciamentos | — |
+| `radar_decisions`, `radar_user_operations` | Decisões e operações reais informadas pela pessoa | Append-only, fora do desempenho hipotético |
+| `radar_corporate_events` | Eventos corporativos informados | `UNIQUE(série, data, tipo)` |
+| `radar_backtests` | Resultados simulados | Nunca entram nas métricas |
+| `radar_links` | Conversa ↔ oportunidade | — |
+
 ## Dados que nunca são armazenados
 Senhas, códigos de autenticação, tokens bancários, cookies, número completo de cartão, seed phrases, chaves privadas e
 documentos de identificação desnecessários.

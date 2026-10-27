@@ -37,6 +37,11 @@ Navegador ─POST /api/team/conversations/{id}/messages (202)─► Orquestrador
   No Conselho, o Auditor semântico complementa e só endurece o veredito. REPROVA → uma correção pelo próprio agente;
   se ainda reprovar, a resposta é substituída por explicação transparente.
 
+## Radar
+Sinais do Radar (`docs/RADAR.md`) abrem uma execução `radar` numa conversa do Conselho: até 3 especialistas escolhidos pela
+categoria (modo `radar_parecer`), síntese do Mentor (`radar_sintese`) e Auditor, sem delegação. A ferramenta
+`diario_radar` (Mentor, Planejador, Analista, Riscos e Auditor; leitura) consulta o Diário de Oportunidades.
+
 ## Garantias de execução
 | Requisito | Como |
 |---|---|

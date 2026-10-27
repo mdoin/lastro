@@ -164,3 +164,29 @@ Toda rota exige sessão; conversas e execuções de outra pessoa respondem 404 (
 | `DELETE /api/team/notes/{id}` | — | apaga uma anotação de agente |
 
 As rotas antigas `/api/conversations/*` e `/api/panels` continuam para compatibilidade (rotinas); a interface usa as da equipe.
+
+## Radar e Diário de Oportunidades — ver `docs/RADAR.md`
+Toda rota exige sessão e filtra pelo dono (de outra pessoa = 404). Nenhuma executa operação financeira.
+
+| Método e rota | Corpo | Resposta |
+|---|---|---|
+| `GET /api/radar/overview` | — | fontes, estado da coleta, não conectadas, alertas novos, preferências, canais (`realtime: false`) |
+| `POST /api/radar/tick` | — | avalia todas as regras agora |
+| `GET /api/radar/series?category=` | — | séries com último valor, data, validade (títulos vencidos fora) |
+| `GET /api/radar/series/{id}/history?days=` | — | pontos com revisão e qualidade |
+| `POST /api/radar/assets` | `{"ticker", "kind": "acoes" / "etf" / "fii"}` | 201 ativo informado pela pessoa |
+| `POST /api/radar/assets/{id}/observations` | `{"reference_date", "value", "kind": "preco" / "provento"}` | nova observação ou revisão (data futura = 422) |
+| `POST /api/radar/assets/{id}/events` | `{"ex_date", "kind", "factor"}` | desdobramento, grupamento, bonificação |
+| `GET /api/radar/alerts?status=` | — | alertas com prioridade, ocorrências, condição |
+| `POST /api/radar/alerts/{id}/status`, `/feedback`, `/mute` | `{"status"}`, `{"feedback"}`, `{"days"}` | alerta; silenciamento de semelhantes |
+| `GET /api/radar/rules`, `POST`, `PUT /{id}`, `POST /{id}/status` | regra | toda mudança = nova versão |
+| `GET /api/radar/rules/{id}/versions` | — | versões e backtests |
+| `POST /api/radar/rules/{id}/backtest` | `{"start"?, "end"?}` | resultado **simulado** (dentro e fora da amostra, segmentos) |
+| `GET /api/radar/proposals`, `POST /{id}/approve`, `/reject` | — | propostas de ajuste (só valem aprovadas) |
+| `GET/PUT /api/radar/prefs`, `PUT /api/radar/channels/{canal}` | preferências; `{"enabled", "consent"}` | ativar canal exige consentimento |
+| `GET /api/radar/journal?category&state&rule_id&asset&since&until&min_class&verdict&agent` | — | oportunidades com avaliações por horizonte |
+| `GET /api/radar/journal/{id}` | — | registros (cadeia SHA-256 verificada), linha do tempo, avaliações, alerta e entregas, decisões, operações, conversas, evolução |
+| `POST /api/radar/journal/{id}/decisions`, `/operations`, `/corrections` | decisão; operação informada; `{"reason", "changes"}` | append-only |
+| `POST /api/radar/journal/{id}/discuss` | `{"target": "mentor" / "conselho"}` | 201 conversa com o registro como contexto, vinculada |
+| `GET /api/radar/links/{conversation_id}` | — | oportunidade de origem da conversa |
+| `GET /api/radar/metrics?days&horizon` | — | totais, por categoria, regra e mês, latências; cada taxa com `n` e `confiavel` |

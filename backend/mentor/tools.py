@@ -171,6 +171,18 @@ async def memoria_financeira(_args: dict) -> dict:
     return await _get("/v1/me/facts")
 
 
+@tool("diario_radar",
+      "Diário de Oportunidades do Lastro Radar: sinais detectados nos últimos `dias` (padrão 30), classificação e "
+      "hipótese originais, estado, se viraram alerta, avaliações posteriores por horizonte (veredito) e métricas de "
+      "qualidade com tamanho da amostra. Use para responder o que o Radar identificou, o que aconteceu depois e quais "
+      "regras fazem ruído. Responda só com o que estiver no registro; amostra pequena não é indicador confiável.",
+      {"type": "object", "properties": {"dias": {"type": "integer", "minimum": 1, "maximum": 365}},
+       "additionalProperties": False},
+      annotations=READ_ONLY)
+async def diario_radar(args: dict) -> dict:
+    return await _get("/v1/me/radar", {"days": args.get("dias", 30)})
+
+
 @tool("solicitar_especialista",
       "Pede a análise de outro especialista. O orquestrador do Lastro decide (limites de profundidade, ciclos e "
       "duplicatas) e devolve o parecer num próximo passo. Use só quando a pergunta exigir a especialidade do outro.",
@@ -208,7 +220,7 @@ async def propor_fato(_args: dict) -> dict:
 DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes]
 TOOLS = DATA_TOOLS + [sem_novidade]
 TEAM_TOOLS = {"facts": [memoria_financeira], "market": [dados_mercado], "calc": [calcular],
-              "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato]}
+              "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato], "journal": [diario_radar]}
 # Ferramentas que não fazem nada no worker: o orquestrador lê o pedido (entrada) e decide o que fazer com ele.
 RECORDED_TOOLS = {"solicitar_especialista", "anotar_memoria", "propor_fato"}
 BROWSER_TOOL_NAME = "ler_pagina_oficial"

@@ -1,0 +1,167 @@
+/* Lastro Radar e Diário de Oportunidades. Usa só os tokens do sistema "Bloco" (claro/escuro herdados).
+   Regra visual central: o que se sabia na detecção (registro imutável) tem filete dourado e cadeado;
+   o que foi descoberto depois tem borda tracejada e relógio. Nunca se confundem. */
+
+.radar-alert,
+.radar-rule {
+  display: grid;
+  gap: 10px;
+  border-left: 3px solid var(--border-strong);
+}
+
+.radar-alert.p3 {
+  border-left-color: var(--gold-mark);
+}
+
+.radar-alert.p4 {
+  border-left-color: var(--serious);
+}
+
+.radar-alert.p5 {
+  border-left-color: var(--critical);
+}
+
+.radar-alert.is-new {
+  background: linear-gradient(90deg, var(--gold-soft), transparent 40%), var(--surface);
+}
+
+.radar-rule.is-off {
+  opacity: 0.72;
+}
+
+.radar-alert-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.radar-alert-title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.radar-alert-title a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.radar-alert p,
+.radar-rule p {
+  margin: 0;
+  overflow-wrap: anywhere; /* padrões de série longos (sem espaço) não podem alargar a tela no celular */
+}
+
+.radar-known,
+.radar-later {
+  display: grid;
+  gap: 12px;
+  padding: 18px 18px 20px;
+  border-radius: var(--radius, 14px);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.radar-known {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold-mark);
+}
+
+.radar-later {
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-2);
+}
+
+.radar-era {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.radar-known .radar-era {
+  color: var(--gold);
+}
+
+.radar-era svg {
+  width: 13px;
+  height: 13px;
+}
+
+.radar-section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.radar-known h3,
+.radar-later h3 {
+  margin: 6px 0 2px;
+}
+
+.radar-hypothesis {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--gold-soft);
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.radar-opinion {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.radar-opinion summary {
+  cursor: pointer;
+}
+
+.radar-verdict-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.radar-small-sample {
+  color: var(--warning-ink);
+}
+
+.radar-filters {
+  align-items: end;
+}
+
+.radar-journal td:first-child {
+  white-space: nowrap;
+}
+
+.radar-known .kv dd,
+.radar-later .kv dd {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .radar-known,
+  .radar-later {
+    padding: 14px;
+  }
+
+  .radar-known .kv,
+  .radar-later .kv {
+    grid-template-columns: 1fr;
+  }
+
+  .radar-known .kv dd,
+  .radar-later .kv dd {
+    text-align: left;
+    margin-bottom: 6px;
+  }
+}

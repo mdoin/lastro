@@ -550,3 +550,34 @@
 .team-msg-foot details > summary::before {
   content: none;
 }
+
+/* Conversa aberta a partir do Diário de oportunidades: caminho de volta ao registro original. */
+.radar-backlink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold-mark);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 0.86rem;
+  text-decoration: none;
+}
+
+.radar-backlink span {
+  flex: 1;
+  min-width: 0;
+}
+
+.radar-backlink svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.radar-backlink:hover {
+  background: var(--surface-2);
+}

@@ -214,6 +214,12 @@ def _add_owner_routes(app: FastAPI, auth: list, db_path: Path) -> None:
                     if snap else None}
         return read(build)
 
+    @app.get("/v1/me/radar", dependencies=auth)
+    def my_radar(days: int = Query(30, ge=1, le=365)):
+        from radar.metrics import journal_summary
+
+        return read(lambda conn: journal_summary(conn, store.OWNER, today(), days))
+
     @app.get("/v1/market", dependencies=auth)
     def market(series_id: str | None = Query(None, max_length=40)):
         def build(conn):

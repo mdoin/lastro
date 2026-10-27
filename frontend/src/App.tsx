@@ -15,6 +15,9 @@ const GoalsPage = lazy(() => import("./pages/Goals").then((m) => ({ default: m.G
 const TeamPage = lazy(() => import("./pages/Team").then((m) => ({ default: m.TeamPage })));
 const RoutinesPage = lazy(() => import("./pages/Routines").then((m) => ({ default: m.RoutinesPage })));
 const DecisionsPage = lazy(() => import("./pages/Decisions").then((m) => ({ default: m.DecisionsPage })));
+const RadarPage = lazy(() => import("./pages/Radar").then((m) => ({ default: m.RadarPage })));
+const OpportunitiesPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunitiesPage })));
+const OpportunityPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunityPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 
 const page = (el: ReactNode) => <Suspense fallback={<Loading />}>{el}</Suspense>;
@@ -84,6 +87,8 @@ export function App() {
       "/metas": "Metas",
       "/mentor": "Mentor e especialistas",
       "/rotinas": "Rotinas",
+      "/radar": "Radar",
+      "/oportunidades": "Diário de oportunidades",
       "/diario": "Diário de decisões",
       "/configuracoes": "Configurações",
       "/login": "Entrar",
@@ -104,6 +109,9 @@ export function App() {
         <Route path="mentor" element={page(<TeamPage />)} />
         <Route path="mentor/:conversationId" element={page(<TeamPage />)} />
         <Route path="rotinas" element={page(<RoutinesPage />)} />
+        <Route path="radar" element={page(<RadarPage />)} />
+        <Route path="oportunidades" element={page(<OpportunitiesPage />)} />
+        <Route path="oportunidades/:opportunityId" element={page(<OpportunityPage />)} />
         <Route path="diario" element={page(<DecisionsPage />)} />
         <Route path="configuracoes" element={page(<SettingsPage />)} />
         <Route path="*" element={<Navigate to="/" replace />} />

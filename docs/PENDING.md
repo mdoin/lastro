@@ -16,7 +16,11 @@
 | 12 | Endurecimentos restantes da auditoria (REPORT.md §5): UID separado para web e API de leitura; transcrições da CLI e `routine_runs.summary` na exclusão de conversa; `interrupt` cancelar painéis/rotinas; `__Host-` no cookie; AppArmor confinado para o Chrome | dev | planejado |
 | 13 | Equipe de agentes (docs/MULTIAGENT.md): implantar com `scripts/deploy.sh` após backup do banco | usuário | pronto para revisão |
 | 14 | Login por usuário (hoje um login; dados da equipe já filtram por `user_id`) e dados financeiros multiusuário | produto | planejado (só se houver terceiros) |
-| 15 | Fontes não conectadas: IBGE/SIDRA direto, CVM, Tesouro Direto, ANBIMA, B3, SEC; FRED depende de `FRED_API_KEY` | chaves/licenças | planejado |
+| 15 | Fontes não conectadas: CVM, ANBIMA, B3 (cotações), SEC; FRED depende de `FRED_API_KEY`. IBGE/SIDRA e Tesouro Direto conectados em 27/10/2026 | chaves/licenças | planejado |
 | 16 | Criptografia em repouso do banco (disco/backup com `age`) | item 8 | planejado |
 | 17 | Uso por terceiros exige revisão regulatória (CVM 19/30) e cobrança por API do provedor, não assinatura pessoal | produto | obrigatório antes de abrir |
 | 18 | Quadros do navegador de pesquisa não aparecem na nova interface (a URL lida aparece nas fontes) | dev | planejado |
+| 19 | Radar e Diário de Oportunidades (docs/RADAR.md): implantar com `scripts/deploy.sh` após backup (`pre-v6.db`) e reiniciar `lastro-coletor` | usuário | pronto para revisão |
+| 20 | Transportes de notificação externa (e-mail, Telegram, push PWA): hoje ficam "não configurado" | credenciais (SMTP, bot, VAPID) | planejado |
+| 21 | Carteira real (posições) para riscos de concentração, rebalanceamento e vencimentos | cadastro de posições | planejado |
+| 22 | Método de renda fixa v2: cupons semestrais e carregamento até o vencimento | dev | planejado |

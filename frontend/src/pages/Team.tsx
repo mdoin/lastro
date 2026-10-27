@@ -20,6 +20,7 @@ import {
   sendTeamMessage,
   teamStreamUrl,
 } from "../api/endpoints";
+import { getRadarLink } from "../api/radar";
 import type { Agent, RunStep, TeamConversation, TeamEvent, TeamMessage, TeamRun } from "../api/types";
 import { Icon, type IconName } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
@@ -409,6 +410,8 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
         <button type="button" className="icon-btn" aria-label="Apagar conversa" onClick={() => void remove()}><Icon name="trash" /></button>
       </header>
 
+      <RadarLink conversationId={c.id} />
+
       {settings && c.channel === "group" && (
         <GroupSettings conv={c} agents={agents} onChange={(next) => { conv.setData(next); onChanged(); }} />
       )}
@@ -771,5 +774,20 @@ function MemorySheet({ agents, onClose }: { agents: AgentMap; onClose: () => voi
         <p className="tiny muted">Séries históricas coletadas de fontes oficiais, não cotações em tempo real. Ainda não conectadas: {(mem.data?.not_connected ?? []).join(", ")}.</p>
       </div>
     </>
+  );
+}
+
+/** Conversa aberta a partir do Diário de Oportunidades: mantém o caminho de volta ao registro original. */
+function RadarLink({ conversationId }: { conversationId: string }) {
+  const link = useAsync(() => getRadarLink(conversationId), [conversationId]);
+  if (!link.data?.opportunity_id) return null;
+  return (
+    <Link to={`/oportunidades/${link.data.opportunity_id}`} className="radar-backlink">
+      <Icon name="book" />
+      <span>
+        Ligada ao Diário de oportunidades: <strong>{link.data.asset_label}</strong>
+      </span>
+      <Icon name="arrow" />
+    </Link>
   );
 }

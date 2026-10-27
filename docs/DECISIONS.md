@@ -29,3 +29,11 @@
 | 2026-10-27 | Economista sem dados do dono (é quem lê a web) | Todos com tudo | Mesmo princípio de capacidades por papel: injeção em página nunca convive com o patrimônio |
 | 2026-10-27 | Coletor de séries em serviço próprio (BCB/SGS; FRED com chave); só número e data entram | Agentes buscando dados na web | Web app sem rede; agentes sem internet irrestrita; texto de terceiros fora do prompt |
 | 2026-10-27 | Compactação de contexto determinística (autor, data, início) | Resumo gerado por modelo | Verificável e sem custo; trocar se conversas longas perderem fatos (comentário `shortcut:`) |
+| 2026-10-27 | Radar determinístico no web app; Conselho só para sinal com classificação ≥ 3 e orçamento diário | Agentes consultando preço continuamente | Custo, previsibilidade e auditabilidade; modelo só onde agrega |
+| 2026-10-27 | Observações versionadas (`market_observations`) ao lado de `market_data` | Sobrescrever o valor | O Diário precisa do dado "como era conhecido"; revisão invalida hipótese |
+| 2026-10-27 | Tesouro Direto pelo arquivo de dados abertos do Tesouro Transparente, 1×/dia e condicional | API do site do Tesouro Direto (B3) | Fonte oficial com licença aberta; a API do site não é pública; respeita o limite (429) |
+| 2026-10-27 | Registros do Diário append-only + cadeia SHA-256 | Só triggers | Triggers impedem a aplicação; o hash revela alteração por fora |
+| 2026-10-27 | Veredito por hipótese e mecanismo registrados antes ("favorável por outro motivo" ≠ acerto) | "Subiu = acertou" | Pedido explícito: avaliar o raciocínio, não só o preço |
+| 2026-10-27 | Alertas agrupados por família de título (todos os vencimentos do IPCA+) | Por série | Reprodução com dados reais: 631 alertas em 8 meses viraram 88 |
+| 2026-10-27 | Cotações de ações, ETFs e FIIs só informadas pela pessoa | Raspagem de sites | Sem licença da B3; raspagem violaria termos |
+| 2026-10-27 | Métricas com `n` e `confiavel` (n ≥ 20); propostas de ajuste só com aprovação | Ajuste automático | Evita overfitting e mudança silenciosa de regra |

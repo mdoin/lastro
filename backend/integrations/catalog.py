@@ -19,6 +19,8 @@ class Series:
     unit: str
     max_age_days: int     # depois disso o dado é "desatualizado"
     url: str              # página pública da série (para citação)
+    frequency: str = "diaria"
+    history_days: int = 0  # > 0: busca por intervalo de datas (o Radar precisa do histórico); 0: últimos 12 valores
 
 
 SERIES = {s.id: s for s in (
@@ -26,21 +28,27 @@ SERIES = {s.id: s for s in (
            "https://www3.bcb.gov.br/sgspub (série 432)"),
     Series("cdi", "bcb_sgs", "4389", "Taxa CDI anualizada (base 252)", "% a.a.", 10,
            "https://www3.bcb.gov.br/sgspub (série 4389)"),
+    Series("cdi_diario", "bcb_sgs", "12", "Taxa CDI diária", "% ao dia", 10,
+           "https://www3.bcb.gov.br/sgspub (série 12)", history_days=420),
     Series("ipca_mensal", "bcb_sgs", "433", "IPCA — variação mensal (IBGE, via BCB/SGS)", "% no mês", 75,
-           "https://www3.bcb.gov.br/sgspub (série 433)"),
+           "https://www3.bcb.gov.br/sgspub (série 433)", "mensal", history_days=800),
+    Series("ipca_sidra", "ibge_sidra", "1737/63", "IPCA — variação mensal (IBGE/SIDRA, direto)", "% no mês", 75,
+           "https://sidra.ibge.gov.br/tabela/1737", "mensal"),
     Series("ipca_12m", "bcb_sgs", "13522", "IPCA acumulado em 12 meses (IBGE, via BCB/SGS)", "% em 12 meses", 75,
-           "https://www3.bcb.gov.br/sgspub (série 13522)"),
+           "https://www3.bcb.gov.br/sgspub (série 13522)", "mensal"),
     Series("dolar_ptax", "bcb_sgs", "1", "Dólar comercial PTAX — venda", "R$/US$", 10,
            "https://www3.bcb.gov.br/sgspub (série 1)"),
     Series("fed_funds", "fred", "FEDFUNDS", "Federal Funds Effective Rate (mensal)", "% a.a.", 75,
-           "https://fred.stlouisfed.org/series/FEDFUNDS"),
+           "https://fred.stlouisfed.org/series/FEDFUNDS", "mensal"),
     Series("treasury_10y", "fred", "DGS10", "Treasury 10 anos (EUA)", "% a.a.", 10,
            "https://fred.stlouisfed.org/series/DGS10"),
 )}
 
-SOURCE_NAMES = {"bcb_sgs": "Banco Central do Brasil — SGS", "fred": "Federal Reserve Bank of St. Louis — FRED"}
+SOURCE_NAMES = {"bcb_sgs": "Banco Central do Brasil — SGS", "fred": "Federal Reserve Bank of St. Louis — FRED",
+                "ibge_sidra": "IBGE — SIDRA", "tesouro_direto": "Tesouro Transparente — preços e taxas do Tesouro Direto",
+                "pessoa": "Informado pela pessoa"}
 # Fontes previstas e ainda não conectadas (ver docs/PENDING.md): nunca simuladas.
-NOT_CONNECTED = ("IBGE/SIDRA (direto)", "CVM", "Tesouro Direto", "ANBIMA", "B3", "SEC")
+NOT_CONNECTED = ("CVM", "ANBIMA", "B3 (cotações de ações, ETFs e FIIs)", "SEC")
 
 
 def validity(series: Series, reference_date: str | None, today: date) -> str:
