@@ -4,6 +4,9 @@ import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
 import "./styles/fonts.css";
 import "./styles/global.css";
+import { applyThemePref, readThemePref } from "./lib/theme";
+
+applyThemePref(readThemePref());
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Elemento #root ausente");

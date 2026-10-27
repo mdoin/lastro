@@ -19,6 +19,7 @@ import { useApp } from "../lib/appContext";
 import { formatDate, formatDateTime, todayISO } from "../lib/dates";
 import { decimalToInputBRL, formatBRL, fractionToPercentInput, isNegative, toChartNumber } from "../lib/money";
 import { errorMessage, useAsync } from "../lib/useAsync";
+import { DateInput } from "../components/DateInput";
 
 interface DebtDraft {
   key: number;
@@ -237,7 +238,7 @@ function DateField({ value, onChange }: { value: string; onChange: (v: string) =
   const id = useId();
   return (
     <Field label="Data de referência" htmlFor={id} help="A que dia estes números se referem. Normalmente, hoje.">
-      <input id={id} type="date" className="input" value={value} onChange={(e) => onChange(e.target.value)} required
+      <DateInput id={id} value={value} onChange={(e) => onChange(e.target.value)} required
         aria-describedby={`${id}-help`} />
     </Field>
   );

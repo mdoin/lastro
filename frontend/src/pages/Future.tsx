@@ -125,7 +125,8 @@ export function FuturePage() {
             <div className="row" style={{ flexWrap: "nowrap" }}>
               <input id={monthsId} type="range" min={12} max={MAX_MONTHS} step={12} value={Math.max(12, months)}
                 onChange={(e) => setMonths(Number(e.target.value))} aria-valuetext={formatMonth(months)}
-                aria-describedby={`${monthsId}-help`} />
+                aria-describedby={`${monthsId}-help`}
+                style={{ ["--pct" as string]: `${((Math.min(MAX_MONTHS, Math.max(12, months)) - 12) / (MAX_MONTHS - 12)) * 100}%` }} />
               <input className="input num" style={{ width: 96, flex: "none" }} type="number" min={0} max={MAX_MONTHS}
                 inputMode="numeric" value={months} aria-label="Horizonte em meses"
                 onChange={(e) => setMonths(Math.max(0, Math.min(MAX_MONTHS, Math.trunc(Number(e.target.value) || 0))))} />

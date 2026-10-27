@@ -18,6 +18,7 @@ import { useApp } from "../lib/appContext";
 import { formatDateTime, todayISO } from "../lib/dates";
 import { describeSchedule, RUN_STATUS, SCHEDULE_KIND_LABEL, WEEKDAYS } from "../lib/labels";
 import { errorMessage, useAsync } from "../lib/useAsync";
+import { DateInput } from "../components/DateInput";
 
 const TIMEZONES = [
   "America/Sao_Paulo",
@@ -457,7 +458,7 @@ function RoutineForm({
             )}
             {v.schedule.kind === "once" && (
               <Field label="Data" htmlFor={ids.date}>
-                <input id={ids.date} type="date" className="input" value={v.schedule.date ?? ""} onChange={(e) => setSchedule({ date: e.target.value })} />
+                <DateInput id={ids.date} value={v.schedule.date ?? ""} onChange={(e) => setSchedule({ date: e.target.value })} />
               </Field>
             )}
             <Field label="Horário" htmlFor={ids.time}>

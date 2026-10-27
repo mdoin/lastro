@@ -38,3 +38,6 @@
 | 2026-10-27 | Cotações de ações, ETFs e FIIs só informadas pela pessoa | Raspagem de sites | Sem licença da B3; raspagem violaria termos |
 | 2026-10-27 | Métricas com `n` e `confiavel` (n ≥ 20); propostas de ajuste só com aprovação | Ajuste automático | Evita overfitting e mudança silenciosa de regra |
 | 2026-10-27 | Mascotes em pixel art desenhados como dados (grade 16×16 → SVG com `crispEdges`), um componente `AgentAvatar` | PNG/sprites; ícones de biblioteca | Nítido em qualquer tamanho e tema, leve (sem arquivo extra), testável (grade, paleta, silhuetas distintas) |
+| 2026-10-27 | Campo de data próprio (`DateInput`): digitação dd/mm/aaaa + calendário no estilo do sistema | `<input type="date">` | O calendário nativo não aceita estilo em nenhum navegador e destoava; teclado no padrão WAI-ARIA |
+| 2026-10-27 | Listas suspensas com `appearance: base-select` (CSS) | Componente de lista próprio | Visual do sistema mantendo acessibilidade e teclado nativos; sem suporte, cai na lista nativa |
+| 2026-10-27 | Tema claro/escuro escolhível (Automático/Claro/Escuro), salvo no `localStorage`, aplicado por `public/theme-init.js` | Só `prefers-color-scheme` | Pedido do dono; script externo porque a CSP não permite inline; evita piscar o tema errado |

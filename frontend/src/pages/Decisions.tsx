@@ -7,6 +7,7 @@ import { useApp } from "../lib/appContext";
 import { formatDate, todayISO } from "../lib/dates";
 import { decimalToInputBRL, formatBRL } from "../lib/money";
 import { errorMessage, useAsync } from "../lib/useAsync";
+import { DateInput } from "../components/DateInput";
 
 interface Draft {
   date: string;
@@ -228,7 +229,7 @@ function DecisionForm({
         {reviewOf && <Notice>A decisão original continua no diário. Esta revisão será registrada como uma nova entrada ligada a ela.</Notice>}
         <div className="form-grid">
           <Field label="Data" htmlFor={ids.date}>
-            <input id={ids.date} type="date" className="input" value={d.date} onChange={(e) => setD({ ...d, date: e.target.value })} />
+            <DateInput id={ids.date} value={d.date} onChange={(e) => setD({ ...d, date: e.target.value })} />
           </Field>
           <MoneyField label="Valor planejado" optional value={d.planned_amount} onChange={(v) => setD({ ...d, planned_amount: v })}
             help="Se a decisão envolve um valor, anote quanto." />

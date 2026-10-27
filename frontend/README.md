@@ -50,7 +50,7 @@ src/
                     BrowserView (placeholder do navegador de pesquisa), Icon (ícones + símbolo BrandMark)
   pages/            Login, Overview, Finances, Future, Goals, Mentor, Routines, Decisions, Settings
   styles/fonts.css  @font-face das fontes auto-hospedadas
-  styles/global.css sistema visual "Bloco": tokens claro/escuro (prefers-color-scheme), layout e componentes
+  styles/global.css sistema visual "Bloco": tokens claro/escuro (aparelho ou escolha em lib/theme.ts), layout e componentes
 ```
 
 ### Dinheiro
@@ -82,6 +82,11 @@ Inspirado em referências de produto (Plasma, Project card, Model router, Agent 
 aninhados (casca cinza `.panel` + folha branca `.panel-body` + rodapé `.panel-foot` — o `Card` com título já renderiza
 assim), rótulos em mono maiúsculo (`.eyebrow`, `.tag`), botões em pílula, números grandes e o dourado do lastro só onde
 há significado. Marca e ícones: [`../docs/brand`](../docs/brand/README.md).
+
+Controles de formulário no estilo do sistema: `DateInput` (data dd/mm/aaaa com calendário próprio), listas com
+`appearance: base-select`, checkbox/radio/interruptor (`role="switch"`) e slider estilizados no CSS global; o campo de hora
+é digitado (o seletor nativo ficou oculto no desktop). Tema: Automático/Claro/Escuro (`ThemeSwitch`, `lib/theme.ts`;
+`public/theme-init.js` aplica a escolha antes da primeira pintura).
 
 Movimento (saldo que rola, partículas do fluxo, entrada de painéis, notificação "ilha") respeita
 `prefers-reduced-motion`. O checklist do mês guarda as marcações só no `localStorage` do navegador.

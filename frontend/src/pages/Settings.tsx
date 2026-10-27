@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { EXPORT_URL, getStatus, logout } from "../api/endpoints";
 import { Icon } from "../components/Icon";
+import { ThemeSwitch } from "../components/ThemeSwitch";
 import { Badge, Card, ErrorNotice, Loading, PageHeader } from "../components/ui";
 import { useApp } from "../lib/appContext";
 import { formatDate, formatDateTime, relativeDays } from "../lib/dates";
@@ -121,6 +122,11 @@ export function SettingsPage() {
           </Card>
         </div>
       )}
+
+      <Card title="Tema" eyebrow="Aparência"
+        footer={<span>A escolha vale para este navegador. Automático segue o tema claro ou escuro do aparelho.</span>}>
+        <ThemeSwitch />
+      </Card>
 
       <Card title="Exportar meus dados" eyebrow="Portabilidade"
         footer={

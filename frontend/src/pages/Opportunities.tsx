@@ -30,6 +30,7 @@ import { formatNumberBR } from "../lib/money";
 import { errorMessage, useAsync } from "../lib/useAsync";
 import "../styles/radar.css";
 import { AgentStack, PriorityBadge } from "./Radar";
+import { DateInput } from "../components/DateInput";
 
 const AGENT_NAMES: Record<string, string> = {
   mentor: "Mentor",
@@ -273,10 +274,10 @@ function History() {
           </select>
         </Field>
         <Field label="De" htmlFor={`${id}-d1`}>
-          <input id={`${id}-d1`} className="input" type="date" value={f.since ?? ""} onChange={set("since")} />
+          <DateInput id={`${id}-d1`} value={f.since ?? ""} onChange={(e) => setF({ ...f, since: e.target.value })} />
         </Field>
         <Field label="Até" htmlFor={`${id}-d2`}>
-          <input id={`${id}-d2`} className="input" type="date" value={f.until ?? ""} onChange={set("until")} />
+          <DateInput id={`${id}-d2`} value={f.until ?? ""} onChange={(e) => setF({ ...f, until: e.target.value })} />
         </Field>
         <div className="row" style={{ alignSelf: "end" }}>
           <button type="submit" className="btn btn-primary btn-sm">Filtrar</button>
@@ -735,7 +736,7 @@ function YourSide({ d, onSaved }: { d: OpportunityDetail; onSaved: () => void })
           }}
         >
           <Field label="Data" htmlFor={`${id}-od`}>
-            <input id={`${id}-od`} className="input" type="date" required value={op.operation_date} onChange={(e) => setOp({ ...op, operation_date: e.target.value })} />
+            <DateInput id={`${id}-od`} required value={op.operation_date} onChange={(e) => setOp({ ...op, operation_date: e.target.value })} />
           </Field>
           <Field label="Sentido" htmlFor={`${id}-os`}>
             <select id={`${id}-os`} className="select" value={op.direction} onChange={(e) => setOp({ ...op, direction: e.target.value as "entrada" | "saida" })}>

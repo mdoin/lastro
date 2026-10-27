@@ -23,6 +23,7 @@ import { formatDate } from "../lib/dates";
 import { GOAL_STATUS, LIQUIDITY_LABEL } from "../lib/labels";
 import { decimalToInputBRL, formatBRL, toChartNumber } from "../lib/money";
 import { errorMessage, useAsync } from "../lib/useAsync";
+import { DateInput } from "../components/DateInput";
 
 interface Draft {
   name: string;
@@ -242,7 +243,7 @@ function GoalForm({
           <MoneyField label="Já guardado" value={d.current} onChange={(v) => setD({ ...d, current: v })}
             help="Quanto já está separado para esta meta." />
           <Field label="Prazo" htmlFor={deadlineId} help="Até quando quer chegar lá.">
-            <input id={deadlineId} type="date" className="input" value={d.deadline} onChange={(e) => setD({ ...d, deadline: e.target.value })} required />
+            <DateInput id={deadlineId} value={d.deadline} onChange={(e) => setD({ ...d, deadline: e.target.value })} required />
           </Field>
           <Field label="Prioridade" htmlFor={prioId} help="1 = mais importante.">
             <select id={prioId} className="select" value={d.priority} onChange={(e) => setD({ ...d, priority: Number(e.target.value) })}>

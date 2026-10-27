@@ -38,6 +38,7 @@ import { formatDate, formatDateTime } from "../lib/dates";
 import { formatNumberBR } from "../lib/money";
 import { errorMessage, useAsync } from "../lib/useAsync";
 import "../styles/radar.css";
+import { DateInput } from "../components/DateInput";
 
 type Tab = "monitoramento" | "alertas" | "regras" | "ativos";
 const TABS: { value: Tab; label: string }[] = [
@@ -875,7 +876,7 @@ function UserAssetForms({ series, onSaved }: { series: SeriesItem[]; onSaved: ()
               }}
             >
               <Field label="Data" htmlFor={`${id}-od`}>
-                <input id={`${id}-od`} className="input" type="date" required value={obs.reference_date} onChange={(e) => setObs({ ...obs, reference_date: e.target.value })} />
+                <DateInput id={`${id}-od`} required value={obs.reference_date} onChange={(e) => setObs({ ...obs, reference_date: e.target.value })} />
               </Field>
               <Field label="Valor (R$)" htmlFor={`${id}-ov`}>
                 <input id={`${id}-ov`} className="input" inputMode="decimal" required value={obs.value} onChange={(e) => setObs({ ...obs, value: e.target.value })} />
@@ -898,7 +899,7 @@ function UserAssetForms({ series, onSaved }: { series: SeriesItem[]; onSaved: ()
               }}
             >
               <Field label="Data ex" htmlFor={`${id}-ed`}>
-                <input id={`${id}-ed`} className="input" type="date" required value={ev.ex_date} onChange={(e) => setEv({ ...ev, ex_date: e.target.value })} />
+                <DateInput id={`${id}-ed`} required value={ev.ex_date} onChange={(e) => setEv({ ...ev, ex_date: e.target.value })} />
               </Field>
               <Field label="Evento" htmlFor={`${id}-ek`}>
                 <select id={`${id}-ek`} className="select" value={ev.kind} onChange={(e) => setEv({ ...ev, kind: e.target.value })}>

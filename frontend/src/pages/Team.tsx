@@ -666,7 +666,7 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
       <div className="composer-row">
         {canCouncil ? (
           <label className="team-check small">
-            <input type="checkbox" checked={council} onChange={(e) => setCouncil(e.target.checked)} /> Convocar o Conselho
+            <input type="checkbox" role="switch" checked={council} onChange={(e) => setCouncil(e.target.checked)} /> Convocar o Conselho
           </label>
         ) : <span />}
         <div className="composer-actions">

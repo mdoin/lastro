@@ -5,6 +5,7 @@ import type { AppStatus } from "../api/types";
 import { useApp } from "../lib/appContext";
 import { formatTime } from "../lib/dates";
 import { BrandMark, Icon, type IconName } from "./Icon";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 interface NavItem {
   to: string;
@@ -106,10 +107,13 @@ export function Layout() {
             </div>
             <p>{ms.detail} Nenhuma operação financeira é executada.</p>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={doLogout} style={{ justifySelf: "start" }}>
-            <Icon name="logout" />
-            Sair
-          </button>
+          <div className="foot-row">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={doLogout}>
+              <Icon name="logout" />
+              Sair
+            </button>
+            <ThemeSwitch compact />
+          </div>
         </div>
       </aside>
 
@@ -139,6 +143,10 @@ export function Layout() {
                 {n.to === "/rotinas" && unreadCount > 0 && <span className="unread-dot" role="img" aria-label="não lidos" />}
               </NavLink>
             ))}
+            <div className="sheet-row">
+              <span>Tema</span>
+              <ThemeSwitch compact />
+            </div>
             <button type="button" onClick={doLogout}>
               <Icon name="logout" className="nav-icon" />
               Sair
