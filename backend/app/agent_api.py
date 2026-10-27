@@ -27,7 +27,7 @@ from financial_engine.projection import Assumptions, Plan, compare_scenarios
 
 from integrations import catalog
 
-from . import db, store, views
+from . import db, diary, store, views
 
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 DEFAULT_DATA_DIR = Path(__file__).resolve().parents[2] / "tests" / "fixtures_synthetic"
@@ -199,8 +199,8 @@ def _add_owner_routes(app: FastAPI, auth: list, db_path: Path) -> None:
         return read(lambda conn: {"data_kind": "owner", **store.get_assumptions(conn)})
 
     @app.get("/v1/me/decisions", dependencies=auth)
-    def my_decisions():
-        return read(lambda conn: {"data_kind": "owner", "decisions": store.list_decisions(conn)[:20]})
+    def my_decisions(q: str = Query("", max_length=120), decision_id: str = Query("", alias="id", max_length=64)):
+        return read(lambda conn: diary.for_agents(conn, store.OWNER, query=q, decision_id=decision_id))
 
     @app.get("/v1/me/facts", dependencies=auth)
     def my_facts():

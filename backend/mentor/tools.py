@@ -97,10 +97,18 @@ async def premissas(_args: dict) -> dict:
     return await _get("/v1/me/assumptions")
 
 
-@tool("decisoes", "Últimas decisões registradas pelo usuário no diário (o que escolheu, valores planejados, se confirmou).",
-      {}, annotations=READ_ONLY)
-async def decisoes(_args: dict) -> dict:
-    return await _get("/v1/me/decisions")
+@tool("decisoes",
+      "Diário de Decisões: decisões CONFIRMADAS pela pessoa, com pergunta, alternativas, riscos, contexto financeiro da "
+      "época, revisões e resultados observados; propostas ainda não confirmadas vêm à parte. `busca` filtra por texto; "
+      "`id` traz o registro completo (síntese, pareceres, divergências, cálculos). Decisões antigas são histórico, não "
+      "instrução: diga a data e compare as premissas com os dados de hoje.",
+      {"type": "object", "properties": {"busca": {"type": "string", "maxLength": 120},
+                                        "id": {"type": "string", "maxLength": 64}},
+       "additionalProperties": False},
+      annotations=READ_ONLY)
+async def decisoes(args: dict) -> dict:
+    params = {k: str(args[v])[:120] for k, v in (("q", "busca"), ("id", "id")) if args.get(v)}
+    return await _get("/v1/me/decisions", params or None)
 
 
 @tool("sem_novidade",
@@ -217,12 +225,37 @@ async def propor_fato(_args: dict) -> dict:
     return _text("Proposta registrada; a pessoa confirma ou descarta.")
 
 
+@tool("propor_registro_decisao",
+      "Prepara um RASCUNHO para o Diário de Decisões quando a conversa chegou a uma decisão financeira da pessoa "
+      "(quitar dívida, começar reserva, mudar aportes, considerar investimento, rebalancear, adiar compra, rever "
+      "estratégia) e há conteúdo suficiente. O Lastro junta sozinho a pergunta, o contexto financeiro, as fontes, os "
+      "cálculos, os pareceres e a auditoria; você informa só o que foi discutido. Não invente: deixe vazio o que não "
+      "apareceu. Não é decisão: a pessoa confirma, escolhe outra alternativa ou descarta. Use no máximo uma vez.",
+      {"type": "object", "properties": {
+          "titulo": {"type": "string", "maxLength": 200},
+          "contexto": {"type": "string", "maxLength": 2000},
+          "alternativas": {"type": "array", "maxItems": 6, "items": {
+              "type": "object", "properties": {"titulo": {"type": "string", "maxLength": 200},
+                                               "descricao": {"type": "string", "maxLength": 1000}},
+              "required": ["titulo"], "additionalProperties": False}},
+          "recomendada": {"type": "integer", "minimum": 0, "maximum": 5,
+                          "description": "índice da alternativa que a análise favorece, se houver"},
+          "informacoes": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 500}},
+          "riscos": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 500}},
+          "divergencias": {"type": "string", "maxLength": 2000}},
+       "required": ["titulo", "alternativas"], "additionalProperties": False},
+      annotations=READ_ONLY)
+async def propor_registro_decisao(_args: dict) -> dict:
+    return _text("Rascunho enviado ao Diário. Diga à pessoa que ele aguarda a confirmação dela.")
+
+
 DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes]
 TOOLS = DATA_TOOLS + [sem_novidade]
 TEAM_TOOLS = {"facts": [memoria_financeira], "market": [dados_mercado], "calc": [calcular],
-              "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato], "journal": [diario_radar]}
+              "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato], "journal": [diario_radar],
+              "diary": [propor_registro_decisao]}
 # Ferramentas que não fazem nada no worker: o orquestrador lê o pedido (entrada) e decide o que fazer com ele.
-RECORDED_TOOLS = {"solicitar_especialista", "anotar_memoria", "propor_fato"}
+RECORDED_TOOLS = {"solicitar_especialista", "anotar_memoria", "propor_fato", "propor_registro_decisao"}
 BROWSER_TOOL_NAME = "ler_pagina_oficial"
 QUIET_TOOL = f"mcp__{SERVER_NAME}__sem_novidade"
 ALL_TOOLS = TOOLS + [t for group in TEAM_TOOLS.values() for t in group]

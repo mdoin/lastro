@@ -10,7 +10,7 @@ Capacidades são aplicadas em código: o servidor MCP de cada sessão só regist
 
 from dataclasses import dataclass, field
 
-REGISTRY_VERSION = "2026-10-27.2"
+REGISTRY_VERSION = "2026-10-27.3"
 
 
 @dataclass(frozen=True)
@@ -25,6 +25,7 @@ class Capabilities:
     delegate: bool = False            # pedir análise a outro especialista (via orquestrador)
     memory: bool = False              # anotar memória individual / propor fato financeiro (o dono confirma)
     journal: bool = False             # Diário de Oportunidades do Radar (leitura; contém decisões do dono)
+    diary: bool = False               # propor rascunho ao Diário de Decisões (só a pessoa confirma)
 
 
 @dataclass(frozen=True)
@@ -60,6 +61,7 @@ class AgentSpec:
                                                 ("motor financeiro", self.caps.calc),
                                                 ("consulta a especialistas", self.caps.delegate),
                                                 ("Diário de Oportunidades", self.caps.journal),
+                                                ("rascunhos do Diário de Decisões", self.caps.diary),
                                                 ("leitura de fontes oficiais", bool(self.caps.browser))) if on)}
 
 
@@ -71,7 +73,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         prompt="mentor.md", icon="layers", color="var(--agent-coordenador)", max_turns=25, effort="high",
         aliases=("coordenador", "lastro"),
         caps=Capabilities(data=True, browser="owner", facts=True, market=True, calc=True, delegate=True, memory=True,
-                          journal=True),
+                          journal=True, diary=True),
         can_delegate_to=SPECIALISTS,
         summary="Entende o que você precisa, chama os especialistas certos e junta tudo numa resposta clara.",
         examples=("O que faço com o dinheiro disponível este mês?", "Me ajuda a organizar minhas prioridades.")),

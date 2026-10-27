@@ -24,3 +24,4 @@
 | 20 | Transportes de notificação externa (e-mail, Telegram, push PWA): hoje ficam "não configurado" | credenciais (SMTP, bot, VAPID) | planejado |
 | 21 | Carteira real (posições) para riscos de concentração, rebalanceamento e vencimentos | cadastro de posições | planejado |
 | 22 | Método de renda fixa v2: cupons semestrais e carregamento até o vencimento | dev | planejado |
+| 23 | Diário de Decisões assistido por agentes (docs/DIARIO.md, migração 007): implantar com `scripts/deploy.sh` após backup (`pre-v7.db`) (revisão de segurança focada feita; auditoria completa run-2 ainda pendente para equipe/Radar/Diário) | — | implantado em 27/10/2026 |

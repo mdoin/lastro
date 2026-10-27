@@ -283,21 +283,137 @@ export type RoutineInput = Pick<
   "name" | "instruction" | "schedule" | "timezone" | "active" | "missed_policy" | "use_panel"
 >;
 
-// --- Diário de decisões ---------------------------------------------------------
-export interface Decision {
-  id: UUID;
-  date: ISODate;
-  question: string;
-  alternatives: string[];
-  information: string;
-  risk_accepted: string;
-  user_choice: string;
-  planned_amount: Dec | null;
-  confirmed: boolean;
-  review_of_id: UUID | null;
+// --- Diário de decisões (docs/DIARIO.md) ---------------------------------------
+export type DraftStatus = "pendente" | "adiado" | "confirmado" | "descartado";
+
+/** Retrato registrado pela pessoa no momento do registro (ou de hoje, na revisão). */
+export interface FinancialContext {
+  as_of: ISODate;
+  net_monthly_income: Dec;
+  essential_expenses: Dec;
+  variable_expenses: Dec;
+  liquid_reserve: Dec;
+  available_this_month: Dec;
+  total_debt?: Dec;
+  free_cash_flow?: Dec;
+  reserve_coverage_months?: Dec | null;
+  stage?: GuidanceStage;
 }
 
-export type DecisionInput = Omit<Decision, "id">;
+export interface DraftAlternative {
+  titulo: string;
+  descricao?: string;
+}
+
+export interface DraftContent {
+  titulo: string;
+  pergunta_original: string;
+  pergunta_de: "pessoa" | "Lastro";
+  data: ISODate;
+  contexto_financeiro: FinancialContext | null;
+  contexto_do_agente: string;
+  alternativas: DraftAlternative[];
+  recomendada: number | null;
+  informacoes: string[];
+  fontes: TeamMessage["sources"];
+  calculos: { operacao: string; natureza: string; resultado: Record<string, unknown>; fingerprint: string }[];
+  riscos: string[];
+  pareceres: { agent_id: string; agente: string; texto: string; auditoria: TeamMessage["audit"]; em: ISODateTime | null; consulta_interna?: boolean }[];
+  divergencias: string;
+  sintese: { agent_id: string; agente: string; texto: string };
+  auditoria: TeamMessage["audit"];
+  conversa: { id: UUID; titulo: string; canal: string; message_id: UUID; run_id: UUID | null };
+  radar: { opportunity_id: UUID; ativo: string; categoria: string; classificacao: number; estado_na_epoca: string } | null;
+}
+
+export interface DecisionDraft {
+  id: UUID;
+  author: string;
+  requested_by: "agente" | "pessoa";
+  status: DraftStatus;
+  message_id: UUID;
+  conversation_id: UUID | null;
+  opportunity_id: UUID | null;
+  review_of_id: UUID | null;
+  content: DraftContent;
+  created_at: ISODateTime;
+  status_note: string;
+  remind_on: ISODate | null;
+  decided_at: ISODateTime | null;
+  decision_id: UUID | null;
+}
+
+export interface DiaryPayload {
+  origem?: "rascunho" | "manual" | "revisao";
+  proposta_por?: string;
+  registro?: DraftContent;
+  titulo?: string;
+  pergunta?: string;
+  data?: ISODate;
+  alternativas?: DraftAlternative[];
+  informacoes?: string[];
+  riscos?: string[];
+  escolha?: { texto: string; alternativa?: number | null; detalhe?: string; segue_recomendacao?: boolean | null };
+  justificativa?: string;
+  correcoes?: string;
+  valor_planejado?: Dec | null;
+  contexto_financeiro?: FinancialContext | null;
+  contexto_na_revisao?: FinancialContext | null;
+  mantem?: boolean;
+  executada?: boolean | null;
+  texto?: string;
+  observado_em?: ISODate;
+  importado_do_diario_anterior?: boolean;
+}
+
+export interface DiaryEntry {
+  id: UUID;
+  seq: number;
+  kind: "decisao" | "revisao" | "resultado";
+  decision_id: UUID;
+  version: number;
+  draft_id: UUID | null;
+  opportunity_id: UUID | null;
+  created_at: ISODateTime;
+  sha256: string;
+  payload: DiaryPayload;
+}
+
+export interface DiaryDecision {
+  id: UUID;
+  created_at: ISODateTime;
+  decided_at: ISODateTime;
+  titulo: string;
+  escolha: string;
+  versao: number;
+  origem: DiaryPayload["origem"];
+  proposta_por: string | null;
+  opportunity_id: UUID | null;
+  draft_id: UUID | null;
+  executada: boolean;
+  review_plan: { every_months: number; next_on: ISODate } | null;
+  entries: DiaryEntry[];
+}
+
+export interface DiaryOverview {
+  drafts: DecisionDraft[];
+  decisions: DiaryDecision[];
+  due_reviews: { decision_id: UUID; titulo: string; escolha: string; decided_at: ISODateTime; pergunta: string }[];
+  chain: { ok: boolean; registros: number; falhas: number[] };
+  today: ISODate;
+}
+
+export interface ReviewContext {
+  decisao: DiaryDecision;
+  na_epoca: FinancialContext | null;
+  hoje: FinancialContext | null;
+  radar: {
+    estado_hoje: string;
+    avaliacoes: { horizon_days: number; status: string; verdict: string | null }[];
+    operacoes_informadas: unknown[];
+    decisoes_no_radar: { decision: string; created_at: ISODateTime }[];
+  } | null;
+}
 
 // --- Estado ---------------------------------------------------------------------
 export interface AppStatus {

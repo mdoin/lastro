@@ -326,8 +326,11 @@ def export_all(conn: sqlite3.Connection) -> dict:
     runs = [dict(r) for r in conn.execute("SELECT * FROM routine_runs ORDER BY scheduled_for").fetchall()]
     facts = [dict(r) for r in conn.execute("SELECT * FROM financial_facts ORDER BY created_at")]
     notes = [dict(r) for r in conn.execute("SELECT * FROM agent_notes ORDER BY created_at")]
+    diary_drafts = [dict(r) for r in conn.execute("SELECT * FROM decision_drafts ORDER BY created_at")]
+    diary_entries = [dict(r) for r in conn.execute("SELECT * FROM diary_entries ORDER BY user_id, seq")]
     return {"exported_at": utcnow(), "snapshots": snapshots, "financial_facts": facts, "agent_notes": notes, "assumptions": get_assumptions(conn),
-            "goals": list_goals(conn), "decisions": list_decisions(conn), "conversations": conversations,
+            "goals": list_goals(conn), "decisions": list_decisions(conn), "diary_drafts": diary_drafts,
+            "diary_entries": diary_entries, "conversations": conversations,
             "routines": routines, "routine_runs": runs}
 
 

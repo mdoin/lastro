@@ -190,11 +190,11 @@ def test_snapshot_diagnosis_projection_goals(env):
 def test_decisions_and_export(env):
     client, app, _ = env
     login(client, app)
-    d = client.post("/api/decisions", json={"question": "Reserva onde?", "user_choice": "Liquidez diária",
-                                            "planned_amount": "150", "confirmed": True}, headers=H).json()
-    assert d["confirmed"] is True and client.get("/api/decisions").json()[0]["id"] == d["id"]
+    d = client.post("/api/diary/decisions", json={"titulo": "Reserva onde?", "escolha": "Liquidez diária",
+                                                  "valor_planejado": "150"}, headers=H).json()
+    assert d["escolha"] == "Liquidez diária" and client.get("/api/diary").json()["decisions"][0]["id"] == d["id"]
     r = client.get("/api/export")
-    assert "attachment" in r.headers["content-disposition"] and r.json()["decisions"][0]["id"] == d["id"]
+    assert "attachment" in r.headers["content-disposition"] and r.json()["diary_entries"][0]["id"] == d["id"]
 
 
 # ---------- mentor ----------

@@ -9,6 +9,7 @@ import {
   decideFact,
   deleteNote,
   deleteTeamConversation,
+  draftFromMessage,
   getAgents,
   getTeamConversation,
   getTeamConversations,
@@ -272,6 +273,7 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
   const [replyTo, setReplyTo] = useState<TeamMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
+  const navigate = useNavigate();
   const endRef = useRef<HTMLDivElement>(null);
   const c = conv.data;
 
@@ -352,6 +354,15 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
     }
   }
 
+  async function record(messageId: string) {
+    try {
+      const draft = await draftFromMessage(messageId);
+      navigate(`/diario?rascunho=${encodeURIComponent(draft.id)}`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Não foi possível preparar o rascunho.");
+    }
+  }
+
   async function stop() {
     for (const r of activeRuns) {
       try {
@@ -416,6 +427,8 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
         {msgs.map((m) => (
           <MessageItem key={m.id} m={m} agents={agents} quoted={m.reply_to_id && m.role === "user" ? byId[m.reply_to_id] : undefined}
             onReply={c.channel === "routine" ? undefined : () => setReplyTo(m)}
+            onRecord={m.role === "assistant" && m.kind === "message" && m.status === "ok" && m.agent_id !== "lastro"
+              ? () => void record(m.id) : undefined}
             onRetry={m.status === "error" && m.reply_to_id && byId[m.reply_to_id] ? () => void send(byId[m.reply_to_id!]!.content).catch(() => undefined) : undefined} />
         ))}
         {working.map(([key, s]) => (
@@ -461,8 +474,9 @@ function Intro({ conv, agents, onPick }: { conv: TeamConversation; agents: Agent
   );
 }
 
-function MessageItem({ m, agents, quoted, onReply, onRetry }: {
+function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord }: {
   m: TeamMessage; agents: AgentMap; quoted?: TeamMessage | undefined; onReply?: () => void; onRetry?: () => void;
+  onRecord?: () => void;
 }) {
   if (m.kind === "notice") return <p className="team-notice" role="note">{m.content}</p>;
   if (m.role === "user") {
@@ -511,6 +525,7 @@ function MessageItem({ m, agents, quoted, onReply, onRetry }: {
         )}
         {onRetry && <button type="button" className="btn btn-ghost btn-sm" onClick={onRetry}><Icon name="refresh" /> Tentar de novo</button>}
         {onReply && <button type="button" className="btn btn-ghost btn-sm" onClick={onReply} aria-label={`Responder a ${name}`}><Icon name="arrow" /> Responder</button>}
+        {onRecord && <button type="button" className="btn btn-ghost btn-sm" onClick={onRecord}><Icon name="book" /> Registrar no Diário</button>}
       </div>
     </article>
   );

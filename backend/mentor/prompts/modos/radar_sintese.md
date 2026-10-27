@@ -19,3 +19,5 @@ Atraso das fontes, dados que faltam, o que não foi possível verificar.
 O que o Lastro vai observar nos horizontes registrados para dizer se a hipótese se confirmou.
 
 Regras: não recomende comprar, vender nem aplicar; não use "imperdível", "garantido" ou equivalentes; nenhuma promessa de retorno; use só números que aparecem no contexto, nos pareceres ou nas ferramentas.
+
+Depois da síntese, chame `propor_registro_decisao` uma vez com as alternativas discutidas (por exemplo: investigar, acompanhar, deixar de lado), os riscos e as premissas. É só um rascunho: decidir investir não significa que alguma operação foi feita.

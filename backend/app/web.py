@@ -11,7 +11,6 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-import datetime as dt
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -30,7 +29,7 @@ from team.agents import AGENTS, SPECIALISTS, chat_agents
 
 from radar.engine import Radar
 
-from . import auth, db, radar_web, routines, store, views
+from . import auth, db, diary_web, radar_web, routines, store, views
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
 from .turns import ConversationBusy, TurnManager
@@ -167,18 +166,6 @@ class RoutineIn(BaseModel):
     active: bool = True
     missed_policy: str = "skip"
     use_panel: bool = False
-
-
-class DecisionIn(BaseModel):
-    date: dt.date | None = None
-    question: str = Field(max_length=500)
-    alternatives: list[str] = Field(default_factory=list, max_length=10)
-    information: str = Field("", max_length=2000)
-    risk_accepted: str = Field("", max_length=1000)
-    user_choice: str = Field(max_length=500)
-    planned_amount: str | None = None
-    confirmed: bool = False
-    review_of_id: str | None = None
 
 
 # ---------- app ----------
@@ -578,15 +565,7 @@ def create_app(settings: Settings) -> FastAPI:
         if not routines.mark_read(conn, run_id):
             raise HTTPException(status_code=404, detail="Item inexistente.")
 
-    # --- decisões, estado, exportação ---
-    @app.get("/api/decisions", dependencies=private)
-    async def decisions_list():
-        return store.list_decisions(conn)
-
-    @app.post("/api/decisions", status_code=201, dependencies=private)
-    async def decisions_create(body: DecisionIn):
-        return bad_request(store.create_decision, conn, body.model_dump(mode="json"), today=today().isoformat())
-
+    # --- estado, exportação ---
     @app.get("/api/status", dependencies=private)
     async def status():
         worker = await mentor.call({"op": "status"}, timeout=12)
@@ -607,6 +586,10 @@ def create_app(settings: Settings) -> FastAPI:
     # --- Radar e Diário de Oportunidades ---
     radar_web.register(app, conn, current_user=current_user, radar=radar, bad_request=bad_request,
                        log_access=log_access, today=today)
+
+    # --- Diário de Decisões ---
+    diary_web.register(app, conn, current_user=current_user, bad_request=bad_request, log_access=log_access,
+                       today=today)
 
     @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "DELETE"])
     async def api_not_found(rest: str):

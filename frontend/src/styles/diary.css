@@ -1,0 +1,102 @@
+/* Diário de Decisões. Reaproveita a regra visual do Radar (radar.css): registro original com filete dourado e
+   cadeado; o que veio depois com borda tracejada e relógio. Aqui só o que é próprio do Diário. */
+
+.diary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.diary-draft,
+.diary-ask {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold-mark);
+  border-radius: var(--radius, 14px);
+  background: var(--surface);
+}
+
+.diary-ask p {
+  margin: 0;
+}
+
+.diary-title {
+  margin: 0;
+  font-size: 1.04rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.diary-review {
+  padding-top: 4px;
+}
+
+.diary-section {
+  display: grid;
+  gap: 4px;
+}
+
+.diary-section p,
+.diary-section ul {
+  margin: 0;
+}
+
+.diary-details > summary {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.diary-option {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.diary-option:has(input:checked) {
+  border-color: var(--ink);
+  box-shadow: var(--shadow-xs);
+}
+
+.diary-confirmed {
+  display: grid;
+  gap: 6px;
+  padding: 14px 18px;
+  border-radius: var(--radius, 14px);
+  border: 1px solid var(--ink);
+  background: var(--surface);
+}
+
+.diary-confirmed p {
+  margin: 0;
+}
+
+.diary-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.diary-history li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.diary-history li:last-child {
+  border-bottom: 0;
+}

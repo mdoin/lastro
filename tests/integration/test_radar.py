@@ -306,6 +306,37 @@ def test_council_analyses_signal_with_selected_agents_and_audit(conn):
     assert link["purpose"] == "analise" and journal.opportunity_for_conversation(conn, link["conversation_id"]) == opp["id"]
 
 
+def test_radar_analysis_prepares_a_linked_diary_draft_without_assuming_execution(conn):
+    from app import diary
+
+    store.create_snapshot(conn, {"as_of": "2026-01-02", "net_monthly_income": "8000.00", "essential_expenses": "3000.00",
+                                 "variable_expenses": "1000.00", "liquid_reserve": "30000.00",
+                                 "available_this_month": "2000.00", "debts": []})
+    td_scenario(conn)
+    proposal = {"titulo": "Tesouro IPCA+ com taxa alta", "alternativas": [{"titulo": "Acompanhar"},
+                                                                          {"titulo": "Deixar de lado"}],
+                "riscos": ["Marcação a mercado"]}
+
+    def script(role, mode, prompt):
+        if mode == "radar_sintese":
+            return done("## Conclusão\nSinal merece observação. Riscos: marcação a mercado.",
+                        [{"name": "propor_registro_decisao", "input": proposal}])
+        return done(f"Parecer de {role}. Risco de marcação a mercado.")
+    orch = Orchestrator(conn, FakeRuntime(script).stream, today=lambda: T0, semantic_audit="off")
+    radar_at(conn, T0, orchestrator=orch).tick(force=True)
+    asyncio.run(drain(orch))
+    [opp] = opportunities(conn)
+    [draft] = diary.list_drafts(conn, store.OWNER)
+    assert draft["opportunity_id"] == opp["id"] and draft["content"]["pergunta_de"] == "Lastro"
+    assert draft["content"]["radar"]["deteccao"] == journal.original(conn, opp["id"])  # snapshot original preservado
+    d = diary.confirm_draft(conn, store.OWNER, draft["id"], {"alternativa": 0, "radar_decisao": "acompanhar"},
+                            now=stamp(T0), today=T0)
+    assert d["opportunity_id"] == opp["id"] and d["executada"] is False
+    ctx = diary.review_context(conn, store.OWNER, d["id"])
+    assert [x["decision"] for x in ctx["radar"]["decisoes_no_radar"]] == ["acompanhar"]
+    assert ctx["radar"]["operacoes_informadas"] == []
+
+
 def test_analysis_budget_and_low_priority_skip_the_council(conn):
     td_scenario(conn)
     alerts.save_prefs(conn, store.OWNER, {"max_analyses_per_day": 0}, stamp(T0))

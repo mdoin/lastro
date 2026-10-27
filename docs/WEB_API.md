@@ -128,13 +128,24 @@ O resultado final é salvo como mensagem numa conversa `kind: "panel"`.
 
 `quiet` = a rotina rodou e não havia novidade (não notifica).
 
-## Diário de decisões (append-only)
-`Decision`: `{"id", "date", "question", "alternatives": [str], "information": str, "risk_accepted": str, "user_choice": str, "planned_amount": dec | null, "confirmed": bool, "review_of_id": uuid | null}`
+## Diário de decisões — ver `docs/DIARIO.md`
+Agentes só propõem (rascunho); toda decisão nasce de uma destas rotas, com sessão e `X-Lastro`. 404 para o que não é do dono.
 
 | Rota | Corpo | Resposta |
 |---|---|---|
-| `GET /api/decisions` | — | `[Decision]` (mais recente primeiro) |
-| `POST /api/decisions` | campos sem `id` | `Decision` (201). Para revisar, crie outra com `review_of_id`. |
+| `GET /api/diary` | — | `{drafts, decisions, due_reviews, chain, today}` |
+| `POST /api/diary/drafts` | `{"message_id"}` (resposta de agente) | rascunho (idempotente por mensagem); 422 se não for resposta de agente |
+| `GET /api/diary/drafts/{id}` | — | rascunho |
+| `POST /api/diary/drafts/{id}/confirm` | `{"alternativa"? \| "escolha"?, "justificativa", "correcoes", "review_every_months"?, "radar_decisao"?}` | decisão (reenvio devolve a mesma); 422 sem escolha |
+| `POST /api/diary/drafts/{id}/postpone` · `/discard` | `{"until"?, "note"}` · `{"note"}` | rascunho (`adiado` / `descartado`) |
+| `POST /api/diary/decisions` | registro manual `{"titulo", "escolha", …, "client_id"?}` | decisão (201; `client_id` repetido devolve a mesma) |
+| `GET /api/diary/decisions/{id}` | — | `{decisao, na_epoca, hoje, radar}` (contexto original e atual separados) |
+| `POST /api/diary/decisions/{id}/revisions` | `{"escolha", "mantem", "justificativa", "client_id"?}` | decisão com nova versão (201) |
+| `POST /api/diary/decisions/{id}/outcomes` | `{"texto", "executada"?, "observado_em"?, "client_id"?}` | decisão (201) |
+| `PUT /api/diary/decisions/{id}/review-plan` | `{"every_months": 1..24 \| null}` | decisão |
+| `POST /api/diary/decisions/{id}/discuss` | — | conversa com o Mentor ligada à decisão (201) |
+
+As antigas `GET/POST /api/decisions` saíram; o `decision_log` é importado para o Diário na inicialização.
 
 ## Estado e dados
 | Rota | Resposta |

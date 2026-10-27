@@ -11,8 +11,10 @@ import type {
   AppStatus,
   AssumptionsResponse,
   AuthState,
-  Decision,
-  DecisionInput,
+  DecisionDraft,
+  DiaryDecision,
+  DiaryOverview,
+  ReviewContext,
   Diagnosis,
   Goal,
   GoalInput,
@@ -73,8 +75,27 @@ export const getInbox = () => api.get<RoutineRun[]>("/api/inbox");
 export const markInboxRead = (runId: UUID) => api.post<void>(`/api/inbox/${enc(runId)}/read`);
 
 // Diário de decisões
-export const getDecisions = () => api.get<Decision[]>("/api/decisions");
-export const createDecision = (d: DecisionInput) => api.post<Decision>("/api/decisions", d);
+export const getDiary = () => api.get<DiaryOverview>("/api/diary");
+export const draftFromMessage = (message_id: UUID) => api.post<DecisionDraft>("/api/diary/drafts", { message_id });
+export const confirmDraft = (id: UUID, body: {
+  alternativa?: number | null; escolha?: string; justificativa?: string; correcoes?: string;
+  review_every_months?: number | null; radar_decisao?: string | null;
+}) => api.post<DiaryDecision>(`/api/diary/drafts/${enc(id)}/confirm`, body);
+export const postponeDraft = (id: UUID, body: { until?: string | null; note?: string }) =>
+  api.post<DecisionDraft>(`/api/diary/drafts/${enc(id)}/postpone`, body);
+export const discardDraft = (id: UUID, note = "") => api.post<DecisionDraft>(`/api/diary/drafts/${enc(id)}/discard`, { note });
+export const createManualDecision = (body: {
+  titulo: string; escolha: string; data?: string; alternativas?: string[]; informacoes?: string; riscos?: string;
+  justificativa?: string; valor_planejado?: string | null; review_every_months?: number | null; client_id: string;
+}) => api.post<DiaryDecision>("/api/diary/decisions", body);
+export const getReviewContext = (id: UUID) => api.get<ReviewContext>(`/api/diary/decisions/${enc(id)}`);
+export const addRevision = (id: UUID, body: { escolha: string; mantem: boolean; justificativa: string; client_id: string }) =>
+  api.post<DiaryDecision>(`/api/diary/decisions/${enc(id)}/revisions`, body);
+export const addOutcome = (id: UUID, body: { texto: string; executada: boolean | null; observado_em?: string; client_id: string }) =>
+  api.post<DiaryDecision>(`/api/diary/decisions/${enc(id)}/outcomes`, body);
+export const setReviewPlan = (id: UUID, every_months: number | null) =>
+  api.put<DiaryDecision>(`/api/diary/decisions/${enc(id)}/review-plan`, { every_months });
+export const discussDecision = (id: UUID) => api.post<TeamConversation>(`/api/diary/decisions/${enc(id)}/discuss`);
 
 // Estado e dados
 export const getStatus = () => api.get<AppStatus>("/api/status");

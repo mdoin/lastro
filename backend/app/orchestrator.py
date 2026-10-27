@@ -28,7 +28,7 @@ from integrations import catalog
 from team import auditor, routing
 from team.agents import AGENTS, get
 
-from . import store, views
+from . import diary, store, views
 
 log = logging.getLogger("lastro.orquestrador")
 
@@ -300,8 +300,9 @@ class Orchestrator:
         result = self._audit(ctx, text, tools, council=False) if audit else None
         if result and result.verdict == auditor.REPROVA:
             text, result, tools = await self._correct(ctx, agent_id, key, task, text, result, tools, depth)
-        self._publish(ctx, key, agent_id, text, audit=result.as_dict() if result else None,
-                      sources=self._sources(ctx, tools, key), tools=tools, kind=message_kind)
+        message = self._publish(ctx, key, agent_id, text, audit=result.as_dict() if result else None,
+                                sources=self._sources(ctx, tools, key), tools=tools, kind=message_kind)
+        self._draft(ctx, agent_id, key, message)
         return text
 
     async def _correct(self, ctx, agent_id, key, task, text, result, tools, depth, council: bool = False):
@@ -359,8 +360,9 @@ class Orchestrator:
         if result.verdict == auditor.REPROVA:
             text, result, tools = await self._correct(ctx, "mentor", "conselho:sintese", task, text, result, tools, 0,
                                                       council=True)
-        self._publish(ctx, "conselho:sintese", "mentor", text, audit=result.as_dict(),
-                      sources=self._sources(ctx, tools, None), tools=tools)
+        message = self._publish(ctx, "conselho:sintese", "mentor", text, audit=result.as_dict(),
+                                sources=self._sources(ctx, tools, None), tools=tools)
+        self._draft(ctx, "mentor", "conselho:sintese", message)
 
     # ---------- Radar ----------
 
@@ -389,8 +391,9 @@ class Orchestrator:
         if result.verdict == auditor.REPROVA:
             text, result, tools = await self._correct(ctx, "mentor", "radar:sintese", task, text, result, tools, 0,
                                                       council=True)
-        self._publish(ctx, "radar:sintese", "mentor", text, audit=result.as_dict(),
-                      sources=self._sources(ctx, tools, None), tools=tools)
+        message = self._publish(ctx, "radar:sintese", "mentor", text, audit=result.as_dict(),
+                                sources=self._sources(ctx, tools, None), tools=tools)
+        self._draft(ctx, "mentor", "radar:sintese", message)
 
     def _reports(self, results) -> str:
         return "\n\n".join(f"### {get_name(a)}\n{t or '(sem parecer: falhou)'}" for a, t in results)
@@ -535,6 +538,30 @@ class Orchestrator:
                 except ValueError as exc:
                     log.info("proposta de fato recusada: %s", exc)
 
+    def _draft(self, ctx: RunContext, agent_id: str, key: str, message: dict) -> None:
+        """Rascunho do Diário pedido pelo agente (`propor_registro_decisao`), montado e validado aqui.
+        Só conta a chamada do próprio passo (e da integração/correção dele) de um agente com a capacidade."""
+        if not get(agent_id).caps.diary or message["status"] != "ok" or message["kind"] != "message":
+            return
+        calls = [t.get("input") or {} for s in store.list_steps(self.conn, ctx.run["id"])
+                 if s["agent_id"] == agent_id and s["status"] == "succeeded"
+                 and (s["step_key"] == key or s["step_key"].startswith(f"{key}:"))
+                 for t in s["tools"] if t.get("name") == diary.PROPOSAL_TOOL]
+        if not calls:
+            return
+        try:
+            draft, created = diary.draft_for_message(self.conn, ctx.conv, message, today=self.today(),
+                                                     now=store.utcnow(), proposal=calls[-1], requested_by="agente")
+        except ValueError as exc:
+            log.info("rascunho do Diário recusado: %s", str(exc)[:300])
+            self._notice(ctx.conv["id"], "Um rascunho para o Diário foi recusado na validação. Você pode registrar "
+                                         "esta resposta pelo botão \"Registrar no Diário\".")
+            return
+        if created:
+            self._notice(ctx.conv["id"], f"{get_name(agent_id)} preparou um rascunho para o Diário de Decisões: "
+                                         f"\u201c{draft['content']['titulo']}\u201d. Ele só vira decisão quando você "
+                                         "confirmar, na tela Diário.")
+
     # ---------- auditoria, fontes, publicação ----------
 
     def _audit(self, ctx: RunContext, text: str, tools: list, *, council: bool) -> auditor.AuditResult:
@@ -572,6 +599,11 @@ class Orchestrator:
                     ev.computed += _evidence_numbers(views.diagnosis_view(
                         self.conn, reserve_months=int(data.get("reserve_months", 6)),
                         reference_annual_return=str(data.get("reference_annual_return", "0.10"))))
+                elif name == "decisoes":  # só o que a pessoa escreveu/confirmou e o que o motor calculou viram evidência
+                    found = diary.for_agents(self.conn, ctx.conv["user_id"], query=str(data.get("busca", "")),
+                                             decision_id=str(data.get("id", "")))["decisoes"]
+                    ev.numbers += _evidence_numbers([{k: d.get(k) for k in diary.OWNER_FIELDS} for d in found])
+                    ev.computed += _evidence_numbers([d.get("calculos", []) for d in found])
                 elif name in ("dados_mercado", "ler_pagina_oficial"):
                     ev.sourced = True
                 elif name == "diario_radar":
@@ -598,7 +630,9 @@ class Orchestrator:
         snap = store.latest_snapshot(self.conn)
         for tool in tools:
             name, data = tool.get("name"), tool.get("input") or {}
-            if name in ("situacao_atual", "diagnostico", "projecao", "metas", "premissas", "decisoes") and snap:
+            if name == "decisoes":
+                add({"kind": "diario", "label": "Diário de Decisões (registros confirmados por você)"})
+            elif name in ("situacao_atual", "diagnostico", "projecao", "metas", "premissas") and snap:
                 add({"kind": "dados", "label": f"Seu retrato financeiro de {snap['as_of']}", "reference_date": snap["as_of"]})
             elif name == "memoria_financeira":
                 add({"kind": "memoria", "label": "Memória financeira confirmada por você"})
