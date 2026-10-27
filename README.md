@@ -56,6 +56,7 @@ sobre reserva). Com um modelo local (Ollama), nada sai da sua máquina. Detalhes
 | Radar e Diários | [docs/RADAR.md](docs/RADAR.md), [docs/DIARIO.md](docs/DIARIO.md) |
 | Testes | [docs/TESTING.md](docs/TESTING.md) |
 | Como contribuir | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Licença e marca | [LICENSE](LICENSE), [TRADEMARKS.md](TRADEMARKS.md), [docs/LICENSING.md](docs/LICENSING.md) |
 
 ## Desenvolvimento
 
@@ -71,8 +72,17 @@ Runtime), `backend/mentor` (worker dos agentes), `backend/team` (registro e rote
 
 ## Licença
 
-**Ainda não definida.** A recomendação fundamentada está em [docs/LICENSING.md](docs/LICENSING.md); até a decisão,
-nenhuma licença de uso é concedida. Nome e marca "Lastro" (`docs/brand/`) não fazem parte da licença do código.
+Copyright © 2026 os autores do Lastro.
+
+O código é software livre: você pode redistribuí-lo e modificá-lo nos termos da
+[GNU Affero General Public License](LICENSE), versão 3 ou (a seu critério) qualquer versão posterior
+(`AGPL-3.0-or-later`). Ele é distribuído na esperança de ser útil, mas **sem nenhuma garantia**. Se você modificar o
+Lastro e oferecê-lo pela rede a outras pessoas, a AGPL exige que o código-fonte modificado esteja disponível a elas
+(configure `LASTRO_SOURCE_URL`).
+
+O nome "Lastro" e os elementos de marca (`docs/brand/`, ícones em `frontend/public/`) **não** fazem parte da licença
+do código: veja a [política de marca](TRADEMARKS.md). Contribuições entram com `Signed-off-by` ([DCO](DCO)); ver
+[CONTRIBUTING.md](CONTRIBUTING.md). Motivos da escolha: [docs/LICENSING.md](docs/LICENSING.md).
 
 O desenho de execução de agentes foi inspirado no estudo do OpenBot (PolyForm Noncommercial); nenhum código dele foi
 incorporado.

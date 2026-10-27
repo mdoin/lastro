@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Claude Code: o executável oficial da Anthropic, rodado pelo Claude Agent SDK, sem modificação.
 
 Desenho estudado no OpenBot (só ideias; nenhum código copiado):

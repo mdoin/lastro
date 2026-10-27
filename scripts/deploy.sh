@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Implanta o Lastro neste servidor. Rode com sudo, a partir de qualquer pasta:
 #   sudo scripts/deploy.sh
 # O frontend precisa estar compilado antes (frontend/dist), com o usuário normal:

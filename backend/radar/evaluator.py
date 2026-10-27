@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Avaliação determinística de um sinal: qualidade dos dados, adequação ao perfil, custos, score e hipótese.
 
 O score é uma soma ponderada de três critérios documentados (docs/RADAR.md §Classificação). Ele ordena sinais

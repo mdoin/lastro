@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Gráfico de linhas em SVG escrito à mão (sem biblioteca).
  * Segue a skill de dataviz: linhas de 2px, grade em linha fina sólida, um único eixo Y,

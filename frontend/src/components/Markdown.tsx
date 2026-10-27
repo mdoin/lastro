@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { lazy, memo, Suspense } from "react";
 
 // O renderizador de Markdown (react-markdown + remark-gfm) é carregado sob demanda,

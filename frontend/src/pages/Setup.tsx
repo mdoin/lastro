@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Assistente inicial: boas-vindas → conta administrativa (token de instalação) → região → provedor de IA (conexão,
  * login autorizado, teste e modelo) → Mentor → diagnóstico → painel. Sem IA, o que é determinístico já funciona.

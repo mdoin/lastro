@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Token de instalação: protege a criação da primeira senha pela web.
 
 Numa instalação nova o web app ainda não tem senha; sem este token, quem chegasse primeiro ao endereço

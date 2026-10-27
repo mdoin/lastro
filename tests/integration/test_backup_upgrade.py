@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Backup, restauração e atualização de versão sem perda de dados."""
 
 import os

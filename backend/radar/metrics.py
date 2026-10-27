@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Indicadores de qualidade do Radar e propostas de ajuste controladas.
 
 Só entram sinais e alertas reais (backtests ficam em radar_backtests, decisões e operações da pessoa à parte).

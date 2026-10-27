@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Diário de Decisões: os agentes preparam, a pessoa confirma (docs/DIARIO.md).
 
 Camadas separadas, cada uma com autoria:

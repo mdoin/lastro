@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Diário de Oportunidades: registro imutável, linha do tempo, decisões da pessoa e vínculos com conversas.
 
 Os registros (`radar_snapshots`) são append-only no banco (triggers) e encadeados por SHA-256: cada um inclui o

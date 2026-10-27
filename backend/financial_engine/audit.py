@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Verificações determinísticas usadas pelo agente Auditor (AG-06).
 
 IMPORTANTE: isto NÃO é controle de segurança. A barreira real contra operações

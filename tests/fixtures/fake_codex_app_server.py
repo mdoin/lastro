@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """`codex app-server` falso para testes: JSON por linha em stdio, registra tudo que recebe em FAKE_CODEX_LOG.
 
 No turno, pede ao cliente uma ferramenta fora da concessão, uma aprovação de comando nativo e um pedido

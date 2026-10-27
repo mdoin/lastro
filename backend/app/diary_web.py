@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Rotas do Diário de Decisões (docs/WEB_API.md §Diário).
 
 Tudo filtra pelo dono: rascunho, decisão ou mensagem de outra pessoa responde 404, igual a inexistente.

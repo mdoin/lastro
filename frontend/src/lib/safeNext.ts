@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /** Destino pós-login vindo de `?next=`. */
 export function safeNext(raw: string | null): string {
   // Só caminhos internos: evita redirecionamento aberto. "/\\host" e "/<TAB>/host" viram endereços de outro

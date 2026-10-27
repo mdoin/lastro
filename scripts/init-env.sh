@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Cria o .env a partir do .env.example, com segredos aleatórios. Não sobrescreve um .env existente.
 set -eu
 cd "$(dirname "$0")/.."

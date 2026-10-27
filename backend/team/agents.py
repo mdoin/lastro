@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Registro versionado dos agentes do Lastro.
 
 Um agente "persistente" não é um processo vivo: é esta configuração (identidade, instruções, ferramentas,

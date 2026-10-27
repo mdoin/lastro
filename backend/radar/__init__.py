@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Lastro Radar: monitoramento determinístico, Diário de Oportunidades e avaliação histórica.
 
 Separação de responsabilidades (ver docs/RADAR.md):

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { memo, type CSSProperties } from "react";
 import { BrandMark } from "./Icon";
 import { EYE_CHARS, GRID, MASCOTS, runs } from "./mascots";

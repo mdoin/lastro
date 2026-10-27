@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Lastro — esquema v2: autenticação, snapshots, chat, rotinas.
 -- Mesmas convenções da v1: UUID em TEXT, datas ISO 8601, valores Decimal em TEXT.
 

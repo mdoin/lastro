@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Codex: o executável oficial da OpenAI (`codex app-server`), com o login do próprio Codex.
 
 Desenho estudado no OpenBot (só ideias; nenhum código copiado): um processo `codex app-server` por conexão,

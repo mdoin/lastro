@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Worker do mentor com um Claude falso (nenhuma chamada real à assinatura)."""
 import asyncio
 import json

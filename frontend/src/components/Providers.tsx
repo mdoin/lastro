@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Contas de IA da instalação: conectar (chave ou login oficial do CLI), testar, escolher modelo, tornar padrão,
  * desconectar; e o provedor/modelo de cada agente. Nenhum segredo volta do servidor: só "…1234".

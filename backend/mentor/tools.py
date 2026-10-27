@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Ferramentas do mentor: somente leitura e independentes de provedor (ver providers/toolspec.py).
 
 É a única superfície que o modelo enxerga. Cada ferramenta repassa a consulta à

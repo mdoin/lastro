@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Campo de data com calendário próprio: o calendário nativo do navegador não aceita estilo e destoava do sistema.
  * Valor no formato da API (AAAA-MM-DD); exibe e aceita digitação em dd/mm/aaaa.

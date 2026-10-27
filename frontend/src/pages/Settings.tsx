@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { useNavigate } from "react-router-dom";
-import { EXPORT_URL, getStatus, logout } from "../api/endpoints";
+import { EXPORT_URL, getAuthState, getStatus, logout } from "../api/endpoints";
 import { Icon } from "../components/Icon";
 import { AgentModels, ProviderManager } from "../components/Providers";
 import { ThemeSwitch } from "../components/ThemeSwitch";
@@ -20,6 +21,7 @@ export function SettingsPage() {
   const app = useApp();
   const navigate = useNavigate();
   const status = useAsync(getStatus, []);
+  const auth = useAsync(getAuthState, []);
   const s = status.data;
 
   async function doLogout() {
@@ -146,6 +148,20 @@ export function SettingsPage() {
         <p className="small">
           Baixe um arquivo JSON com tudo o que está guardado: retratos, metas, premissas, decisões, rotinas e conversas.
         </p>
+      </Card>
+
+      <Card title="Código-fonte e licença" eyebrow="Software livre">
+        <p className="small">
+          O Lastro é software livre sob a GNU AGPL-3.0 (versão 3 ou posterior), sem nenhuma garantia. Você pode estudar,
+          modificar e redistribuir o código; se oferecer uma versão modificada pela rede, o código dela precisa estar
+          disponível para quem a usa. O nome e a marca seguem uma política própria.
+        </p>
+        {auth.data && (
+          <a className="btn btn-secondary btn-sm" href={auth.data.source_url} target="_blank" rel="noopener noreferrer">
+            <Icon name="arrowUpRight" />
+            Ver o código-fonte
+          </a>
+        )}
       </Card>
 
       <Card title="Sessão" eyebrow="Segurança"

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Alertas do Radar: decisão de alertar, deduplicação, cooldown, silêncio, limites e histórico de entrega.
 
 O alerta dentro do Lastro é persistente (tabela radar_alerts) e sempre registrado. Canais externos (e-mail,

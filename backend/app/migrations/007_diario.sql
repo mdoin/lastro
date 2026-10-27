@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Lastro — v7: Diário de Decisões assistido por agentes (docs/DIARIO.md).
 -- Proposta (rascunho preparado pelos agentes) ≠ decisão (confirmada pela pessoa).
 -- Compatível: só acrescenta tabelas. `decision_log` fica como está (append-only) e é importada pelo web app.

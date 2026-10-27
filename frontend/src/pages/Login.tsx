@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { getAuthState, login } from "../api/endpoints";
 import type { AuthState } from "../api/types";
 import { BrandMark, Icon } from "../components/Icon";
-import { Loading, Notice } from "../components/ui";
+import { Loading, Notice, SourceNotice } from "../components/ui";
 import { safeNext } from "../lib/safeNext";
 
 export function LoginPage() {
@@ -104,6 +105,7 @@ export function LoginPage() {
         <p className="tiny muted" style={{ textAlign: "center" }}>
           O Lastro não movimenta dinheiro, não envia ordens e não pede senhas de banco.
         </p>
+        {state && <SourceNotice url={state.source_url} license={state.license} />}
       </div>
     </div>
   );

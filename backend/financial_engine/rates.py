@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Conversão de taxas por composição (nunca dividir taxa efetiva anual por 12)."""
 
 from decimal import Decimal, localcontext

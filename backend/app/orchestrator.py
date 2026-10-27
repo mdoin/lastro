@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Orquestrador da equipe: fila persistente, roteamento, delegação controlada, Conselho e auditoria.
 
 Toda execução nasce de uma mensagem da pessoa e vive no banco (`runs` + `run_steps`), não na aba do navegador:

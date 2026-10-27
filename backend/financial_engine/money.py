@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Valores monetários: sempre Decimal, nunca float binário."""
 
 import re

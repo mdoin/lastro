@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Contrato do AI Provider Runtime.
 
 Um *provedor* é um tipo de integração (Anthropic API, OpenAI, Ollama…); uma *conexão* é uma instância

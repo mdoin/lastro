@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """`claude auth login --claudeai` falso: mostra o link num terminal e espera o código colado."""
 
 import sys

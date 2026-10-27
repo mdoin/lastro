@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Barreiras técnicas contra execução financeira (seções 10.3 e 24.9).
 
 Estes testes inspecionam o código e a API real, não o comportamento do modelo de IA.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Regras do Radar: versionadas, validadas e avaliadas de forma determinística (sem rede e sem modelo de IA).
 
 Cada alteração cria uma nova versão (a anterior fica no banco); o sinal guarda a versão que o disparou.

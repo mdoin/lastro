@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """O laço do Radar: avalia regras, registra no Diário, aciona o Conselho quando vale a pena, alerta e acompanha.
 
 Roda dentro do web app (que tem o banco e o orquestrador), sem rede: os dados chegam pelo coletor. Cada etapa é

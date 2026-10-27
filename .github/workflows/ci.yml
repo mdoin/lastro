@@ -8,6 +8,28 @@ permissions:
   contents: read
 
 jobs:
+  dco:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Todo commit do pull request tem Signed-off-by do próprio autor (DCO 1.1)
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          missing=0
+          for sha in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            email=$(git log -1 --format='%ae' "$sha")
+            if ! git log -1 --format='%B' "$sha" | grep -qiE "^Signed-off-by: .+ <${email}>$"; then
+              echo "::error::commit $sha sem 'Signed-off-by: Nome <${email}>' (use git commit -s; ver CONTRIBUTING.md)"
+              missing=1
+            fi
+          done
+          exit $missing
+
   backend:
     runs-on: ubuntu-24.04
     steps:

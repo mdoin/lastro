@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """AI Provider Runtime: contrato, barreira de ferramentas, adaptadores HTTP, credenciais e erros.
 
 Nenhum teste chama um provedor de verdade: os SDKs oficiais recebem um transporte HTTP simulado.

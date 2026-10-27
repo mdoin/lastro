@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /** Ícones de traço fino, desenhados à mão (sem biblioteca, sem emoji). */
 import type { SVGProps } from "react";
 

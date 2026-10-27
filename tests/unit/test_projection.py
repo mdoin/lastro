@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Testes matemáticos obrigatórios (seção 9.4)."""
 from decimal import Decimal
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Worker do mentor: roda como o usuário `mentor` e atende o web app por socket Unix.
 
 Protocolo: uma requisição JSON por conexão (uma linha); a resposta é uma

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Auditoria determinística das respostas dos agentes.
 
 Roda em toda mensagem de agente, antes de ela ser publicada. O parecer de outro modelo (Auditor semântico) só

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Cliente do worker do mentor (socket Unix) usado pelo web app."""
 
 import asyncio

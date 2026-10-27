@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Mascotes dos agentes do Lastro: pixel art autoral numa grade 16×16 (um caractere = um pixel).
  * Todos compartilham a linguagem: contorno de 1 px, luz no alto à esquerda, sombra embaixo à direita,

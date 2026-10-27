@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Ferramentas neutras (independentes de provedor) e a barreira que decide o que pode rodar.
 
 Uma ferramenta é nome + descrição + JSON Schema + handler assíncrono que devolve o formato

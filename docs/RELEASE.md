@@ -3,7 +3,8 @@
 Publicar o repositório ou uma imagem é decisão da autora. Este checklist precisa estar todo marcado antes.
 
 ## Bloqueadores (resolver antes de tornar público)
-- [ ] Licença escolhida e aplicada ([LICENSING.md](LICENSING.md)).
+- [x] Licença escolhida e aplicada: AGPL-3.0-or-later, DCO, política de marca ([LICENSING.md](LICENSING.md)).
+- [ ] `LASTRO_SOURCE_URL` padrão (`backend/app/web.py`) aponta para o repositório público definitivo.
 - [ ] Decisão sobre o histórico Git ([OPEN_SOURCE_AUDIT.md](OPEN_SOURCE_AUDIT.md) §8): o histórico contém o e-mail
       pessoal da autora em um commit e o domínio/IP da instância pessoal. Recomendado: publicar um repositório novo a
       partir de um commit limpo, mantendo o histórico atual privado.
@@ -23,7 +24,7 @@ Publicar o repositório ou uma imagem é decisão da autora. Este checklist prec
 ## Revisão de conteúdo
 - [ ] `tests/fixtures_synthetic/` e capturas em `docs/screenshots/` só com dados fictícios.
 - [ ] `docs/PENDING.md` e `docs/DECISIONS.md` sem detalhes operacionais da instância pessoal.
-- [ ] Marca e mascotes com política de uso publicada.
+- [x] Marca e mascotes com política de uso publicada ([TRADEMARKS.md](../TRADEMARKS.md)).
 - [ ] `CHANGELOG.md` com a versão e notas de atualização.
 
 ## Não fazer sem autorização explícita

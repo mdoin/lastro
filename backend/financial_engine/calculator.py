@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Calculadora determinística compartilhada por todos os agentes.
 
 Uma única porta de entrada (`calculate(operation, params)`) para as contas que os agentes precisam fazer:

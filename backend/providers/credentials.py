@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Conexões de IA desta instalação, guardadas só no worker.
 
 Arquivo JSON gravado de forma atômica com permissão 0600 no volume do worker (`LASTRO_PROVIDERS_FILE`). O web

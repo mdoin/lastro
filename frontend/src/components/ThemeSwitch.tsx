@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { setThemePref, useThemePref, type ThemePref } from "../lib/theme";
 import { Icon, type IconName } from "./Icon";
 

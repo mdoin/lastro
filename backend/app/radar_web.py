@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Rotas do Radar e do Diário de Oportunidades (docs/WEB_API.md §Radar).
 
 Tudo filtra pelo dono (`user_id`): oportunidade, alerta ou regra de outra pessoa responde 404, igual a inexistente.

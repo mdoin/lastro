@@ -30,6 +30,17 @@ Obrigado pelo interesse no Lastro. Antes de abrir uma contribuição, leia o [C�
 - Teste para todo comportamento novo; testes de segurança para qualquer coisa que toque credenciais, ferramentas dos
   agentes ou dados financeiros.
 
-## Licença das contribuições
-A licença do projeto ainda está em definição ([docs/LICENSING.md](docs/LICENSING.md)). Contribuições externas só
-serão aceitas depois dela, com `Signed-off-by` (DCO) em cada commit.
+## Licença e DCO
+O Lastro é licenciado sob a [AGPL-3.0-or-later](LICENSE). Ao contribuir, você certifica o
+[Developer Certificate of Origin 1.1](DCO): que tem o direito de enviar o trabalho sob essa licença. Para isso, cada
+commit leva a linha `Signed-off-by` com o seu nome e e-mail (o mesmo do autor do commit):
+
+```bash
+git commit -s -m "fix: corrige o arredondamento da reserva"
+```
+
+Esqueceu? `git commit --amend -s` (último commit) ou `git rebase --signoff main` (vários). O CI recusa pull requests
+com commits sem `Signed-off-by`. Não há CLA: você continua dono do que escreveu, licenciado ao projeto pela AGPL.
+
+Arquivos-fonte novos começam com `SPDX-License-Identifier: AGPL-3.0-or-later` no comentário do topo. Ícones, logotipos
+e mascotes seguem a [política de marca](TRADEMARKS.md).

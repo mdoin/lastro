@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Para onde vai a renda do mês: um "roteador" (inspirado no Model Router) que parte da renda
  * e se divide entre os destinos, com partículas correndo por cada caminho.

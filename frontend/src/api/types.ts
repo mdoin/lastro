@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Tipos do contrato `docs/WEB_API.md` (v1). Fonte única de verdade: o documento.
  * `Dec` = string decimal com ponto ("1234.56"). Nunca number.
@@ -13,6 +14,8 @@ export interface AuthState {
   authenticated: boolean;
   setup_required: boolean;
   onboarding_done: boolean;
+  source_url: string;
+  license: string;
 }
 
 export interface SetupState {

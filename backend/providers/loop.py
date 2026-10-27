@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Laço de ferramentas para provedores sem estado (APIs HTTP).
 
 O provedor não guarda a conversa: a sessão mantém o histórico em memória e o reenvia a cada passo. Se o worker

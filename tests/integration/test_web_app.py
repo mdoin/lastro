@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Web app do Lastro de ponta a ponta, com um worker do mentor falso num socket Unix real (TCP de loopback
 onde não há socket Unix, como no Windows de desenvolvimento)."""
 import asyncio
@@ -98,8 +99,10 @@ def sse_events(response):
 
 def test_auth_flow_and_protections(env):
     client, app, _ = env
-    assert client.get("/api/auth/state").json() == {"authenticated": False, "setup_required": True,
-                                                    "onboarding_done": False}
+    state = client.get("/api/auth/state").json()
+    assert {k: state[k] for k in ("authenticated", "setup_required", "onboarding_done")} == {
+        "authenticated": False, "setup_required": True, "onboarding_done": False}
+    assert state["license"] == "AGPL-3.0-or-later" and state["source_url"].startswith("https://")  # AGPL §13
     assert client.get("/api/snapshot/latest").status_code == 401
     auth.set_password(app.state.conn, PASSWORD)
     assert client.post("/api/auth/login", json={"password": "errada"}, headers=H).status_code == 401

@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Lastro — v6: Radar (observações versionadas, regras, sinais, alertas) e Diário de Oportunidades.
 -- Compatível: só acrescenta tabelas. Fatos históricos são append-only (triggers); estado operacional
 -- (estado da oportunidade, status do alerta) muda, mas cada mudança fica na linha do tempo (radar_events).

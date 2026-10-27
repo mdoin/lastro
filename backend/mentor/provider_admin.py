@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Operação `providers` do worker: conexões de IA, teste, modelos e login oficial dos executáveis.
 
 Quem chama é só o web app (socket Unix, conferido por SO_PEERCRED), e o web app só repassa pedidos do dono

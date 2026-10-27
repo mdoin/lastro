@@ -1,6 +1,7 @@
-# Licença: recomendação (decisão pendente)
+# Licença
 
-**Nenhuma licença foi aplicada.** Este documento compara as opções para a decisão da autora.
+**Decisão (2026-10-27): AGPL-3.0-or-later**, com DCO nas contribuições e política de marca separada
+([TRADEMARKS.md](../TRADEMARKS.md)). Abaixo, a análise que fundamentou a escolha.
 
 ## Compatibilidade das dependências
 Todas as dependências distribuídas são permissivas (MIT, BSD, Apache-2.0, ISC, PSF, MPL-2.0 só em dados de
@@ -38,7 +39,13 @@ Observação regulatória (independe da licença): oferecer o Lastro como servi�
 normas da CVM sobre consultoria e análise de valores mobiliários (ver `docs/PENDING.md`, item 17). A distribuição
 self-hosted, em que cada pessoa opera a própria instância, é o modelo assumido nesta versão.
 
-## Depois da decisão
-1. Adicionar `LICENSE` com o texto oficial e `SPDX-License-Identifier` nos arquivos-fonte.
-2. Atualizar README, CONTRIBUTING e `pyproject.toml`/`package.json` (`license`).
-3. Publicar a política de marca.
+## Como foi aplicada
+1. `LICENSE` com o texto oficial da FSF (https://www.gnu.org/licenses/agpl-3.0.txt, 661 linhas, SHA-256
+   `0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0`).
+2. `SPDX-License-Identifier: AGPL-3.0-or-later` no topo dos arquivos-fonte (Python, TypeScript, CSS, SQL, shell,
+   Dockerfile, compose); o teste `test_source_files_declare_the_license` cobra os arquivos novos.
+3. `license` em `pyproject.toml` e `frontend/package.json`.
+4. `DCO` (texto oficial 1.1) e verificação de `Signed-off-by` nos pull requests (CI).
+5. Elementos de marca fora da AGPL, com política própria ([TRADEMARKS.md](../TRADEMARKS.md)).
+6. AGPL §13: o link do código-fonte aparece no login e nas Configurações (`LASTRO_SOURCE_URL`). Quem roda uma versão
+   modificada para outras pessoas deve apontá-lo para o próprio código.

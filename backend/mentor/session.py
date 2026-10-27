@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Montagem da sessão de um papel, independente do provedor de IA.
 
 O papel define instruções (`prompts/`), teto de passos e ferramentas (`ROLE_CAPABILITIES`): navegador e dados

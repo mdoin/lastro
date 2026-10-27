@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Tipos de provedor disponíveis e o runtime que resolve conexão → provedor.
 
 `Runtime` é o único ponto em que o worker escolhe um provedor. Sem nenhuma conexão salva, e com

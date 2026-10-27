@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
 import { EYE_CHARS, GRID, MASCOTS, runs } from "./mascots";
 

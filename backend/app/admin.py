@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Comandos de administração do Lastro, rodados no servidor pelo dono.
 
   lastro-admin set-password        # define/troca a senha (pede no terminal, sem eco)

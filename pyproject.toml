@@ -3,6 +3,7 @@ name = "lastro"
 version = "0.3.0"
 description = "Lastro: mentor financeiro self-hosted, com motor determinístico e agentes em qualquer provedor de IA."
 requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
 dependencies = [
     "anthropic>=1.0",
     "fastapi>=0.115",

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """OpenAI (Responses API, chave de API) e endpoints compatíveis com Chat Completions.
 
 - `openai`: Responses API com `store=False` (a conversa não fica guardada na OpenAI; o histórico vem do Lastro).

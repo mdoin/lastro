@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Diário de Decisões: agentes preparam rascunhos, só a pessoa confirma; registros imutáveis e encadeados."""
 import asyncio
 import sqlite3

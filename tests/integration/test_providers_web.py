@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Web app: assistente inicial (token de instalação), conexões de IA e provedor/modelo por agente.
 
 O worker é falso (TCP de loopback); o foco é o que o web app aceita, repassa, registra e devolve.
@@ -93,8 +94,9 @@ def test_first_password_requires_the_installation_token(env):
     ok = client.post("/api/setup/password", json={"token": token, "password": PASSWORD}, headers=H)
     assert ok.status_code == 204 and "httponly" in ok.headers["set-cookie"].lower()
     assert not token_file.exists()                                    # o token morre com o primeiro uso
-    assert client.get("/api/auth/state").json() == {"authenticated": True, "setup_required": False,
-                                                    "onboarding_done": False}
+    state = client.get("/api/auth/state").json()
+    assert {k: state[k] for k in ("authenticated", "setup_required", "onboarding_done")} == {
+        "authenticated": True, "setup_required": False, "onboarding_done": False}
     again = client.post("/api/setup/password", json={"token": token, "password": "outra senha bem longa"}, headers=H)
     assert again.status_code == 409                                   # nunca troca a senha pela web
     state = client.get("/api/setup/state").json()

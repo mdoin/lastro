@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Anthropic (Claude) pela Messages API, com chave da Claude Console.
 
 É o caminho que a Anthropic indica para produtos construídos sobre o Claude

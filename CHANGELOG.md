@@ -18,6 +18,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
 - Fuso configurável (`LASTRO_TZ`).
 - Documentação de instalação, atualização, backup, provedores, termos, fontes de dados, licença, testes e release;
   CI com testes em Linux, instalação limpa, gitleaks e auditoria de dependências.
+- Licença **AGPL-3.0-or-later** (`LICENSE`), cabeçalhos SPDX nos arquivos-fonte, DCO nas contribuições (verificado no
+  CI) e política de marca (`TRADEMARKS.md`); link do código-fonte no login e nas Configurações (AGPL §13,
+  `LASTRO_SOURCE_URL`).
 
 ### Alterado
 - O worker do mentor fala com qualquer provedor pelo runtime; o protocolo com o web app continua o mesmo.

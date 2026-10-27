@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Autenticação do dono do app: senha (scrypt) + sessão por cookie.
 
 - A senha é definida no servidor (`lastro-admin set-password`) ou, na primeira vez, pela web com o token de

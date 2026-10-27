@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Demonstração em terminal com dados 100% sintéticos: diagnóstico + três projeções.
 
 Uso: uv run python scripts/demo.py [persona_id] [aporte_mensal] [meses] [--projecao]

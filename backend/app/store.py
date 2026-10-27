@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Acesso a dados do Lastro (uma pessoa, uso pessoal).
 
 Funções puras sobre uma conexão SQLite. Valores monetários entram e saem como

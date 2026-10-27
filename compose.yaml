@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Lastro self-hosted. Guia: docs/INSTALL.md. Variáveis: .env.example (gere o .env com scripts/init-env.sh).
 #
 #   web        dono do banco; serve a interface e a API (porta publicada só em 127.0.0.1 por padrão)
@@ -39,6 +40,7 @@ services:
       LASTRO_COOKIE_SECURE: ${LASTRO_COOKIE_SECURE:-1}
       LASTRO_TRUSTED_PROXIES: ${LASTRO_TRUSTED_PROXIES:-127.0.0.1,172.31.250.10}
       LASTRO_SETUP_TOKEN: ${LASTRO_SETUP_TOKEN:-}
+      LASTRO_SOURCE_URL: ${LASTRO_SOURCE_URL:-}
       LASTRO_RUN_CONCURRENCY: ${LASTRO_RUN_CONCURRENCY:-2}
     volumes:
       - data:/data

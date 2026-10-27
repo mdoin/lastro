@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { createSnapshot, getLatestSnapshot, getSnapshotHistory } from "../api/endpoints";
 import type { Debt, Snapshot, SnapshotHistoryItem } from "../api/types";

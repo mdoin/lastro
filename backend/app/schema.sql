@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Meu Patrimônio AI — esquema SQLite do MVP (versão 1).
 -- Convenções: ids são UUID em TEXT; datas/horas em ISO 8601 com fuso;
 -- valores monetários, quantidades e taxas em TEXT com Decimal serializado

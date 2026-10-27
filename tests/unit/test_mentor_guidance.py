@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Critérios de aceitação do mentor (seção 24.9), com personas sintéticas."""
 from decimal import Decimal
 

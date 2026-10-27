@@ -34,7 +34,7 @@ agent-api ─ leitura do banco (mode=ro)
 | 9 | Testes | os 20 cenários de `docs/TESTING.md` mapeados para arquivos | `pytest` + `vitest` |
 | 10 | Auditoria de publicação | `RELEASE.md`, teste de higiene ampliado, gitleaks no CI | CI |
 | 11 | Documentação | README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, CHANGELOG, guias | revisão |
-| 12 | Release | `CHANGELOG.md` 0.3.0, sem tag, sem push, sem licença aplicada | — |
+| 12 | Release | `CHANGELOG.md` 0.3.0, AGPL-3.0-or-later + DCO + política de marca; sem tag, sem push | — |
 
 ## Compatibilidade com a instalação atual
 - Sem conexões configuradas, o worker cria uma conexão implícita `claude_code` (o comportamento de hoje), então a

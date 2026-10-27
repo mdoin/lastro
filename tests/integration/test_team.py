@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Equipe de agentes: roteamento, memória isolada, Conselho, auditoria, fila persistente e acesso.
 
 O runtime (worker do Claude) é substituído por `FakeRuntime`, que responde por papel e registra o prompt recebido.

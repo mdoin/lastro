@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /** Galeria de desenvolvimento dos mascotes (só existe em `npm run dev`; fora do build de produção). */
 import { AgentAvatar, type AvatarState } from "../components/AgentAvatar";
 import { MASCOTS } from "../components/mascots";

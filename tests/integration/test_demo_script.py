@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """O demo não pode contradizer o diagnóstico (achado do agente AG-00 em 2026-10-26)."""
 import subprocess
 import sys

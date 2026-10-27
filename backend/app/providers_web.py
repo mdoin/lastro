@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Rotas `/api/providers/*` e `/api/agents/models`: conexões de IA e provedor/modelo por agente.
 
 O web app não guarda segredo de IA: chaves seguem direto para o worker (operação `providers`) e só voltam

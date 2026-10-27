@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Interface real (frontend/dist) contra o backend real, num Chrome headless.
 
 Nenhuma porta é aberta: cada requisição do navegador é entregue ao app ASGI dentro

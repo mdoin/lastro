@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Tema da interface: automático (segue o aparelho), claro ou escuro.
  * A escolha fica só neste navegador (localStorage) e é aplicada como `data-theme` no <html>;

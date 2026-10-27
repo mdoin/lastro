@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useId, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { parseBRL, parsePercent } from "../lib/money";
@@ -468,5 +469,17 @@ export function Segmented<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+/** AGPL-3.0 §13: quem usa a instância pela rede encontra o código-fonte desta versão. */
+export function SourceNotice({ url, license }: { url: string; license: string }) {
+  return (
+    <p className="tiny muted" style={{ textAlign: "center" }}>
+      Software livre ({license}).{" "}
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        Código-fonte
+      </a>
+    </p>
   );
 }

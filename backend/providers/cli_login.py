@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Login do Claude Code num servidor sem navegador, pelo fluxo da própria Anthropic.
 
 Desenho estudado no OpenBot (só ideias; nenhum código copiado): o worker roda `claude auth login --claudeai`

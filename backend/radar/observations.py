@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Observações de mercado versionadas e leitura "como era conhecido em" (point-in-time).
 
 Uma revisão do valor publicado pela fonte vira nova linha (revision + 1, supersedes_id); a anterior continua lá.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /** Radar e Diário de Oportunidades: tipos e chamadas (docs/WEB_API.md §Radar). Valores numéricos são strings decimais. */
 import { api } from "./client";
 import type { TeamConversation, UUID } from "./types";

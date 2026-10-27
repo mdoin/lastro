@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Rotinas agendadas: cálculo da agenda, persistência e o laço do agendador.
 
 Regras (inspiradas no desenho de rotinas do OpenBot, implementação própria):

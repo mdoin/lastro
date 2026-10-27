@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { useId, useState, type FormEvent } from "react";
 import { createGoal, deleteGoal, getGoals, updateGoal } from "../api/endpoints";
 import type { Goal, GoalInput, Liquidity } from "../api/types";

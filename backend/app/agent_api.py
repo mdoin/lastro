@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """API local SOMENTE LEITURA exposta aos agentes do OpenBot.
 
 Barreiras técnicas (não dependem de prompt):

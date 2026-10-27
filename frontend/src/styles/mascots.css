@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Mascotes dos agentes. Animações discretas e baratas (só transform, sem laço chamativo):
    piscar ocasional, subir 1 px no hover e um pulinho único quando o agente começa a responder.
    Nada disso roda com prefers-reduced-motion. */

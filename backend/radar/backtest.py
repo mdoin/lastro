@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Backtest de regras sobre o histórico coletado, sem informação futura.
 
 - a regra é avaliada dia a dia só com os pontos até aquele dia (mesma função do monitoramento);

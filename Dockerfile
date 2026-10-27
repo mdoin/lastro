@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Lastro — imagem única para os quatro serviços (web, mentor, agent-api, collector).
 # Cada serviço roda com o próprio usuário sem privilégios (ver compose.yaml). Imagens base com versão explícita;
 # numa release, fixe também os digests (docs/RELEASE.md).

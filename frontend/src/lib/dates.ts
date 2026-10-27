@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /** Datas no padrão brasileiro, sem deslocamento de fuso para datas puras (AAAA-MM-DD). */
 
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;

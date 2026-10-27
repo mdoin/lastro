@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Lastro — web app (API do contrato docs/WEB_API.md + frontend estático).
 
 Roda como o usuário `patrimonio`. Todas as rotas são `async` e compartilham uma
@@ -36,6 +37,10 @@ from .turns import ConversationBusy, TurnManager
 
 APP_VERSION = "0.3.0"
 USER_TZ = ZoneInfo(os.environ.get("LASTRO_TZ") or "America/Sao_Paulo")  # fuso da instalação
+# AGPL-3.0 §13: quem usa o Lastro pela rede tem acesso ao código-fonte desta versão. Versões modificadas apontam
+# para o próprio código.
+SOURCE_URL = os.environ.get("LASTRO_SOURCE_URL") or "https://github.com/mdoin/lastro"
+LICENSE_ID = "AGPL-3.0-or-later"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 CSP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
        "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; "
@@ -239,7 +244,8 @@ def create_app(settings: Settings) -> FastAPI:
     async def auth_state(request: Request):
         return {"authenticated": auth.session_is_valid(conn, request.cookies.get(auth.SESSION_COOKIE)),
                 "setup_required": not auth.password_is_set(conn),
-                "onboarding_done": store.get_setting(conn, "onboarding_done") == "1"}
+                "onboarding_done": store.get_setting(conn, "onboarding_done") == "1",
+                "source_url": SOURCE_URL, "license": LICENSE_ID}
 
     @app.post("/api/setup/password", status_code=204)
     async def setup_password(body: SetupPasswordIn, request: Request, response: Response):

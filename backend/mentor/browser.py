@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Navegador de pesquisa do mentor: só lê páginas de fontes oficiais.
 
 Barreiras no código (não dependem do modelo obedecer):

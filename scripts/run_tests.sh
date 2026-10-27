@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Roda a suíte com ambiente limpo (sem variáveis/credenciais herdadas) e, quando
 # o kernel permite, sem acesso à rede — prova de que nada depende de saída externa.
 set -euo pipefail

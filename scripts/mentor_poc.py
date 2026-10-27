@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Prova de conceito do mentor: uma conversa de várias mensagens, com streaming.
 
 Roda como o usuário `mentor` (que tem o login do Claude), por exemplo:

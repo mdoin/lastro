@@ -5,3 +5,6 @@ Caddyfile text eol=lf
 *.service text eol=lf
 deploy/lastro-admin text eol=lf
 deploy/apparmor/* text eol=lf
+# Textos oficiais: idênticos ao original (o teste confere o SHA-256 da LICENSE).
+LICENSE text eol=lf
+DCO text eol=lf

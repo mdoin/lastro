@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /** @menções no campo de mensagem: o que está sendo digitado e como completar. */
 
 export interface MentionQuery {

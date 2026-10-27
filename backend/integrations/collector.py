@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Coletor de dados externos: único lugar do backend que busca dados públicos na internet.
 
 Roda como serviço próprio (deploy/systemd/lastro-coletor.service), fora do web app (que não tem rede) e fora

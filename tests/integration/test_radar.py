@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Lastro Radar e Diário de Oportunidades: coleta, sinais, Conselho, alertas, registro imutável e avaliação posterior.
 
 Tudo real (SQLite com as migrações, motor, orquestrador, auditor), menos a rede (transporte httpx simulado) e o

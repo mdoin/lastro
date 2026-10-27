@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Lastro Radar e Diário de Oportunidades. Usa só os tokens do sistema "Bloco" (claro/escuro herdados).
    Regra visual central: o que se sabia na detecção (registro imutável) tem filete dourado e cadeado;
    o que foi descoberto depois tem borda tracejada e relógio. Nunca se confundem. */

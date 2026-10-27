@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Roteamento de mensagens: @menções, respostas a agentes, comando de reunião e o Mentor como roteador.
 
 Regras (determinísticas, testadas):

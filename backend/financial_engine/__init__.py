@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Motor financeiro determinístico do Meu Patrimônio AI.
 
 Todos os números vêm daqui, nunca de texto gerado por modelo de IA.

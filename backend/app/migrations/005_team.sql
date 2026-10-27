@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Lastro — v5: equipe de agentes (conversas individuais, grupos, Conselho), fila persistente de execuções,
 -- memória financeira com fonte e histórico, memória individual dos agentes e dados externos.
 -- Compatível: só acrescenta colunas e tabelas; conversas antigas viram conversa individual com o Mentor.

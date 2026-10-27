@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Conexões SQLite e migrações versionadas.
 
 O web app abre o banco em leitura e escrita; a API dos agentes abre em

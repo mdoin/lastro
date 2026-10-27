@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /** Funções tipadas, uma por rota de `docs/WEB_API.md`. */
 import { api } from "./client";
 import type {

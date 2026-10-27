@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Parser de Server-Sent Events para respostas de POST lidas com fetch + ReadableStream.
  * Segue o formato do WHATWG (event:/data:/id:, comentários com ":", fim de evento em linha vazia,

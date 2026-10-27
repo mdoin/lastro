@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Catálogo das séries externas e leitura do cache (sem rede).
 
 Só números e datas vindos das fontes entram no banco e, daí, nos agentes: rótulos, unidades e fontes vêm

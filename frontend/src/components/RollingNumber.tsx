@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
 /**
  * Valor que "rola" até o número final, dígito a dígito (como o saldo do app Plasma).
  * Recebe o texto JÁ formatado (ex.: "R$ 2.200,00"): nada aqui converte dinheiro.

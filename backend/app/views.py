@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Vistas calculadas sobre os dados do usuário (diagnóstico, projeção, metas).
 
 Compartilhadas pelo web app e pela API de leitura do mentor, para que o número

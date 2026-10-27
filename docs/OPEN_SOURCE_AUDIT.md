@@ -105,7 +105,7 @@ Recomendo que você confirme essa leitura dos termos para o uso pessoal atual (�
   arquivos de origem dele. A camada nova de provedores foi escrita do zero, a partir da documentação oficial de
   cada provedor.
 
-Recomendação de licença: ver [`LICENSING.md`](LICENSING.md). Nenhuma licença foi aplicada.
+Licença: **AGPL-3.0-or-later** (decidida em 2026-10-27), com DCO e política de marca; ver [`LICENSING.md`](LICENSING.md).
 
 ## 7. Testes de base
 `pytest` no Windows (máquina de desenvolvimento): 368 passam, 19 falham/erram, todos por limitação da plataforma
@@ -117,7 +117,7 @@ mesma do deploy. O CI criado roda em Linux.
    Opções: (a) publicar como está; (b) publicar um repositório novo a partir de um único commit limpo
    (não destrói o histórico privado); (c) reescrever o histórico (destrutivo, exige sua autorização).
    Recomendo (b).
-2. **Licença** (ver `LICENSING.md`).
+2. ~~Licença~~: decidida, AGPL-3.0-or-later (ver `LICENSING.md`).
 3. **Uso da assinatura do Claude na instância pessoal** (§4).
 4. **Sign in with ChatGPT** (token sharing): a página de pedido de client id diz que o recurso é oferecido a parceiros
    selecionados; ele **não foi implementado** até haver confirmação de elegibilidade. A conta do ChatGPT entra pelo

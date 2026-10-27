@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Navegador de pesquisa contra servidores locais: nada sai para fora da allowlist.
 
 Usa o Chrome real da implantação (pula se não estiver instalado). A "allowlist" do teste é `localhost` numa porta

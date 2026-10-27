@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Projeções de acumulação em cenários determinísticos.
 
 Convenções (documentadas em docs/FINANCIAL_METHODS.md):

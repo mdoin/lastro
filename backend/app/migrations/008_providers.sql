@@ -1,3 +1,4 @@
+-- SPDX-License-Identifier: AGPL-3.0-or-later
 -- Lastro — v8: provedor de IA e modelo por agente; sessão nativa marcada com a conexão que a criou;
 -- configurações da instalação (assistente inicial). Compatível: só acrescenta tabelas e uma coluna.
 -- As conexões e seus segredos ficam no worker (providers.json), nunca neste banco.

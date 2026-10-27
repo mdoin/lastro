@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Diagnóstico de orçamento, reserva e dívidas, e o módulo "o que fazer com meu dinheiro este mês?".
 
 As regras de prioridade são determinísticas e explícitas. Elas montam um CENÁRIO

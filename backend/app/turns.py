@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Turnos do chat e do painel rodando em segundo plano.
 
 O turno pertence ao servidor, não à conexão do navegador: se a aba fechar, a

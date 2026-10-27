@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Instalação self-hosted: o compose.yaml e o Dockerfile mantêm a separação de privilégios.
 
 Testes estáticos (rodam sem Docker). O CI também roda `docker compose config` e constrói a imagem.

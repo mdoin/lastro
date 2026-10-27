@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Equipe do Lastro: registro de agentes, roteamento e auditoria determinística.
 
 Módulo puro (sem rede, sem banco): usado tanto pelo web app (orquestrador) quanto pelo worker do mentor

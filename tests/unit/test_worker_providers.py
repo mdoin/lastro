@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 """Worker sobre o AI Provider Runtime: troca de provedor, limites por conexão, sem provedor, admin, Codex."""
 
 import asyncio
