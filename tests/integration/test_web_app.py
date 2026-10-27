@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import auth
-from app.web import Settings, create_app
+from app.web import Settings, create_app, today
 
 H = {"X-Lastro": "1"}
 PASSWORD = "uma senha longa e boa"
@@ -177,7 +177,8 @@ def test_snapshot_diagnosis_projection_goals(env):
     proj = client.post("/api/projection", json={"initial": "0", "contribution": "150", "months": 120}, headers=H).json()
     assert [p["scenario"] for p in proj["projections"]] == ["conservador", "base", "otimista"]
     assert proj["assumptions_are_default"] is True
-    goal = client.post("/api/goals", json={"name": "Reserva", "target_real_value": "15600", "deadline": "2028-10-26",
+    deadline = today().replace(year=today().year + 2)  # shortcut: quebra em 29/02, trocar por cálculo de mês se incomodar
+    goal = client.post("/api/goals", json={"name": "Reserva", "target_real_value": "15600", "deadline": deadline.isoformat(),
                                            "priority": 1, "liquidity": "diaria"}, headers=H).json()
     assert goal["months_left"] == 24 and set(goal["required_monthly"]) == {"conservador", "base", "otimista"}
     assert client.put("/api/assumptions", json={"scenarios": [{"name": "meu", "annual_return": "0.09",
