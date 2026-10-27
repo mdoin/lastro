@@ -29,7 +29,7 @@ from team.agents import AGENTS, SPECIALISTS, chat_agents
 
 from radar.engine import Radar
 
-from . import auth, db, diary_web, providers_web, radar_web, routines, setup, store, views
+from . import admin, auth, db, diary_web, providers_web, radar_web, routines, setup, store, views
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
 from .turns import ConversationBusy, TurnManager
@@ -177,6 +177,7 @@ class RoutineIn(BaseModel):
 
 def create_app(settings: Settings) -> FastAPI:
     conn = db.connect(settings.db_path)
+    admin.pre_migration_backup(conn, settings.db_path)  # atualização nunca migra sem cópia anterior
     db.migrate(conn)
     setup_token = None if auth.password_is_set(conn) else setup.ensure_token(settings.db_path.parent)
     mentor = MentorClient(settings.mentor_socket)

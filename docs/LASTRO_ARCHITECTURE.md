@@ -4,7 +4,7 @@ Lastro é o nome do produto; o repositório continua `meu-patrimonio-ai`.
 
 ```
  Navegador ──HTTPS──► Caddy no host (caddy.service, usuário caddy; Let's Encrypt)
-                            │  lastro.doinlabs.com.br · API admin só em socket Unix 0600 (/var/lib/caddy/admin.sock)
+                            │  lastro.example.com · API admin só em socket Unix 0600 (/var/lib/caddy/admin.sock)
                             ▼
               lastro-web  (usuário patrimonio, 127.0.0.1:8080; confia em X-Forwarded-For só de 127.0.0.1)
               FastAPI + frontend estático · login · SQLite rw · agendador de rotinas

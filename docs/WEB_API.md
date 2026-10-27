@@ -1,7 +1,7 @@
 # Lastro — contrato da API web (v1)
 
 Fonte única de verdade entre backend (`backend/app/web.py`) e frontend (`frontend/`).
-Base: mesma origem do app (`https://lastro.doinlabs.com.br`), prefixo `/api`.
+Base: mesma origem do app (ex.: `https://lastro.example.com`), prefixo `/api`.
 
 ## Convenções
 - JSON UTF-8. **Dinheiro, taxas e quantidades são strings decimais com ponto** (`"1234.56"`, `"0.12"`); nunca number.

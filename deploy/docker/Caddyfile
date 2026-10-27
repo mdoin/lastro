@@ -1,0 +1,34 @@
+# Lastro — HTTPS automático (Let's Encrypt) na frente do web. Ativado com: docker compose --profile https up -d
+# Exige LASTRO_DOMAIN no .env apontando (DNS) para este servidor, e as portas 80/443 livres.
+{$LASTRO_DOMAIN} {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		-Server
+		-Via
+	}
+
+	request_body {
+		max_size 1MB
+	}
+
+	# Compressão só para arquivos estáticos; o chat usa SSE e não pode ficar em buffer.
+	@assets path /assets/*
+	encode @assets zstd gzip
+
+	reverse_proxy web:8080 {
+		flush_interval -1
+		header_up -X-Forwarded-Host
+	}
+
+	log {
+		output stdout
+		format filter {
+			request>headers>Cookie delete
+			request>headers>Authorization delete
+			resp_headers>Set-Cookie delete
+		}
+	}
+}

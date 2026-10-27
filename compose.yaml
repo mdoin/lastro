@@ -1,0 +1,148 @@
+# Lastro self-hosted. Guia: docs/INSTALL.md. Variáveis: .env.example (gere o .env com scripts/init-env.sh).
+#
+#   web        dono do banco; serve a interface e a API (porta publicada só em 127.0.0.1 por padrão)
+#   mentor     worker dos agentes; dono das credenciais de IA; NÃO monta o volume do banco
+#   agent-api  leitura do banco (mode=ro) para as ferramentas dos agentes; compartilha só o loopback do mentor
+#   collector  séries públicas oficiais (BCB/SGS; FRED com chave)
+#   caddy      opcional (perfil "https"): HTTPS automático na frente do web
+#
+# Nenhum serviço é privilegiado, nenhum monta o socket do Docker, todos rodam com sistema de arquivos somente leitura.
+
+name: lastro
+
+x-hardening: &hardening
+  image: lastro:${LASTRO_VERSION:-local}
+  pull_policy: never        # imagem construída localmente a partir deste repositório
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+  tmpfs: ["/tmp:size=64m,mode=1777"]
+  logging:
+    driver: local
+    options: {max-size: "10m", max-file: "3"}
+
+services:
+  web:
+    <<: *hardening
+    build:
+      context: .
+      args:
+        WITH_CLAUDE_CODE: ${LASTRO_WITH_CLAUDE_CODE:-0}
+        WITH_CODEX: ${LASTRO_WITH_CODEX:-0}
+    user: "10001:10001"
+    group_add: ["10010"]
+    environment:
+      LASTRO_HOST: 0.0.0.0
+      LASTRO_PORT: "8080"
+      LASTRO_TZ: ${LASTRO_TZ:-America/Sao_Paulo}
+      LASTRO_COOKIE_SECURE: ${LASTRO_COOKIE_SECURE:-1}
+      LASTRO_TRUSTED_PROXIES: ${LASTRO_TRUSTED_PROXIES:-127.0.0.1,172.31.250.10}
+      LASTRO_SETUP_TOKEN: ${LASTRO_SETUP_TOKEN:-}
+      LASTRO_RUN_CONCURRENCY: ${LASTRO_RUN_CONCURRENCY:-2}
+    volumes:
+      - data:/data
+      - mentor-socket:/run/lastro-mentor
+    ports:
+      - "${LASTRO_BIND:-127.0.0.1}:${LASTRO_HTTP_PORT:-8080}:8080"
+    depends_on:
+      mentor: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/auth/state', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  mentor:
+    <<: *hardening
+    user: "10002:10002"
+    group_add: ["10010"]
+    command: ["python", "-m", "mentor.worker"]
+    environment:
+      HOME: /home/mentor
+      LASTRO_TZ: ${LASTRO_TZ:-America/Sao_Paulo}
+      LASTRO_MENTOR_SOCKET: /run/lastro-mentor/mentor.sock
+      LASTRO_SOCKET_GID: "10010"
+      LASTRO_SOCKET_PEER_UID: "10001"
+      LASTRO_MENTOR_WORKDIR: /home/mentor/work
+      LASTRO_PROVIDERS_FILE: /home/mentor/providers.json
+      LASTRO_CODEX_HOME: /home/mentor/codex
+      LASTRO_MENTOR_CONCURRENCY: ${LASTRO_MENTOR_CONCURRENCY:-3}
+      MPA_AGENT_API_URL: http://127.0.0.1:8765
+      MPA_AGENT_API_TOKEN: ${LASTRO_AGENT_API_TOKEN:?rode scripts/init-env.sh para gerar o .env}
+      DISABLE_AUTOUPDATER: "1"
+    volumes:
+      - mentor-home:/home/mentor
+      - mentor-socket:/run/lastro-mentor
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Ollama/LM Studio rodando no próprio host
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, sys; sys.exit(not os.path.exists('/run/lastro-mentor/mentor.sock'))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  agent-api:
+    <<: *hardening
+    user: "10001:10001"
+    command: ["python", "-m", "app.agent_api"]
+    # Escuta só em loopback, e o loopback é o do mentor: nenhum outro container alcança esta API.
+    network_mode: "service:mentor"
+    environment:
+      LASTRO_DB: /data/lastro.db
+      LASTRO_TZ: ${LASTRO_TZ:-America/Sao_Paulo}
+      MPA_AGENT_API_TOKEN: ${LASTRO_AGENT_API_TOKEN:?rode scripts/init-env.sh para gerar o .env}
+    volumes:
+      - data:/data
+    depends_on:
+      mentor: {condition: service_started}
+      web: {condition: service_healthy}
+
+  collector:
+    <<: *hardening
+    user: "10001:10001"
+    command: ["python", "-m", "integrations.collector", "--loop"]
+    environment:
+      LASTRO_DB: /data/lastro.db
+      LASTRO_TZ: ${LASTRO_TZ:-America/Sao_Paulo}
+      FRED_API_KEY: ${FRED_API_KEY:-}
+    volumes:
+      - data:/data
+    depends_on:
+      web: {condition: service_healthy}   # o web aplica as migrações (com backup) antes
+
+  caddy:
+    profiles: ["https"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      LASTRO_DOMAIN: ${LASTRO_DOMAIN:-}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web: {condition: service_healthy}
+    networks:
+      default: {ipv4_address: 172.31.250.10}
+
+networks:
+  default:
+    # Sub-rede fixa só para o caddy ter IP conhecido (o web confia no X-Forwarded-For apenas dele).
+    # Se colidir com outra rede do host, troque aqui, o ipv4_address do caddy e LASTRO_TRUSTED_PROXIES juntos.
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24
+
+volumes:
+  data:          # banco (dados financeiros) e backups automáticos antes de migrações
+  mentor-home:   # credenciais de IA (providers.json, login do Claude Code/Codex): faça backup à parte
+  mentor-socket:
+  caddy-data:
+  caddy-config:

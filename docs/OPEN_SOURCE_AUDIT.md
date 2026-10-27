@@ -32,13 +32,13 @@ de decisão da dona antes de qualquer publicação (o histórico não foi reescr
 
 | Onde | O quê | Tratamento |
 |---|---|---|
-| `deploy/caddy/Caddyfile`, `docs/LASTRO_ARCHITECTURE.md`, `docs/WEB_API.md` | domínio `lastro.doinlabs.com.br` | movido para `deploy/personal/` como exemplo genérico; docs com `lastro.example.com` |
+| `deploy/caddy/Caddyfile`, `docs/LASTRO_ARCHITECTURE.md`, `docs/WEB_API.md` | domínio da instância pessoal | Caddyfile usa `{$LASTRO_DOMAIN}`; docs com `lastro.example.com` |
 | `docs/PENDING.md` | IP público do servidor e registro DNS | removido do estado atual; **permanece no histórico** |
 | `deploy/systemd/*.service`, `scripts/deploy.sh`, `deploy/lastro-admin` | `/opt/meu-patrimonio`, `/etc/meu-patrimonio`, `/var/lib/patrimonio`, usuários `patrimonio`/`mentor` | mantidos como a **instalação systemd** (genérica, sem domínio); a distribuição principal passa a ser Docker Compose |
 | `deploy/systemd/lastro-mentor.service` | comentário cita outro projeto da dona ("prumo") | removido |
 | `deploy/apparmor/lastro-chrome`, testes do navegador | `/opt/lastro-browsers/...` | caminho vira configurável (`LASTRO_BROWSER_EXECUTABLE`) |
 | `docs/DECISIONS.md`, `docs/RUNBOOK.md` | `~/.local/opt/node`, instalação manual no servidor | mantidos como histórico de decisões; RUNBOOK aponta para o guia de instalação |
-| commit `9560e1c` | autor `Maite Doin <maitedoin@…>` (e-mail pessoal) | **decisão sua** (ver §8) |
+| commit `9560e1c` | autor com e-mail pessoal (os demais commits usam o endereço `noreply` do GitHub) | **decisão sua** (ver §8) |
 | `.claude/launch.json` | caminhos da máquina local | já ignorado pelo `.gitignore`, nunca versionado |
 
 ## 4. Dependências específicas do Claude (modelo atual de execução)

@@ -12,6 +12,8 @@ SECRET_PATTERNS = [
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"(?i)(api[_-]?key|secret|password|senha)\s*[:=]\s*['\"][^'\"\s]{8,}['\"]"),
 ]
+# Infraestrutura da instância pessoal da autora: nunca no estado publicado do repositório.
+PERSONAL = re.compile(r"doinlabs\.com|50\.114\.206\.|maitedoin@")
 CPF = re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b")
 CARD = re.compile(r"\b(?:\d[ -]?){15}\d\b")
 
@@ -30,7 +32,7 @@ def test_no_secrets_or_identifiers_committed():
             continue
         if path.name == "test_repo_hygiene.py":
             continue
-        for pattern in SECRET_PATTERNS + [CPF, CARD]:
+        for pattern in SECRET_PATTERNS + [CPF, CARD, PERSONAL]:
             assert not pattern.search(text), f"possível segredo/identificador em {path.relative_to(ROOT)}"
 
 
@@ -40,10 +42,15 @@ def test_gitignore_covers_sensitive_paths():
         assert entry in ignore, entry
 
 
-def test_env_example_has_no_values():
+def test_env_example_has_no_secret_values():
+    """Padrões não secretos (porta, fuso) podem vir preenchidos; tokens, chaves e senhas nunca."""
     for line in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines():
         if line and not line.startswith("#"):
-            assert line.endswith("="), f".env.example com valor preenchido: {line}"
+            key, _, value = line.partition("=")
+            if re.search(r"TOKEN|KEY|SECRET|PASSWORD|SENHA", key):
+                assert value == "", f".env.example com segredo preenchido: {key}"
+            if key not in ("LASTRO_BIND", "LASTRO_TRUSTED_PROXIES"):  # loopback e o IP fixo do caddy
+                assert not re.search(r"\d{1,3}(\.\d{1,3}){3}", value), f"IP fixo em {key}"
 
 
 def test_all_fixtures_are_marked_synthetic():
