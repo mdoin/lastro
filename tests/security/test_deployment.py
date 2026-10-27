@@ -96,3 +96,12 @@ def test_init_env_generates_a_private_random_token(tmp_path):
     assert (tmp_path / ".env").stat().st_mode & 0o077 == 0
     subprocess.run(["sh", str(tmp_path / "scripts" / "init-env.sh")], check=True, capture_output=True)
     assert (tmp_path / ".env").read_text() == env                     # nunca sobrescreve
+
+
+def test_current_systemd_installation_keeps_working():
+    """A instância pessoal (systemd) continua com o Claude Code implícito e os extras instalados."""
+    unit = (ROOT / "deploy" / "systemd" / "lastro-mentor.service").read_text(encoding="utf-8")
+    assert "Environment=LASTRO_IMPLICIT_CLAUDE_CODE=1" in unit
+    assert "LASTRO_PROVIDERS_FILE=/var/lib/mentor/providers.json" in unit
+    deploy = (ROOT / "scripts" / "deploy.sh").read_text(encoding="utf-8")
+    assert "--extra claude-code --extra browser" in deploy

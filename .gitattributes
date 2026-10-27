@@ -1,0 +1,7 @@
+# Scripts e arquivos lidos dentro de containers Linux mantêm LF em qualquer sistema.
+*.sh text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf
+*.service text eol=lf
+deploy/lastro-admin text eol=lf
+deploy/apparmor/* text eol=lf

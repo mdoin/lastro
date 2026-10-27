@@ -247,3 +247,19 @@ def test_claude_login_refuses_foreign_link_hosts():
     assert login._host_ok("https://console.anthropic.com/oauth")
     assert not login._host_ok("https://claude.ai.evil.example/oauth")
     assert not login._host_ok("https://evil.example/claude.ai")
+
+
+def test_codex_revoke_logs_out_through_the_app_server(tmp_path, monkeypatch):
+    monkeypatch.setenv("LASTRO_CODEX_PATH", sys.executable)
+    monkeypatch.setenv("LASTRO_CODEX_HOME", str(tmp_path / "codex"))
+    provider = CodexProvider(Connection(id="cx", type="codex"))
+    provider.server.argv = [sys.executable, str(FIXTURES / "fake_codex_app_server.py")]
+    provider.server.env = {**provider.server.env, "FAKE_CODEX_LOG": str(tmp_path / "log.jsonl")}
+
+    async def go():
+        result = await provider.revoke()
+        await provider.close()
+        return result
+    assert run(go()) is True
+    methods = [json.loads(line).get("method") for line in (tmp_path / "log.jsonl").read_text().splitlines()]
+    assert "account/logout" in methods

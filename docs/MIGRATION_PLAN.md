@@ -26,13 +26,13 @@ agent-api ─ leitura do banco (mode=ro)
 | 1 | Auditoria | `OPEN_SOURCE_AUDIT.md` | revisão |
 | 2 | Plano | este arquivo | revisão |
 | 3 | Abstração | `backend/providers/base.py` (contrato, capacidades, erros), `toolspec.py` (ferramentas neutras + barreira), `loop.py` (laço de ferramentas para APIs) | testes do contrato |
-| 4 | Adaptadores | `claude_code` (SDK atual), `anthropic` (Messages API), `openai` (Responses API; API key ou token do Sign in with ChatGPT), `openai_compatible` (Ollama, LM Studio, vLLM, OpenRouter, Gemini), `codex` (app-server, experimental) | testes com transporte HTTP simulado e app-server falso |
-| 5 | Credenciais | `providers/credentials.py` (arquivo atômico 0600), ops `providers.*` no worker, `providers/chatgpt_oauth.py` (PKCE, state, nonce, ID token, escopos, refresh, revogação) | testes de isolamento e do fluxo OAuth com chaves locais |
-| 6 | Configuração por agente | migração 008 (`agent_models`, `conversations.provider_session`), web envia `connection`/`model` por passo | testes de troca de provedor sem perda |
+| 4 | Adaptadores | `claude_code` (SDK atual), `anthropic` (Messages API), `openai` (Responses API, API key), `openai_compatible` (Ollama, LM Studio, vLLM, OpenRouter, Gemini), `codex` (app-server, experimental) | testes com transporte HTTP simulado e app-server falso |
+| 5 | Credenciais | `providers/credentials.py` (arquivo atômico 0600), operação `providers` no worker; login pelos executáveis oficiais no desenho do OpenBot (`cli_login.py` para o Claude Code, device code no Codex) | testes de isolamento e dos fluxos com CLIs falsos |
+| 6 | Configuração por agente | migração 008 (`agent_models`, `conversations.session_connection`, `app_settings`), web envia `connection`/`model` por passo | testes de troca de provedor sem perda |
 | 7 | Onboarding | `/api/setup/*` com token de instalação, tela de assistente, seção de provedores nas Configurações | testes de API |
 | 8 | Self-hosted | `Dockerfile`, `compose.yaml`, `.env.example`, backup/restauração no `lastro-admin` | testes de backup/migração; `docker compose config` no CI |
 | 9 | Testes | os 20 cenários de `docs/TESTING.md` mapeados para arquivos | `pytest` + `vitest` |
-| 10 | Auditoria de publicação | `PUBLICATION_CHECKLIST.md`, teste de higiene ampliado, gitleaks no CI | CI |
+| 10 | Auditoria de publicação | `RELEASE.md`, teste de higiene ampliado, gitleaks no CI | CI |
 | 11 | Documentação | README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, CHANGELOG, guias | revisão |
 | 12 | Release | `CHANGELOG.md` 0.3.0, sem tag, sem push, sem licença aplicada | — |
 
@@ -46,6 +46,8 @@ agent-api ─ leitura do banco (mode=ro)
 ## Riscos aceitos e limites declarados
 - Modelos locais podem não suportar ferramentas: o adaptador declara `tools=False` e o agente responde sem dados.
 - Sessão nativa não é retomada entre provedores; o contexto é reconstruído do histórico do Lastro.
-- Codex app-server: integração experimental, desligada por padrão, porque o app-server traz ferramentas nativas
-  (shell) que o Lastro só consegue negar por aprovação, não remover.
-- Sign in with ChatGPT: desligado até confirmação de elegibilidade do projeto.
+- Codex app-server: integração experimental (depende de campos `experimentalApi`) e fora da imagem por padrão. As
+  ferramentas nativas são desligadas por flags do próprio Codex e o que ainda pedir aprovação é recusado; se uma
+  versão futura ignorar essas flags, o isolamento cai para a sandbox read-only e o container sem o banco.
+- Sign in with ChatGPT (token sharing): não implementado até confirmação de elegibilidade; a conta do ChatGPT entra
+  pelo login oficial do Codex.

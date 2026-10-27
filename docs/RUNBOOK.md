@@ -1,5 +1,8 @@
 # Runbook
 
+> Instalação com Docker: [INSTALL.md](INSTALL.md). Este runbook cobre o ambiente de desenvolvimento e a
+> instalação systemd de referência.
+
 ## 1. Ambiente de desenvolvimento (já preparado nesta máquina)
 
 ```bash

@@ -74,9 +74,9 @@ Agent SDK deve usar **API key** e que terceiros não podem oferecer login do Cla
 de assinatura; também diz que isso não impede o usuário final de entrar com a própria assinatura no **binário
 oficial e não modificado** do Claude Code. Por isso, na distribuição:
 - o adaptador `anthropic` (API key, Messages API) é o caminho recomendado para Claude;
-- o adaptador `claude_code` roda o binário oficial; o **operador** faz login pelo fluxo da própria Anthropic
-  (`claude auth login`) dentro do container do mentor, e o Lastro nunca lê, copia nem guarda esse token;
-- nenhuma tela do Lastro coleta credencial de assinatura.
+- o adaptador `claude_code` roda o binário oficial; o login é o fluxo da própria Anthropic (`claude auth login`),
+  no terminal do servidor ou, no desenho estudado no OpenBot, pela interface levando o código da página da Anthropic
+  até o CLI; o Lastro nunca lê, copia nem guarda o token (riscos em `PROVIDER_TERMS.md`).
 Recomendo que você confirme essa leitura dos termos para o uso pessoal atual (é uma decisão sua, não técnica).
 
 ## 5. Componentes que podem ser generalizados
@@ -119,5 +119,6 @@ mesma do deploy. O CI criado roda em Linux.
    Recomendo (b).
 2. **Licença** (ver `LICENSING.md`).
 3. **Uso da assinatura do Claude na instância pessoal** (§4).
-4. **Sign in with ChatGPT**: a documentação diz que o recurso é oferecido a parceiros selecionados; o adaptador
-   está implementado e **desligado** até haver confirmação de elegibilidade (ver `PROVIDERS.md`).
+4. **Sign in with ChatGPT** (token sharing): a página de pedido de client id diz que o recurso é oferecido a parceiros
+   selecionados; ele **não foi implementado** até haver confirmação de elegibilidade. A conta do ChatGPT entra pelo
+   login oficial do Codex (ver `PROVIDERS.md`).

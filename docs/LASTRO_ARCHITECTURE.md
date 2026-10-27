@@ -1,6 +1,21 @@
-# Lastro — arquitetura em produção (Fase 1)
+# Lastro — arquitetura
 
-Lastro é o nome do produto; o repositório continua `meu-patrimonio-ai`.
+Duas formas de instalar, com a mesma separação de privilégios:
+
+- **Docker Compose** (distribuição; `compose.yaml`, [INSTALL.md](INSTALL.md)): serviços `web` (uid 10001, dono do
+  banco), `mentor` (uid 10002, dono das credenciais de IA, sem o volume do banco), `agent-api` (uid 10001, leitura do
+  banco, só no loopback do `mentor`) e `collector`; caddy opcional. Todos sem root, sem capabilities, com sistema de
+  arquivos somente leitura; nenhum monta o socket do Docker.
+- **systemd** (instância de referência), descrita abaixo.
+
+## Agentes e provedores de IA
+O worker não depende de um modelo: abre sessões pelo **AI Provider Runtime** (`backend/providers/`, ver
+[PROVIDERS.md](PROVIDERS.md)). O web app escolhe, por agente, a conexão e o modelo (`agent_models`, migração 008) e
+manda no pedido; o worker resolve a conexão, aplica a mesma concessão de ferramentas a qualquer provedor e reabre a
+sessão com o histórico do Lastro quando o provedor muda. Conexões e segredos ficam num arquivo 0600 do worker
+(`LASTRO_PROVIDERS_FILE`); logins de Claude Code e Codex ficam com os próprios CLIs, no HOME do worker.
+
+## Instalação systemd (referência)
 
 ```
  Navegador ──HTTPS──► Caddy no host (caddy.service, usuário caddy; Let's Encrypt)
@@ -12,10 +27,10 @@ Lastro é o nome do produto; o repositório continua `meu-patrimonio-ai`.
                             │ o usuário do processo que conectou com SO_PEERCRED)
                             ▼
               lastro-mentor  (usuário mentor)
-              Claude Agent SDK · Claude Code embutido · assinatura do dono
-              tools=[] · setting_sources=[] · MCP em processo, só leitura · ferramentas por papel · can_use_tool nega o resto
+              AI Provider Runtime · conexão por agente (Claude Code implícito sem conexões salvas)
+              ferramentas neutras por papel · barreira única (run_tool) · Claude Code: tools=[], can_use_tool nega o resto
               teto de passos (max_turns) e prazo por turno · navegador de pesquisa (Chrome headless, AppArmor lastro-chrome)
-              saída: internet sim (Anthropic, fontes oficiais); redes privadas/metadados NÃO (IPAddressDeny)
+              saída: internet sim (provedores de IA, fontes oficiais); redes privadas/metadados NÃO (IPAddressDeny)
                             │ HTTP loopback + token (arquivo 0640 root:mentor)
                             ▼
               patrimonio-agent-api  (usuário patrimonio, 127.0.0.1:8765)
@@ -25,8 +40,8 @@ Lastro é o nome do produto; o repositório continua `meu-patrimonio-ai`.
 ## Separação de privilégios
 | Usuário | Pode | Não pode |
 |---|---|---|
-| `patrimonio` | ler/escrever o banco (`/var/lib/patrimonio`), falar com o socket do mentor | rodar o Claude; ler o home do mentor |
-| `mentor` | rodar o Claude com a assinatura; chamar a API de leitura com token | abrir o banco; escrever código em `/opt`; alcançar redes privadas |
+| `patrimonio` | ler/escrever o banco (`/var/lib/patrimonio`), falar com o socket do mentor | rodar agentes; ler o home do mentor (credenciais de IA) |
+| `mentor` | rodar agentes com as conexões de IA; chamar a API de leitura com token | abrir o banco; escrever código em `/opt`; alcançar redes privadas |
 | `root` | implantar (`scripts/deploy.sh`), administrar (`lastro-admin`) | — |
 
 O código fica em `/opt/meu-patrimonio`, de propriedade do root (nenhum serviço consegue alterá-lo).

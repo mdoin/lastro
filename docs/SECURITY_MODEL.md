@@ -41,18 +41,31 @@ verificar endpoint, licença e frequência. Cada novo adaptador exige:
 
 Primeiro adaptador (2026-10-27): `integrations/collector.py` (BCB/SGS, FRED), liberado no teste de imports, em serviço próprio (`lastro-coletor`) com redes privadas bloqueadas; só número e data chegam ao banco.
 
+## 4a. Provedores de IA (v0.3)
+
+| Ameaça | Controle |
+|---|---|
+| Chave de IA vazar pelo navegador | O web app só repassa a chave ao worker; respostas trazem `…1234`; `providers_web._clean` descarta campos de segredo |
+| Web app comprometido redirecionar uma chave | Mudar `base_url` apaga a chave da conexão (`registry.SECRET_BOUND`) |
+| Worker comprometido ler o banco | O worker não tem o volume nem as permissões do banco; dados só pela API GET-only com token |
+| Modelo chamar ferramenta não concedida | `toolspec.run_tool` recusa nome fora da concessão do papel, para todos os provedores |
+| Ferramentas nativas dos CLIs (shell, arquivos) | Claude Code: `tools=[]`, `can_use_tool`; Codex: recursos nativos desligados, sandbox read-only, aprovações recusadas, ambiente mínimo |
+| Intermediar credenciais de assinatura | Login pelo próprio CLI; o código colado vai só ao stdin do CLI, sem log nem resposta; ver PROVIDER_TERMS.md |
+| Tomada de uma instalação nova | Primeira senha pela web só com o token de instalação (arquivo 0600 no servidor), limitado como o login |
+| Provedor fora do ar ou em limite | Erros normalizados; limite segura só a fila daquela conexão |
+
 ## 5. Atualizações
 
 - Python: alterar `exclude-newer` só após ler os changelogs; `uv lock`; rodar a suíte.
 - uv/Node: baixar do site oficial, conferir SHA-256 e preferir versões com mais de 2 semanas, **exceto releases de segurança**.
-- OpenBot: ler o changelog oficial antes de atualizar; fixar versão.
+- Claude Code e Codex: versão fixada (wheel no `uv.lock`; `CODEX_VERSION` no Dockerfile); atualizar só após ler o changelog.
 
 ## 6. Backup (Fase 1, item 8)
 
-Backup criptografado do SQLite em local separado, com teste de restauração periódico (hash do conteúdo antes e depois).
-A ferramenta de criptografia (por exemplo `age`) ainda será decidida e registrada em `DECISIONS.md`.
+`lastro-admin backup/restore` (API de backup do SQLite, integridade conferida) e cópia automática antes de cada
+migração; ver [BACKUP.md](BACKUP.md). A criptografia da cópia fora do servidor (por exemplo `age`) fica com o operador.
 
 ## 7. Resposta a incidente
 
-Seguir a seção 10.5 do plano: desconectar, revogar `MPA_AGENT_API_TOKEN` e as credenciais do modelo, preservar logs,
+Seguir a seção 10.5 do plano: desconectar, revogar `MPA_AGENT_API_TOKEN`/`LASTRO_AGENT_API_TOKEN`, as chaves de IA nos painéis dos provedores e os logins dos CLIs, preservar logs,
 avaliar o escopo, restaurar backup íntegro e documentar.
