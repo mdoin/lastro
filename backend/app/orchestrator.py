@@ -1122,6 +1122,9 @@ class Orchestrator:
                     elif kind == "tool":
                         self._event(ctx, {"type": "tool", "step_key": key, "agent_id": agent_id,
                                           "name": event.get("name")})
+                    elif kind == "browser_frame":  # tela ao vivo do navegador da pesquisa (só no barramento)
+                        self._event(ctx, {"type": "frame", "step_key": key, "agent_id": agent_id,
+                                          "image": event.get("image"), "url": event.get("url")})
                     elif kind in ("queued", "waiting_limit"):
                         self._event(ctx, {"type": "wait", "step_key": key, "agent_id": agent_id, "kind": kind,
                                           "message": event.get("message"), "retry_at": event.get("retry_at")})

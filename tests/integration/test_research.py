@@ -147,6 +147,21 @@ class FakeBrowser:
             raise RuntimeError("chrome caiu")
         return {"url": url, "title": "TSE — Resultados", "text": "Totalização concluída. " * 20}
 
+    def open_tab(self, frame_sink=None, on_page=None, **net):
+        browser = self
+
+        class Tab:
+            async def goto(self, url):
+                browser.calls.append(("aba", url))
+                if browser.fail:
+                    return {"status": "erro", "detalhe": "chrome caiu"}
+                on_page(url, "Notícia", "2026-10-28T00:00:00+00:00")
+                return {"status": "ok", "url": url, "titulo": "Notícia", "texto": "Copom decidiu. " * 20}
+
+            async def close(self):
+                browser.calls.append("fechou")
+        return Tab()
+
 
 def test_official_page_behind_anti_robot_opens_in_the_isolated_browser():
     transport, _ = site({("www.tse.jus.br", "/"): (403, {}, "bloqueado")})
@@ -161,8 +176,21 @@ def test_tool_failure_is_reported_as_unavailable_not_as_missing_information():
     s = rs.ResearchSession(FakeBrowser(fail=True), providers=[], resolve=fake_resolve, transport=transport)
     out = run(s.open("https://www.tse.jus.br/"))
     assert out["status"] == "indisponivel" and "não ausência" in out["detalhe"]
-    nonofficial = rs.ResearchSession(FakeBrowser(), providers=[], resolve=fake_resolve, transport=site({})[0])
-    assert run(nonofficial.open("https://noticias.exemplo.com/x"))["status"] == "indisponivel"  # navegador só p/ oficiais
+    broken = rs.ResearchSession(FakeBrowser(fail=True), providers=[], resolve=fake_resolve, transport=site({})[0])
+    assert run(broken.open("https://noticias.exemplo.com/x"))["status"] == "indisponivel"
+
+
+def test_any_public_site_opens_in_the_free_browser_tab_and_is_recorded():
+    browser = FakeBrowser()
+    s = rs.ResearchSession(browser, providers=[], resolve=fake_resolve, transport=site({})[0])
+    out = run(s.open("https://noticias.exemplo.com/x"))
+    assert out["status"] == "ok" and out["via"] == "navegador" and browser.calls == [("aba", "https://noticias.exemplo.com/x")]
+    assert any(e["url"] == "https://noticias.exemplo.com/x" for e in s.evidence)
+    run(s.close())
+    assert browser.calls[-1] == "fechou"
+    names = {t.name for t in s.tools()}
+    assert {"navegador_abrir", "navegador_clicar", "navegador_digitar", "navegador_ler"} <= names
+    assert not {t.name for t in rs.ResearchSession(None, providers=[]).tools()} & set(rs.BROWSER_TOOL_NAMES)
 
 
 # busca ---------------------------------------------------------------------------------------------------------------

@@ -252,13 +252,20 @@ class MentorWorker:
 
         async def attempt() -> TurnOutcome:
             # Pesquisa: contexto próprio a cada tentativa (cache, limites, evidências); nada vem de outra sessão.
-            research = ResearchSession(self.browser) if mode == "pesquisa_web" else None
-            session = await self._open_session(lambda: emit, conn_id, model, role=role, session_id=str(uuid.uuid4()),
-                                               ephemeral=True, effort=effort, mode=mode, research=research)
+            async def frames(image: str, url: str) -> None:  # tela ao vivo do navegador desta pesquisa
+                await emit({"type": "browser_frame", "image": image, "url": url})
+            research = ResearchSession(self.browser, frame_sink=frames) if mode == "pesquisa_web" else None
             try:
-                outcome = await session.send(context_header() + text, emit)
+                session = await self._open_session(lambda: emit, conn_id, model, role=role,
+                                                   session_id=str(uuid.uuid4()), ephemeral=True, effort=effort,
+                                                   mode=mode, research=research)
+                try:
+                    outcome = await session.send(context_header() + text, emit)
+                finally:
+                    await session.close()
             finally:
-                await session.close()
+                if research is not None:
+                    await research.close()
             if research is not None:  # as fontes que as ferramentas de fato consultaram, para o orquestrador
                 outcome.tools = list(outcome.tools) + research.records()
             return outcome

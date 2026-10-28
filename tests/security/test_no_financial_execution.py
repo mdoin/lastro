@@ -26,7 +26,7 @@ FORBIDDEN_IMPORTS = {"requests", "httpx", "aiohttp", "urllib.request", "http.cli
 # Exceções conscientes, uma por arquivo, revisadas (ver docs/SECURITY_MODEL.md §4).
 IMPORT_ALLOWLIST = {
     "mentor/tools.py": {"httpx"},  # só loopback; garantido por test_mentor_tools_refuse_non_loopback
-    "mentor/browser.py": {"playwright"},  # só fontes oficiais; garantido pelos testes de allowlist abaixo
+    "mentor/browser.py": {"playwright"},  # leitor: allowlist (testes abaixo); aba livre: rede só via research.pinned_request (test_free_browser)
     "mentor/worker.py": {"socket"},  # só as constantes de SO_PEERCRED do socket Unix já aberto; nenhuma conexão
     "integrations/collector.py": {"httpx"},  # só APIs oficiais do catálogo; serviço próprio, fora do web e do worker
     "crypto/sources.py": {"httpx"},  # só data-api.binance.vision, api.coingecko.com e api.llama.fi; sem redirecionar

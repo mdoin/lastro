@@ -49,7 +49,7 @@ type AgentMap = Record<string, Agent>;
 
 interface Live {
   runs: Record<string, TeamRun>;
-  steps: Record<string, Record<string, Partial<RunStep> & { agent_id: string; text?: string; wait?: string; tool?: string }>>;
+  steps: Record<string, Record<string, Partial<RunStep> & { agent_id: string; text?: string; wait?: string; tool?: string; frame?: { image: string; url: string } }>>;
 }
 
 /** Prévia de uma linha: sem marcação de Markdown. */
@@ -320,7 +320,7 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
       if (!ACTIVE.includes(ev.run.status)) { void runsQ.reload(); onChanged(); }
     });
     const stepUpdate = (ev: TeamEvent) => {
-      if (ev.type !== "step" && ev.type !== "delta" && ev.type !== "tool" && ev.type !== "wait") return;
+      if (ev.type !== "step" && ev.type !== "delta" && ev.type !== "tool" && ev.type !== "wait" && ev.type !== "frame") return;
       setLive((l) => {
         const run = { ...(l.steps[ev.run_id] ?? {}) };
         const cur = run[ev.step_key] ?? { agent_id: ev.agent_id, text: "" };
@@ -329,12 +329,13 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
           else delete run[ev.step_key];
         } else if (ev.type === "delta") run[ev.step_key] = { ...cur, text: (cur.text ?? "") + ev.text, wait: undefined };
         else if (ev.type === "tool") run[ev.step_key] = { ...cur, tool: ev.name };
+        else if (ev.type === "frame") run[ev.step_key] = { ...cur, frame: { image: ev.image, url: ev.url } };
         else if (ev.type === "wait") run[ev.step_key] = { ...cur, wait: ev.kind === "waiting_limit" ? ev.message ?? "Aguardando limite de uso." : "Na fila do serviço…" };
         return { ...l, steps: { ...l.steps, [ev.run_id]: run } };
       });
       if (ev.type === "step") void runsQ.reload();
     };
-    (["step", "delta", "tool", "wait"] as const).forEach((t) => on(t, stepUpdate));
+    (["step", "delta", "tool", "wait", "frame"] as const).forEach((t) => on(t, stepUpdate));
     return () => es.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -531,6 +532,12 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
               {s.wait && <p className="tiny muted" role="status">{s.wait}</p>}
               {searching ? <p className="team-research-state small" role="status"><Icon name="search" /> {name} está {searching}…</p>
                 : s.text ? <Markdown text={s.text} /> : <span className="typing" role="status"><span /><span /><span /></span>}
+              {searching && s.frame && (
+                <figure className="team-browser">
+                  <img src={`data:image/jpeg;base64,${s.frame.image}`} alt={`Tela do navegador de ${name}`} />
+                  <figcaption className="tiny muted">{s.frame.url.replace(/^https?:\/\//, "").split("/")[0]}</figcaption>
+                </figure>
+              )}
             </article>
           );
         })}

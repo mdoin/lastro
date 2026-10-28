@@ -604,6 +604,9 @@
   color: var(--ink-2);
 }
 .team-research-state svg { width: 14px; height: 14px; }
+.team-browser { margin: 8px 0 0; max-width: 480px; }
+.team-browser img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
+.team-browser figcaption { margin-top: 4px; overflow-wrap: anywhere; }
 
 .team-verified {
   display: inline-flex;

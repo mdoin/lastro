@@ -24,10 +24,21 @@ determinísticas), `backend/app/orchestrator.py` (`_research`), `backend/mentor/
 | Ferramenta | Faz |
 |---|---|
 | `web_search` | Busca (consulta, idioma, região, período `dia/semana/mes/ano`, domínios preferidos). Devolve título, URL, resumo, fonte, se é oficial, data de publicação, data da consulta e o estado de cada buscador |
-| `web_open` | Lê uma página pública por HTTP. Páginas **oficiais** que exigem navegador (anti-robô, JavaScript) abrem no navegador isolado (`browser.py`, contexto anônimo e descartável) |
+| `web_open` | Lê uma página pública por HTTP. Se ela exigir navegador (anti-robô, JavaScript), abre no navegador: oficiais pelo leitor isolado, as demais pela aba livre da sessão |
 | `web_find` | Localiza um termo na página e devolve os trechos ao redor |
 | `web_extract` | Extrai tabelas, links ou datas citadas |
 | `ler_pagina_oficial` | Leitura direta no navegador isolado. Funciona só em domínios oficiais: gov.br, jus.br, leg.br, B3, Tesouro Direto, FGC e Anbima |
+| `navegador_abrir`, `navegador_clicar`, `navegador_digitar`, `navegador_rolar`, `navegador_voltar`, `navegador_ler` | **Navegador próprio do agente** (aba livre, `browser.BrowserTab`): qualquer site público, com JavaScript, clique e digitação pelos `elementos` numerados de cada página. A tela aparece ao vivo na conversa |
+
+### Navegador livre (aba da sessão de pesquisa)
+Existe só na sessão de pesquisa, que não tem dados da pessoa; por isso navega em qualquer site público. As barreiras
+são as mesmas da leitura por HTTP e ficam fora do Chrome: toda requisição da página (qualquer método) sai por
+`research.pinned_request`, com `https`, nome resolvido no worker, todos os IPs públicos e conexão no IP conferido, sem
+DNS rebinding. Cada redirecionamento é conferido de novo. WebSocket, WebRTC, downloads, service workers, vídeo e
+áudio ficam bloqueados. A aba tem contexto anônimo próprio (os cookies morrem com a pesquisa), no máximo 2 abas ao
+mesmo tempo, 40 ações por pesquisa, 800 requisições por ação, 5 MB por resposta e 45 s por ação. O agente é orientado a
+não fazer login, cadastro, compra nem publicação. Testes: `tests/integration/test_free_browser.py`, com o Chrome real e
+a rede simulada.
 
 Os agentes com dados da pessoa só têm `pesquisar_web` (o pedido). As ferramentas acima existem apenas na sessão
 de pesquisa. `tools_for` recusa juntar internet aberta e dados do dono na mesma sessão.
@@ -89,10 +100,9 @@ Regra 14 do `_base.md`: conversar primeiro, aprofundar quando precisar e estrutu
 consultado vai direto para a pessoa, nunca como recado ao Bento. Ressalva decisiva fica no texto principal.
 
 ## Limitações conhecidas
-- Sites com proteção anti-robô (TSE, IBGE) às vezes recusam leitura por HTTP. Nas fontes oficiais, o navegador isolado
-  cobre esses casos se estiver instalado (`LASTRO_BROWSER_EXECUTABLE`); sem ele, a ferramenta diz que não conseguiu ler.
-- O Banco Central monta as páginas por JavaScript. Para indicadores, prefira `dados_mercado`, com as séries oficiais
-  já coletadas.
+- Sites com proteção anti-robô às vezes recusam até o navegador (o DuckDuckGo recusa; o Bing funciona). Sem
+  `LASTRO_BROWSER_EXECUTABLE`, não há navegador e a ferramenta diz que não conseguiu ler.
+- Para indicadores, prefira `dados_mercado`, com as séries oficiais já coletadas.
 - A higienização retira valores e identificadores, não o sentido de uma frase. O agente é orientado a escrever só o
   tema público.
 - PDFs não são lidos pela pesquisa (só texto, HTML, JSON, XML e CSV).

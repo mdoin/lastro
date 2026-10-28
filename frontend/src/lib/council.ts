@@ -43,6 +43,8 @@ export const isResearch = (key: string) => key.includes(">pesquisa#");
 const RESEARCH_TOOL: Record<string, string> = {
   web_search: "pesquisando na internet", web_open: "lendo uma fonte", ler_pagina_oficial: "lendo uma fonte oficial",
   web_find: "conferindo um dado na fonte", web_extract: "extraindo dados da fonte",
+  navegador_abrir: "navegando", navegador_clicar: "navegando", navegador_digitar: "pesquisando num site",
+  navegador_rolar: "lendo a página", navegador_voltar: "navegando", navegador_ler: "lendo a página",
 };
 
 /** O que mostrar enquanto um agente pesquisa, a partir da ferramenta que de fato está rodando. */

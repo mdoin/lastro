@@ -713,6 +713,7 @@ export type TeamEvent =
   | { type: "step"; run_id: UUID; step_key: string; agent_id: string; status: StepState; kind?: string; parent_key?: string | null; error?: string }
   | { type: "delta"; run_id: UUID; step_key: string; agent_id: string; text: string }
   | { type: "tool"; run_id: UUID; step_key: string; agent_id: string; name: string }
+  | { type: "frame"; run_id: UUID; step_key: string; agent_id: string; image: string; url: string }
   | { type: "wait"; run_id: UUID; step_key: string; agent_id: string; kind: "queued" | "waiting_limit"; message?: string }
   | { type: "fact_proposed"; run_id: UUID; agent_id: string; key: string }
   | { type: "ping" };

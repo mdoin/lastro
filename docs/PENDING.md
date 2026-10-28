@@ -19,7 +19,7 @@
 | 15 | Fontes não conectadas: CVM, ANBIMA, B3 (cotações), SEC; FRED depende de `FRED_API_KEY`. IBGE/SIDRA e Tesouro Direto conectados em 27/10/2026 | chaves/licenças | planejado |
 | 16 | Criptografia em repouso do banco (disco/backup com `age`) | item 8 | planejado |
 | 17 | Uso por terceiros exige revisão regulatória (CVM 19/30) e cobrança por API do provedor, não assinatura pessoal | produto | obrigatório antes de abrir |
-| 18 | Quadros do navegador de pesquisa não aparecem na nova interface (a URL lida aparece nas fontes) | dev | planejado |
+| 18 | Navegador de pesquisa com tela na interface nova: feito com o navegador livre dos agentes (docs/PESQUISA.md), tela ao vivo no passo de pesquisa | dev | feito (28/10/2026) |
 | 19 | Radar e Diário de Oportunidades (docs/RADAR.md): implantar com `scripts/deploy.sh` após backup (`pre-v6.db`) e reiniciar `lastro-coletor` | usuário | pronto para revisão |
 | 20 | Transportes de notificação externa (e-mail, Telegram, push PWA): hoje ficam "não configurado" | credenciais (SMTP, bot, VAPID) | planejado |
 | 21 | Carteira real (posições) para riscos de concentração, rebalanceamento e vencimentos | cadastro de posições | planejado |
