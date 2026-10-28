@@ -224,8 +224,13 @@ def get_conversation(conn: sqlite3.Connection, conv_id: str) -> dict | None:
     return dict(row) if row else None
 
 
+# Conversas do Laboratório do Conselho (lab/) ficam fora das listas e das contas da equipe: são instrumentos do experimento.
+NOT_LAB = "{c}.id NOT IN (SELECT conversation_id FROM lab_analyses)"
+
+
 def list_conversations(conn: sqlite3.Connection) -> list[dict]:
-    rows = conn.execute("SELECT id, kind, title, created_at, updated_at FROM conversations ORDER BY updated_at DESC").fetchall()
+    rows = conn.execute("SELECT id, kind, title, created_at, updated_at FROM conversations "
+                        f"WHERE {NOT_LAB.format(c='conversations')} ORDER BY updated_at DESC").fetchall()
     return [dict(r) for r in rows]
 
 
@@ -381,7 +386,7 @@ def list_user_conversations(conn: sqlite3.Connection, user_id: str) -> list[dict
         "SELECT c.id, c.kind, c.channel, c.agent_id, c.title, c.created_at, c.updated_at, m.content AS last_message, "
         "m.agent_id AS last_agent_id FROM conversations c LEFT JOIN messages m ON m.rowid = ("
         "SELECT rowid FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC, rowid DESC LIMIT 1) "
-        "WHERE c.user_id = ? ORDER BY c.updated_at DESC", (user_id,)).fetchall()
+        f"WHERE c.user_id = ? AND {NOT_LAB.format(c='c')} ORDER BY c.updated_at DESC", (user_id,)).fetchall()
     out = []
     for r in rows:
         conv = dict(r)
@@ -618,5 +623,6 @@ def set_profile(conn: sqlite3.Connection, user_id: str, **fields) -> dict:
 def last_user_message_at(conn: sqlite3.Connection, user_id: str, before: str) -> str | None:
     """Quando a pessoa falou com a equipe pela última vez antes desta mensagem (qualquer conversa dela)."""
     row = conn.execute("SELECT MAX(m.created_at) FROM messages m JOIN conversations c ON c.id = m.conversation_id "
-                       "WHERE c.user_id = ? AND m.role = 'user' AND m.created_at < ?", (user_id, before)).fetchone()
+                       f"WHERE c.user_id = ? AND m.role = 'user' AND m.created_at < ? AND {NOT_LAB.format(c='c')}",
+                       (user_id, before)).fetchone()
     return row[0] if row else None

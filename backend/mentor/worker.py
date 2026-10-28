@@ -256,9 +256,11 @@ class MentorWorker:
                 await emit({"type": "browser_frame", "image": image, "url": url})
             research = ResearchSession(self.browser, frame_sink=frames) if mode == "pesquisa_web" else None
             try:
+                lab = (req or {}).get("lab")
                 session = await self._open_session(lambda: emit, conn_id, model, role=role,
                                                    session_id=str(uuid.uuid4()), ephemeral=True, effort=effort,
-                                                   mode=mode, research=research)
+                                                   mode=mode, research=research,
+                                                   lab={"research": bool(lab.get("research"))} if isinstance(lab, dict) else None)
                 try:
                     outcome = await session.send(context_header() + text, emit)
                 finally:

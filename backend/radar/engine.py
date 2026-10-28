@@ -16,7 +16,7 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from app import convictions, store, views
-from integrations.catalog import SOURCE_NAMES
+from integrations.catalog import SERIES, SOURCE_NAMES
 from team.agents import get as get_agent
 
 from . import alerts, evaluator, journal, metrics, observations, outcomes, rules
@@ -134,8 +134,10 @@ def context_message(det: dict) -> str:
 
 
 class Radar:
-    def __init__(self, conn, *, orchestrator=None, now=utc_now, tz: ZoneInfo = USER_TZ, user_id: str = store.OWNER):
+    def __init__(self, conn, *, orchestrator=None, now=utc_now, tz: ZoneInfo = USER_TZ, user_id: str = store.OWNER,
+                 lab=None):
         self.conn, self.orchestrator, self.now, self.tz, self.user_id = conn, orchestrator, now, tz, user_id
+        self.lab = lab  # Laboratório do Conselho: sinal relevante pode virar experimento (se a pessoa permitiu)
         self.last_tick: dict | None = None
 
     def today(self) -> date:
@@ -284,6 +286,8 @@ class Radar:
         det = journal.original(self.conn, opp["id"])
         if opp["state"] == "detectada":
             plan = det["analise_multiagente"]
+            if plan["acionada"] and self.lab is not None:
+                self._propose_experiment(opp, det)
             if plan["acionada"] and self.orchestrator is not None and self._analysis_budget_left():
                 self._start_analysis(opp, det)
                 return 1
@@ -316,6 +320,22 @@ class Radar:
                                  (self.user_id, day_start.astimezone(timezone.utc).isoformat(timespec="seconds"))
                                  ).fetchone()[0]
         return used < limit
+
+    def _propose_experiment(self, opp: dict, det: dict) -> None:
+        """Mesmo critério de relevância da análise do Conselho; limites, deduplicação e automação ficam no Laboratório."""
+        sig = det["sinal"]
+        series = (det.get("serie") or {}).get("series_id") or ""
+        summary = (f"{opp['asset_label']}: {sig['condicao']} (referência {sig['reference_date']}"
+                   + (f", valor observado {sig['valor_observado']}" if sig.get("valor_observado") else "") + ").")
+        self.conn.execute("SAVEPOINT lab_proposta")  # falha no meio não deixa experimento pela metade
+        try:
+            self.lab.propose_from_radar(self.user_id, opportunity_id=opp["id"], summary=summary,
+                                        category="juros_e_inflacao" if series in SERIES else "renda_fixa")
+            self.conn.execute("RELEASE lab_proposta")
+        except Exception:  # noqa: BLE001 — o Laboratório nunca atrapalha o Radar
+            self.conn.execute("ROLLBACK TO lab_proposta")
+            self.conn.execute("RELEASE lab_proposta")
+            log.exception("Laboratório: proposta a partir do Radar falhou (%s)", opp["id"])
 
     def _start_analysis(self, opp: dict, det: dict) -> None:
         agents = det["analise_multiagente"]["agentes"]

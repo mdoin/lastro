@@ -309,6 +309,12 @@ TOOL_NAMES = ([f"mcp__{SERVER_NAME}__{t.name}" for t in ALL_TOOLS] + [f"mcp__{SE
 # Sessão de pesquisa: internet aberta (com as barreiras de research.py) e NENHUMA ferramenta de dados do dono.
 RESEARCH_CAPS = Capabilities(data=False, browser="research", web=True)
 
+def lab_caps(research: bool) -> Capabilities:
+    """Laboratório: as MESMAS ferramentas para todo agente nos dois modos. Os dados chegam só pelo dossiê congelado
+    (nada de leitura ao vivo, que mudaria entre as execuções); sem memória, Diário nem delegação."""
+    return Capabilities(data=False, calc=True, research=research)
+
+
 ROLE_CAPABILITIES = {
     "coordenador": Capabilities(browser="owner"),
     "pesquisa": Capabilities(data=False, browser="research"),

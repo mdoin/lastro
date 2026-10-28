@@ -11,7 +11,7 @@ from pathlib import Path
 from providers.base import SessionSpec
 from team.agents import AGENTS, MODES
 
-from .tools import RESEARCH_CAPS, ROLE_CAPABILITIES, TOOL_NAMES, tools_for
+from .tools import RESEARCH_CAPS, ROLE_CAPABILITIES, TOOL_NAMES, lab_caps, tools_for
 
 PROMPTS = Path(__file__).resolve().parent / "prompts"
 # Teto de idas e voltas do agente por turno (ferramenta → resposta): um loop induzido por página não segura o slot.
@@ -52,9 +52,10 @@ def team_roster(role: str) -> str:
 def session_spec(*, role: str = "coordenador", workdir: Path, session_id: str | None = None,
                  resume: str | None = None, model: str | None = None, effort: str = "high",
                  ephemeral: bool = False, browser=None, frame_sink=None, mode: str | None = None,
-                 research=None) -> SessionSpec:
+                 research=None, lab: dict | None = None) -> SessionSpec:
     # Pesquisa: mesma persona, mas só as ferramentas de internet (sem dados do dono, sem delegar, sem memória).
-    caps = RESEARCH_CAPS if mode == "pesquisa_web" else ROLE_CAPABILITIES[role]
+    caps = RESEARCH_CAPS if mode == "pesquisa_web" else lab_caps(bool(lab.get("research"))) if lab \
+        else ROLE_CAPABILITIES[role]
     return SessionSpec(role=role, system_prompt=load_prompt(role, mode),
                        tools=tools_for(caps, browser, frame_sink, research), workdir=workdir, model=model,
                        max_turns=RESEARCH_TURNS if mode == "pesquisa_web" else MAX_TURNS.get(role, DEFAULT_MAX_TURNS),

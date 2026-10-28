@@ -28,11 +28,12 @@ from financial_engine.budget import Guidance
 from integrations import catalog
 from team.agents import AGENTS, SPECIALISTS, chat_agents
 
+from lab.service import Lab
 from radar.engine import Radar
 
 from crypto.service import Monitor as CryptoMonitor
 
-from . import (admin, auth, convictions, crypto_web, db, diary_web, ledger_web, providers_web, radar_web, routines,
+from . import (admin, auth, convictions, crypto_web, db, diary_web, lab_web, ledger_web, providers_web, radar_web, routines,
                setup, store, views)
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
@@ -203,7 +204,8 @@ def create_app(settings: Settings) -> FastAPI:
     turns = TurnManager(conn, mentor)
     scheduler = routines.Scheduler(conn, turns.routine_executor)
     orchestrator = Orchestrator(conn, mentor.stream, today=today)
-    radar = Radar(conn, orchestrator=orchestrator, tz=USER_TZ)
+    lab = Lab(conn, orchestrator, today=today, app_version=APP_VERSION)
+    radar = Radar(conn, orchestrator=orchestrator, tz=USER_TZ, lab=lab)
     crypto_monitor = CryptoMonitor(conn, orchestrator=orchestrator, key_file=settings.db_path.parent / "coingecko.key",
                                    tz=USER_TZ)
 
@@ -214,6 +216,8 @@ def create_app(settings: Settings) -> FastAPI:
             tasks.append(asyncio.create_task(orchestrator.run_forever()))
         if settings.run_scheduler and settings.run_radar:
             tasks.append(asyncio.create_task(radar.run_forever()))
+        if settings.run_scheduler:  # Laboratório: fecha análises, confere hipóteses e faz as reavaliações
+            tasks.append(asyncio.create_task(lab.run_forever()))
         if settings.run_scheduler and os.environ.get("LASTRO_CRYPTO_MONITOR", "1") != "0":  # sem navegador aberto
             tasks.append(asyncio.create_task(crypto_monitor.run_forever(collect=crypto_monitor.collect_in_web)))
         yield
@@ -224,6 +228,7 @@ def create_app(settings: Settings) -> FastAPI:
                   lifespan=lifespan)
     app.state.conn, app.state.turns, app.state.scheduler = conn, turns, scheduler
     app.state.orchestrator, app.state.radar, app.state.crypto = orchestrator, radar, crypto_monitor
+    app.state.lab = lab
 
     @app.middleware("http")
     async def security(request: Request, call_next):
@@ -706,6 +711,9 @@ def create_app(settings: Settings) -> FastAPI:
     # --- Diário de Decisões ---
     diary_web.register(app, conn, current_user=current_user, bad_request=bad_request, log_access=log_access,
                        today=today)
+
+    # --- Laboratório do Conselho (docs/LAB.md) ---
+    lab_web.register(app, conn, lab=lab, current_user=current_user, log_access=log_access)
 
     # --- Radar cripto e central de notificações (docs/CRYPTO.md) ---
     crypto_web.register(app, conn, current_user=current_user, log_access=log_access, monitor=crypto_monitor)
