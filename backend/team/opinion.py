@@ -8,7 +8,7 @@ divergência fica registrada de forma verificável e independe do provedor de IA
 
 import re
 
-from .agents import AGENTS, get
+from .agents import get
 from .auditor import fold
 
 STANCES = {"favoravel": "favorável", "contraria": "contrária", "condicional": "condicional",
@@ -29,13 +29,12 @@ def stance(text: str) -> str | None:
 
 
 def sections(text: str) -> dict[str, str]:
-    """Seções conhecidas com corpo não vazio, por chave de SECTIONS."""
-    folded = fold(text)
-    heads = list(_HEADING.finditer(folded))
+    """Seções conhecidas com corpo não vazio (texto original), por chave de SECTIONS."""
+    heads = list(_HEADING.finditer(text or ""))
     found = {}
     for i, head in enumerate(heads):
-        body = folded[head.end():heads[i + 1].start() if i + 1 < len(heads) else len(folded)].strip()
-        key = next((k for k in SECTIONS if head.group(1).startswith(k)), None)
+        body = text[head.end():heads[i + 1].start() if i + 1 < len(heads) else len(text)].strip()
+        key = next((k for k in SECTIONS if fold(head.group(1)).startswith(k)), None)
         if key and body:
             found[key] = body
     return found
@@ -53,9 +52,21 @@ def problems(text: str, required: tuple = tuple(SECTIONS)) -> list[str]:
     return reasons
 
 
+EXCERPT_CHARS = 420
+
+
 def summary(text: str) -> dict:
-    """O que fica gravado junto da mensagem: a posição e quais seções vieram (o texto já está na mensagem)."""
-    return {"stance": stance(text), "sections": sorted(sections(text))}
+    """O que fica gravado junto da mensagem: a posição, as seções que vieram e trechos curtos para o painel do
+    agente (tese, riscos, evidências, fontes, lacunas). O parecer completo continua na mensagem."""
+    found = sections(text)
+    excerpts = {k: _excerpt(found[k]) for k in ("tese", "risco", "evidencia", "fonte", "lacuna", "nao agir")
+                if k in found}
+    return {"stance": stance(text), "sections": sorted(found), "excerpts": excerpts}
+
+
+def _excerpt(body: str) -> str:
+    plain = re.sub(r"(\*\*|__|`)", "", " ".join(body.split()))
+    return plain if len(plain) <= EXCERPT_CHARS else plain[:EXCERPT_CHARS].rsplit(" ", 1)[0] + "…"
 
 
 def conflict(stances: dict[str, str | None]) -> bool:
@@ -101,14 +112,13 @@ def dissent_problems(text: str, dissenters: list[str]) -> list[str]:
     if not match:
         return ["A síntese não tem a seção \"## Divergências\", mas há divergência material entre especialistas."]
     block = match.group(0)
-    omitted = []
-    for agent_id in dissenters:
-        name = fold(get(agent_id).name)
-        # "Analista" não pode ser satisfeito por "Analista de Ativos Digitais"
-        rest = block
-        for other in AGENTS.values():
-            if other.id != agent_id and name in fold(other.name):
-                rest = rest.replace(fold(other.name), "")
-        if name not in rest:
-            omitted.append(get(agent_id).name)
+    omitted = [get(a).name for a in dissenters if not _named(block, a)]
     return [f"A síntese apaga a divergência de {', '.join(omitted)}."] if omitted else []
+
+
+def _named(folded_block: str, agent_id: str) -> bool:
+    """Nome ou @menção como palavra inteira: "@rui" conta, "ruim" não. Apelidos ficam de fora ("risco" é palavra
+    comum demais para provar que o Rui foi citado)."""
+    spec = get(agent_id)
+    names = {fold(spec.name), fold(spec.handle)}
+    return any(re.search(rf"(?<![\w-]){re.escape(n)}(?![\w-])", folded_block) for n in names)

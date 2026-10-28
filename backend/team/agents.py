@@ -11,7 +11,7 @@ Capacidades são aplicadas em código: o servidor MCP de cada sessão só regist
 
 from dataclasses import dataclass, field
 
-REGISTRY_VERSION = "2026-10-27.4"
+REGISTRY_VERSION = "2026-10-28.1"
 
 
 @dataclass(frozen=True)
@@ -70,34 +70,34 @@ SPECIALISTS = ("planejador", "analista", "economista", "riscos", "comportamental
 
 AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
     AgentSpec(
-        id="mentor", name="Mentor", handle="mentor", title="Coordenação e síntese", kind="coordinator",
+        id="mentor", name="Bento", handle="bento", title="Mentor · coordenação e síntese", kind="coordinator",
         prompt="mentor.md", icon="layers", color="var(--agent-coordenador)", max_turns=25, effort="high",
-        aliases=("coordenador", "lastro"),
+        aliases=("mentor", "coordenador", "lastro"),
         caps=Capabilities(data=True, browser="owner", facts=True, market=True, calc=True, delegate=True, memory=True,
                           journal=True, diary=True),
         can_delegate_to=SPECIALISTS,
         summary="Entende o que você precisa, chama os especialistas certos e junta tudo numa resposta clara.",
         examples=("O que faço com o dinheiro disponível este mês?", "Me ajuda a organizar minhas prioridades.")),
     AgentSpec(
-        id="planejador", name="Planejador", handle="planejador", title="Finanças pessoais e planejamento",
+        id="planejador", name="Lia", handle="lia", title="Planejadora · orçamento, reserva e metas",
         kind="specialist", prompt="planejador.md", icon="wallet", color="var(--agent-diagnostico)",
-        aliases=("planejamento", "planejadora", "orcamento"),
+        aliases=("planejador", "planejamento", "planejadora", "orcamento"),
         caps=Capabilities(data=True, facts=True, calc=True, delegate=True, memory=True, journal=True),
         can_delegate_to=("analista", "economista", "riscos", "comportamental"),
         summary="Orçamento, reserva, dívidas, metas e capacidade de poupança, antes de qualquer produto.",
         examples=("Quanto devo ter de reserva?", "Quito o cartão ou começo a investir?")),
     AgentSpec(
-        id="analista", name="Analista", handle="analista", title="Pesquisa e avaliação de investimentos",
+        id="analista", name="Caio", handle="caio", title="Analista · pesquisa e avaliação de investimentos",
         kind="specialist", prompt="analista.md", icon="bars", color="var(--agent-simulacao)",
-        aliases=("investimentos", "analista-de-investimentos", "analise"),
+        aliases=("analista", "investimentos", "analista-de-investimentos", "analise"),
         caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
         can_delegate_to=("planejador", "economista", "riscos", "comportamental", "cripto"),
         summary="Renda fixa, ações, ETFs, FIIs e fundos: retorno líquido, custos, liquidez e adequação ao prazo.",
         examples=("Quais categorias fazem sentido para 10 anos?", "Compare CDB e Tesouro Selic para minha reserva.")),
     AgentSpec(
-        id="economista", name="Economista", handle="economista", title="Macroeconomia e cenários",
+        id="economista", name="Vera", handle="vera", title="Economista · macroeconomia e cenários",
         kind="specialist", prompt="economista.md", icon="globe", color="var(--agent-pesquisa)",
-        aliases=("economia", "macro"),
+        aliases=("economista", "economia", "macro"),
         # Pode ler a web (allowlist oficial), por isso NÃO vê os dados do dono: texto injetado numa página
         # nunca está na mesma sessão que conhece o patrimônio da pessoa.
         caps=Capabilities(data=False, browser="research", facts=False, market=True, calc=True, delegate=True,
@@ -106,31 +106,31 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         summary="Selic, CDI, IPCA, câmbio e ciclos: dados oficiais com data de referência e cenários, nunca certezas.",
         examples=("Como está o cenário de juros?", "O que a inflação acumulada significa para mim?")),
     AgentSpec(
-        id="riscos", name="Gestor de Riscos", handle="riscos", title="Identificação e medição de riscos",
+        id="riscos", name="Rui", handle="rui", title="Gestor de riscos · perdas, liquidez e concentração",
         kind="specialist", prompt="riscos.md", icon="alert", color="var(--agent-riscos)",
-        aliases=("risco", "gestor", "gestor-de-riscos"),
+        aliases=("riscos", "risco", "gestor", "gestor-de-riscos"),
         caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
         can_delegate_to=("planejador", "analista", "economista", "cripto"),
         summary="O contraponto crítico: o que pode dar errado, quanto se perderia e que premissas precisam valer.",
         examples=("Minha carteira está concentrada?", "Quanto eu perderia num cenário ruim?")),
     AgentSpec(
-        id="comportamental", name="Conselheiro", handle="conselheiro", title="Comportamento e decisões",
+        id="comportamental", name="Nina", handle="nina", title="Conselheira · comportamento e decisões",
         kind="specialist", prompt="comportamental.md", icon="spark", color="var(--agent-educacao)",
-        aliases=("comportamental", "comportamento", "conselheira"),
+        aliases=("conselheiro", "comportamental", "comportamento", "conselheira"),
         caps=Capabilities(data=True, facts=True, calc=False, delegate=True, memory=True),
         can_delegate_to=("planejador", "riscos"),
         summary="Ajuda a perceber FOMO, aversão à perda e impulsos; disciplina sem culpa. Não faz diagnóstico.",
         examples=("Estou com vontade de vender tudo, é impulso?", "Como manter os aportes todo mês?")),
     AgentSpec(
-        id="cripto", name="Analista de Ativos Digitais", handle="cripto", title="Criptoativos e custódia",
+        id="cripto", name="Téo", handle="teo", title="Analista de ativos digitais · cripto e custódia",
         kind="specialist", prompt="cripto.md", icon="coins", color="var(--agent-cripto)",
-        aliases=("ativos-digitais", "criptoativos", "bitcoin"),
+        aliases=("cripto", "ativos-digitais", "criptoativos", "bitcoin"),
         caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
         can_delegate_to=("analista", "economista", "riscos"),
         summary="Cripto, stablecoins e tokens: custódia, liquidez, risco operacional e de contraparte, sem euforia.",
         examples=("Faz sentido ter bitcoin na minha carteira?", "Stablecoin é igual a dólar guardado?")),
     AgentSpec(
-        id="auditor", name="Auditor", handle="auditor", title="Verificação independente", kind="auditor",
+        id="auditor", name="Cora", handle="cora", title="Auditora · verificação independente", kind="auditor",
         prompt="auditor.md", icon="shieldCheck", color="var(--agent-auditor)", max_turns=6,
         caps=Capabilities(data=True, facts=True, market=True, calc=True, journal=True),
         summary="Confere números, fontes, datas, riscos e promessas antes de a resposta chegar a você."),

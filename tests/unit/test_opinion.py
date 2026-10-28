@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Parecer estruturado do Conselho: posição declarada, seções, mapa de posições e dissenso na síntese."""
-from team import opinion, routing
+from team import opinion, routing, verdict
 
 FULL = ("**Posição:** contrária\n\n## Tese\nNão agora.\n\n## Evidências\nReserva de 3 meses.\n\n## Fontes\nRetrato.\n\n"
         "## Hipóteses\nRenda estável.\n\n## Riscos\nPerda.\n\n## Lacunas\nPrazo.\n\n## Não agir\nRazoável.")
@@ -33,22 +33,22 @@ def test_conflict_and_contested_only_between_opposed_sides():
 def test_position_map_records_initial_and_final():
     initial = {"analista": "favoravel", "riscos": "contraria"}
     kept = opinion.position_map(initial, initial)
-    assert "| Analista | favorável | favorável |" in kept and "Divergência material mantida" in kept
+    assert "| Caio | favorável | favorável |" in kept and "Divergência material mantida" in kept
     resolved = opinion.position_map(initial, {"analista": "condicional", "riscos": "contraria"})
     assert "não se manteve" in resolved
     calm = opinion.position_map({"analista": "condicional"}, {"analista": "condicional"})
-    assert "| Analista | condicional | — |" in calm and "Sem divergência material" in calm
+    assert "| Caio | condicional | — |" in calm and "Sem divergência material" in calm
 
 
 def test_synthesis_must_name_every_dissenter():
     dissent = ["analista", "cripto", "riscos"]
-    ok = "Resumo.\n\n## Divergências\nAnalista e Analista de Ativos Digitais × Gestor de Riscos.\n\n## Próximo passo\n."
+    ok = "Resumo.\n\n## Divergências\n- @caio e Téo × @rui.\n\n## Próximos passos\n."
     assert opinion.dissent_problems(ok, dissent) == []
-    # "Analista de Ativos Digitais" não conta como menção ao Analista
-    partial = "## Divergências\nO Analista de Ativos Digitais discorda do Gestor de Riscos.\n"
-    assert opinion.dissent_problems(partial, dissent) == ["A síntese apaga a divergência de Analista."]
+    # "ruim" não é o Rui, e "risco" (apelido antigo) não prova que ele foi citado
+    partial = "## Divergências\n- @caio e @teo acham o risco ruim.\n"
+    assert opinion.dissent_problems(partial, dissent) == ["A síntese apaga a divergência de Rui."]
     # nome citado fora da seção não vale
-    outside = "O Analista, o Analista de Ativos Digitais e o Gestor de Riscos falaram.\n\n## Divergências: nenhuma relevante"
+    outside = "Caio, Téo e Rui falaram.\n\n## Divergências: nenhuma relevante"
     assert opinion.dissent_problems(outside, dissent)
     assert "não tem a seção" in opinion.dissent_problems("Sem seção.", dissent)[0]
     assert opinion.dissent_problems("qualquer coisa", []) == []
@@ -60,3 +60,35 @@ def test_crypto_specialist_joins_only_crypto_questions():
     assert "cripto" not in routing.council_agents("Quito o financiamento do carro?")[0]
     assert "cripto" in routing.council_agents("E stablecoins como USDC?")[0]
     assert routing.resolve_handle("cripto") == "cripto" and routing.resolve_handle("ativos-digitais") == "cripto"
+    # nomes novos e @menções antigas apontam para o mesmo id estável
+    assert [routing.resolve_handle(h) for h in ("bento", "mentor", "lia", "planejador", "rui", "riscos", "nina",
+                                                 "conselheiro", "teo", "Téo")] == [
+        "mentor", "mentor", "planejador", "planejador", "riscos", "riscos", "comportamental", "comportamental",
+        "cripto", "cripto"]
+
+
+def test_verdict_sections_and_structured_mentions():
+    text = ("## Conclusão\nNão agora.\n\n## Concordâncias\n- @lia e @rui concordam que a **reserva** vem antes.\n"
+            "## Divergências\n- @caio vê espaço; @rui discorda.\n\n## Riscos\n- @rui: concentração.\n"
+            "- @ninguem e @bento@x não viram menção\n\n## Próximos passos\n1. Rever a reserva\n2. Não agir")
+    v = verdict.parse(text, {"planejador", "riscos", "analista", "mentor"})
+    assert [s["key"] for s in v["sections"]] == ["conclusao", "concordancia", "diverg", "risco", "proxim"]
+    agree = v["sections"][1]["items"][0]
+    assert agree == [{"agent": "planejador"}, {"t": " e "}, {"agent": "riscos"},
+                     {"t": " concordam que a reserva vem antes."}]  # sem ** (texto puro)
+    risks = v["sections"][3]["items"]
+    assert risks[1] == [{"t": "@ninguem e "}, {"agent": "mentor"}, {"t": "@x não viram menção"}]
+    assert v["sections"][4]["items"] == [[{"t": "Rever a reserva"}], [{"t": "Não agir"}]]
+    assert v["mentioned"] == ["planejador", "riscos", "analista", "mentor"]
+    # quem não participou da reunião não vira menção
+    assert verdict.parse("## Conclusão\nx\n## Riscos\n- @vera falou", {"riscos"})["sections"][1]["items"] == [
+        [{"t": "@vera falou"}]]
+    assert verdict.parse("Texto livre sem seções.", {"riscos"}) is None
+    assert verdict.parse("## Divergências: nenhuma relevante\n## Riscos\n- x", {"riscos"}) is None  # sem conclusão
+
+
+def test_prompts_get_display_names_from_registry():
+    from mentor.session import load_prompt
+
+    prompt = load_prompt("riscos", "conselho_parecer")
+    assert "Seu nome é Rui." in prompt and "- Lia (@lia): Planejadora" in prompt and "**Posição:**" in prompt

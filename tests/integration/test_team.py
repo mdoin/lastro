@@ -198,7 +198,7 @@ def test_group_shares_context_between_agents(conn):
     send(o, conv, "@Analista, considerando isso, que categorias estudar?")
     asyncio.run(drain(o))
     prompt = rt.prompt_for("analista")
-    assert "Economista (" in prompt and "A Selic segue alta" in prompt
+    assert "Vera (" in prompt and "A Selic segue alta" in prompt
 
 
 # 6 ---------------------------------------------------------------------------------------------------------------
@@ -290,12 +290,12 @@ def high_risk_script(role, mode, prompt, n):
         return done(f"**Posição:** {HIGH_RISK_STANCES[role]} (mantida)\n\n## Resposta às objeções\nRÉPLICA-{role.upper()}."
                     "\n\n## O que mudaria minha posição\nReserva recomposta.")
     if mode == "conselho_sintese":
-        return done("Não há consenso; o risco de perda é alto.\n\n## Divergências\nO Analista de Ativos Digitais "
-                    "vê espaço; o Gestor de Riscos discorda.")
+        return done("## Conclusão\nNão há consenso; o risco de perda é alto.\n\n## Divergências\n- @teo "
+                    "vê espaço; @rui discorda.")
     if mode == "correcao":
-        return done("Não há consenso; o risco de perda e de liquidez é alto.\n\n## Divergências\nAnalista e Analista "
-                    "de Ativos Digitais (favoráveis) × Gestor de Riscos e Conselheiro (contrários).\n\n## Próximo passo\n"
-                    "Não agir até rever a reserva é uma opção.")
+        return done("## Conclusão\nNão há consenso; o risco de perda e de liquidez é alto.\n\n## Divergências\n"
+                    "- @caio e @teo (favoráveis) × @rui e @nina (contrários).\n\n## Próximos passos\n"
+                    "- Não agir até rever a reserva é uma opção.")
     return done(f"Resposta de {role}.")
 
 
@@ -332,7 +332,9 @@ def test_high_risk_proposal_keeps_dissent_across_provider_switch(conn):
     assert parecer["meta"]["opinion"]["stance"] == "contraria" and parecer["meta"]["route"] == {}
     assert any(m["step_key"] == "conselho:contestacao:riscos" and "RÉPLICA-RISCOS" in m["content"] for m in msgs)
     final = msgs[-1]
-    assert final["step_key"] == "conselho:sintese" and "Conselheiro" in final["content"]
+    assert final["step_key"] == "conselho:sintese" and "@nina" in final["content"]
+    diverg = next(s for s in final["meta"]["verdict"]["sections"] if s["key"] == "diverg")
+    assert {s["agent"] for s in diverg["items"][0] if "agent" in s} == {"analista", "cripto", "riscos", "comportamental"}
     assert final["audit"]["verdict"] != REPROVA and "Corrigida" in final["audit"]["reasons"][0]
     before = [(m["id"], m["content"], m["meta"]) for m in msgs]
 

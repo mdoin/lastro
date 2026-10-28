@@ -28,7 +28,16 @@ def load_prompt(role: str, mode: str | None = None) -> str:
         raise ValueError(f"Modo desconhecido: {mode}")
     file = AGENTS[role].prompt if role in AGENTS else f"{role}.md"
     parts = [PROMPTS / "_base.md", PROMPTS / file] + ([PROMPTS / "modos" / f"{mode}.md"] if mode else [])
-    return "\n\n".join(p.read_text(encoding="utf-8") for p in parts)
+    texts = [p.read_text(encoding="utf-8") for p in parts]
+    texts.insert(1, team_roster(role))
+    return "\n\n".join(texts)
+
+
+def team_roster(role: str) -> str:
+    """Nomes de exibição vêm do registro (um lugar só): trocar um nome não exige reescrever instruções."""
+    lines = [f"- {a.name} (@{a.handle}): {a.title}" for a in AGENTS.values()]
+    me = f"Seu nome é {AGENTS[role].name}. " if role in AGENTS else ""
+    return f"{me}Equipe:\n" + "\n".join(lines)
 
 
 def session_spec(*, role: str = "coordenador", workdir: Path, session_id: str | None = None,

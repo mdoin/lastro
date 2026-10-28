@@ -28,6 +28,7 @@ from financial_engine.calculator import CalculationError, calculate, numbers_in
 from integrations import catalog
 from team import auditor, routing
 from team import opinion as opinions
+from team import verdict as verdicts
 from team.agents import AGENTS, get
 
 from . import diary, store, views
@@ -396,7 +397,8 @@ class Orchestrator:
             text, result, tools = await self._correct(ctx, "mentor", "conselho:sintese", task, text, result, tools, 0,
                                                       council=True)
         message = self._publish(ctx, "conselho:sintese", "mentor", text, audit=result.as_dict(),
-                                sources=self._sources(ctx, tools, None), tools=tools)
+                                sources=self._sources(ctx, tools, None), tools=tools,
+                                meta={"verdict": verdicts.parse(text, {*texts, "mentor", "auditor"})})
         self._draft(ctx, "mentor", "conselho:sintese", message)
 
     # ---------- Radar ----------
