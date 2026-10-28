@@ -179,6 +179,19 @@ As antigas `GET/POST /api/decisions` saíram; o `decision_log` é importado para
 | `POST /api/documents/{id}/approve` · `DELETE /api/documents/{id}?entries=` | — | aprova pendências completas · exclui (e desfaz lançamentos, se pedido) |
 | `POST /api/documents/{id}/interpret` | `{"confirm": true}` | 202; exige consentimento `ai_documents`; resultado sempre pendente |
 
+## Laboratório do Conselho — ver `docs/LAB.md`
+| Método | Rota | Faz |
+|---|---|---|
+| GET | `/api/lab?category=&since=&status=` | Experimentos, painel agregado, categorias e configuração |
+| POST | `/api/lab` | Cria e roda um experimento (`question`, `category`, `repetitions`, `research`, `as_of`, `followups`, `client_id`) |
+| GET | `/api/lab/{id}` | Detalhe: snapshot, análises, hipóteses, comparações, reavaliações, avaliações e Diário |
+| POST | `/api/lab/{id}/start` · `/refuse` · `/cancel` | Roda um experimento proposto, recusa ou cancela |
+| POST | `/api/lab/{id}/judge` | Avaliação de utilidade por IA às cegas (`repetition`) |
+| POST | `/api/lab/{id}/review` | Avaliação da pessoa (`repetition`, `scores`, `note`) |
+| POST | `/api/lab/hypotheses/{id}/resolve` | Confere hipótese `manual` vencida (`aconteceu`/`nao_aconteceu`/`indeterminada`) |
+| POST | `/api/lab/{id}/decision` | Vincula uma decisão do Diário (registrada pela pessoa) ao experimento |
+| GET/PUT | `/api/lab/journal` · `/api/lab/settings` | Diário do Laboratório; automação, limites e repetições padrão |
+
 ## Equipe (Mentor, especialistas, grupos, Conselho) — ver `docs/MULTIAGENT.md`
 Toda rota exige sessão; conversas e execuções de outra pessoa respondem 404 (igual a inexistentes).
 

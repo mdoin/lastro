@@ -29,3 +29,4 @@
 | 25 | Livro de movimentações, memória automática e Caixa de entrada da Mila (docs/LEDGER.md, migração 010): backup (`pre-v10.db`), `uv sync --extra documents`, opcional `tesseract-ocr-por`, deploy. Leitura de imagem sem tesseract fica "sem leitura" | usuário | pronto para revisão |
 | 26 | Conselho deliberativo (docs/COUNCIL.md, migração 011): deploy após backup (`pre-v11.db`); ajustar `LASTRO_COUNCIL_*` ao custo real do provedor | usuário | pronto para revisão |
 | 27 | Radar cripto e reuniões autônomas (docs/CRYPTO.md, migração 012): deploy após backup (`pre-v12.db`), reiniciar `lastro-coletor`; chave CoinGecko opcional pela tela; reuniões autônomas ficam desligadas até você autorizar | usuário | pronto para revisão |
+| 28 | Laboratório do Conselho (docs/LAB.md, migração 014): Bento sozinho × Conselho, hipóteses conferidas e reavaliações; automação pelo Radar desligada por padrão | — | implantado em 28/10/2026 |
