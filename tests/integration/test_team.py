@@ -151,7 +151,9 @@ def test_message_without_mention_goes_through_mentor_router(conn):
     o = orch(conn, rt)
     out = send(o, conv, "O que vocês acham de juros altos?")
     asyncio.run(drain(o))
-    assert out["run"]["route"] == {"agents": ["mentor"], "via_router": True, "reason": "sem menção: Mentor decide"}
+    route = out["run"]["route"]
+    assert {k: route[k] for k in ("agents", "via_router", "reason")} == {
+        "agents": ["mentor"], "via_router": True, "reason": "sem menção: Mentor decide"}
     assert rt.roles() == ["mentor"] and rt.requests[0]["mode"] == "grupo"
 
 
@@ -662,7 +664,7 @@ def test_delegation_limits_cycles_and_duplicates(conn):
         return done(f"{role} integrou.")
     rt = FakeRuntime(script)
     o = orch(conn, rt)
-    out = send(o, conv, "Analisem juros e investimentos")
+    out = send(o, conv, "Me fala de juros e investimentos")
     asyncio.run(drain(o))
     steps = {s["step_key"]: s for s in store.list_steps(conn, out["run"]["id"])}
     rejected = {k: s["error"] for k, s in steps.items() if s["status"] == "rejected"}
@@ -710,7 +712,7 @@ def test_user_cannot_access_another_users_conversation(tmp_path):
         assert client.post(f"/api/team/conversations/{mine.json()['id']}/messages", json={"text": "oi"}).status_code == 403
         group_ = client.post("/api/team/conversations", json={"channel": "group", "participants": ["riscos"]}, headers=H)
         assert group_.json()["participants"] == ["mentor", "riscos"]
-        assert client.post("/api/team/conversations", json={"channel": "direct", "agent_id": "auditor"},
+        assert client.post("/api/team/conversations", json={"channel": "direct", "agent_id": "extrator"},
                            headers=H).status_code == 422
         assert {a["id"] for a in client.get("/api/agents").json()} == {
             "mentor", "planejador", "analista", "economista", "riscos", "comportamental", "cripto",

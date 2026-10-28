@@ -603,6 +603,12 @@ export interface TeamMessage {
     verdict?: Verdict | null;
     captures?: import("./ledger").Capture[];
     intervention_for?: string;
+    /** Conversa (não reunião): intenção lida pelo roteador e a quem esta fala reage, quando um colega a chamou. */
+    chat?: { intent?: string; style?: string; responds_to?: string };
+    /** O Bento ofereceu levar este assunto ao Conselho (a pessoa aceita ou não). */
+    council_offer?: { question: string };
+    /** A pessoa disse no chat como quer ser chamada: só vira perfil se ela confirmar. */
+    profile_suggestion?: { nome: string };
     convocation?: { kind: string; event_id?: string; asset?: string; summary?: string; severity?: string };
     deliberation?: {
       phase?: string; round?: string | number; kind?: string; reaction?: string | null; revised?: boolean; stance?: Stance | null;

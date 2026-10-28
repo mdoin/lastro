@@ -18,6 +18,7 @@ PROMPTS = Path(__file__).resolve().parent / "prompts"
 MAX_TURNS = {"coordenador": 25, "pesquisa": 8, "rotina": 12, "sintese": 4,
              **{a.id: a.max_turns for a in AGENTS.values()}}
 DEFAULT_MAX_TURNS = 8
+CHAT_MODES = ("direto", "grupo", "conversa")  # conversa com a pessoa (não reunião, auditoria ou rotina)
 ROLES = ("coordenador", "diagnostico", "simulacao", "educacao", "pesquisa", "sintese", "rotina", *AGENTS)
 
 
@@ -26,7 +27,10 @@ def load_prompt(role: str, mode: str | None = None) -> str:
         raise ValueError(f"Papel desconhecido: {role}")
     if mode is not None and mode not in MODES:
         raise ValueError(f"Modo desconhecido: {mode}")
-    file = AGENTS[role].prompt if role in AGENTS else f"{role}.md"
+    spec = AGENTS.get(role)
+    file = spec.prompt if spec else f"{role}.md"
+    if spec and spec.chat_prompt and mode in CHAT_MODES:
+        file = spec.chat_prompt
     parts = [PROMPTS / "_base.md", PROMPTS / file] + ([PROMPTS / "modos" / f"{mode}.md"] if mode else [])
     texts = [p.read_text(encoding="utf-8") for p in parts]
     texts.insert(1, team_roster(role))
@@ -36,7 +40,11 @@ def load_prompt(role: str, mode: str | None = None) -> str:
 def team_roster(role: str) -> str:
     """Nomes de exibição vêm do registro (um lugar só): trocar um nome não exige reescrever instruções."""
     lines = [f"- {a.name} (@{a.handle}): {a.title}" for a in AGENTS.values() if a.kind != "internal"]
-    me = f"Seu nome é {AGENTS[role].name}. " if role in AGENTS else ""
+    spec = AGENTS.get(role)
+    me = f"Seu nome é {spec.name}. " if spec else ""
+    if spec and spec.persona:
+        me += (f"Seu jeito: {spec.persona}. Isso muda o estilo, nunca os fatos; varie as palavras e não transforme "
+               "o jeito em bordão. ")
     return f"{me}Equipe:\n" + "\n".join(lines)
 
 

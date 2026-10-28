@@ -29,3 +29,32 @@ export function applyMention(text: string, at: MentionQuery, handle: string): { 
   const insert = `@${handle} `;
   return { text: text.slice(0, at.start) + insert + text.slice(end).replace(/^\s/, ""), caret: at.start + insert.length };
 }
+
+type Named = { id: string; handle: string; name: string };
+const MENTION = /(^|[^\p{L}\d@])@([\p{L}\d][\p{L}\d-]{0,40})/gu;
+
+/** Agente citado por "@handle", "@id" ou "@Nome" (sem acento, sem caixa); undefined se não for da equipe. */
+export function resolveMention<T extends Named>(items: T[], word: string): T | undefined {
+  const w = fold(word);
+  return items.find((a) => fold(a.handle) === w || a.id === w || fold(a.name) === w);
+}
+
+/** Texto em pedaços: texto puro e menções a agentes reais (as outras "@palavras" seguem como texto). */
+export function splitMentions<T extends Named>(text: string, items: T[]): (string | T)[] {
+  const out: (string | T)[] = [];
+  let last = 0;
+  for (const m of text.matchAll(MENTION)) {
+    const agent = resolveMention(items, m[2]!);
+    if (!agent) continue;
+    const at = m.index! + m[1]!.length;
+    out.push(text.slice(last, at), agent);
+    last = at + 1 + m[2]!.length;
+  }
+  out.push(text.slice(last));
+  return out.filter((p) => p !== "");
+}
+
+/** Markdown com as menções viradas em links internos "#agente-<id>" (a tela os mostra como menção clicável). */
+export function linkMentions<T extends Named>(text: string, items: T[]): string {
+  return splitMentions(text, items).map((p) => (typeof p === "string" ? p : `[@${p.name}](#agente-${p.id})`)).join("");
+}

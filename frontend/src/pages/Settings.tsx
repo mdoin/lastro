@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { EXPORT_URL, getAuthState, getStatus, logout } from "../api/endpoints";
+import { ApiError } from "../api/client";
+import { EXPORT_URL, getAuthState, getProfile, getStatus, logout, putProfile } from "../api/endpoints";
 import { Icon } from "../components/Icon";
 import { AgentModels, ProviderManager } from "../components/Providers";
 import { ThemeSwitch } from "../components/ThemeSwitch";
@@ -59,6 +61,8 @@ export function SettingsPage() {
           ))}
         </ul>
       </Card>
+
+      <ProfileCard />
 
       {status.loading && !s && <Loading />}
       <ErrorNotice error={status.error} onRetry={status.reload} />
@@ -181,5 +185,58 @@ export function SettingsPage() {
         </p>
       </Card>
     </div>
+  );
+}
+
+/** Como a equipe chama a pessoa. Os agentes leem daqui a cada resposta; nada é deduzido de documentos. */
+function ProfileCard() {
+  const app = useApp();
+  const profile = useAsync(getProfile, []);
+  const [form, setForm] = useState({ nome: "", apelido: "", tratamento: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (profile.data) setForm({ nome: profile.data.nome, apelido: profile.data.apelido, tratamento: profile.data.tratamento });
+  }, [profile.data]);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      profile.setData(await putProfile(form));
+      app.toast("Pronto: a equipe já usa o novo jeito de chamar você.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Não foi possível salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  return (
+    <Card title="Como a equipe chama você" eyebrow="Seu perfil">
+      <p className="small muted">Bento, Lia, Caio e os demais usam isto em todas as conversas, individuais e em grupo. Nenhum nome é tirado de extratos ou documentos.</p>
+      <ErrorNotice error={profile.error} onRetry={profile.reload} />
+      <form className="stack" onSubmit={(e) => void save(e)}>
+        <div className="form-grid">
+          <label className="field">
+            <span className="field-label">Como a equipe deve chamar você</span>
+            <input className="input" value={form.nome} maxLength={60} onChange={set("nome")} placeholder="Ex.: Ana" autoComplete="given-name" />
+          </label>
+          <label className="field">
+            <span className="field-label">Apelido (opcional)</span>
+            <input className="input" value={form.apelido} maxLength={40} onChange={set("apelido")} autoComplete="nickname" />
+          </label>
+        </div>
+        <label className="field">
+          <span className="field-label">Preferências de tratamento (opcional)</span>
+          <input className="input" value={form.tratamento} maxLength={240} onChange={set("tratamento")}
+            placeholder="Ex.: pode ser informal; prefiro linguagem neutra" />
+        </label>
+        {error && <p className="small" role="alert">{error}</p>}
+        <div className="row"><button type="submit" className="btn btn-primary btn-sm" disabled={saving || !profile.data}>Salvar</button></div>
+      </form>
+    </Card>
   );
 }

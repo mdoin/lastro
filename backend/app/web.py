@@ -164,6 +164,12 @@ class ParticipantIn(BaseModel):
     agent_id: str = Field(max_length=40)
 
 
+class ProfileIn(BaseModel):
+    nome: str = Field(default="", max_length=60)
+    apelido: str = Field(default="", max_length=40)
+    tratamento: str = Field(default="", max_length=240)
+
+
 class FactIn(BaseModel):
     key: str = Field(max_length=40)
     value: str = Field(min_length=1, max_length=500)
@@ -439,8 +445,8 @@ def create_app(settings: Settings) -> FastAPI:
         return agent_id
 
     @app.get("/api/agents", dependencies=private)
-    async def agents_list():  # a Auditora não conversa, mas aparece na sala do Conselho com nome e cor
-        return [a.public() for a in chat_agents()] + [AGENTS["auditor"].public()]
+    async def agents_list():
+        return [a.public() for a in chat_agents()]
 
     @app.get("/api/team/conversations")
     async def team_conversations(user: str = Depends(current_user)):
@@ -564,6 +570,17 @@ def create_app(settings: Settings) -> FastAPI:
             finally:
                 orchestrator.bus.unsubscribe(conv_id, queue)
         return sse(events())
+
+    @app.get("/api/profile")
+    async def profile_get(user: str = Depends(current_user)):
+        return store.get_profile(conn, user)
+
+    @app.put("/api/profile")
+    async def profile_put(body: ProfileIn, user: str = Depends(current_user)):
+        """Como a pessoa quer ser chamada: os agentes leem daqui a cada resposta (nunca de documentos)."""
+        profile = store.set_profile(conn, user, **body.model_dump(exclude_unset=True))  # só o que veio muda
+        log_access(user, "profile.update", "profile")
+        return profile
 
     @app.get("/api/team/memory")
     async def team_memory(user: str = Depends(current_user)):

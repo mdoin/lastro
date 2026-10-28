@@ -581,3 +581,42 @@ def list_notes(conn: sqlite3.Connection, user_id: str) -> list[dict]:
 
 def delete_note(conn: sqlite3.Connection, user_id: str, note_id: str) -> bool:
     return conn.execute("DELETE FROM agent_notes WHERE id = ? AND user_id = ?", (note_id, user_id)).rowcount > 0
+
+
+# ---------- perfil da pessoa (como quer ser chamada) ----------
+
+PROFILE_FIELDS = {"nome": 60, "apelido": 40, "tratamento": 240}
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def get_profile(conn: sqlite3.Connection, user_id: str) -> dict:
+    """Fonte de verdade da identidade usada pelos agentes: o que a própria pessoa configurou (nunca um documento)."""
+    row = conn.execute("SELECT preferences FROM users WHERE id = ?", (user_id,)).fetchone()
+    prefs = json.loads(row["preferences"] or "{}") if row else {}
+    profile = prefs.get("profile") or {}
+    return {**{k: str(profile.get(k) or "") for k in PROFILE_FIELDS}, "asked": bool(profile.get("asked"))}
+
+
+def set_profile(conn: sqlite3.Connection, user_id: str, **fields) -> dict:
+    row = conn.execute("SELECT preferences FROM users WHERE id = ?", (user_id,)).fetchone()
+    if row is None:
+        conn.execute("INSERT INTO users (id, created_at, preferences) VALUES (?,?,?)", (user_id, utcnow(), "{}"))
+        prefs = {}
+    else:
+        prefs = json.loads(row["preferences"] or "{}")
+    profile = dict(prefs.get("profile") or {})
+    for key, value in fields.items():
+        if key in PROFILE_FIELDS:
+            profile[key] = _CONTROL.sub(" ", str(value or "")).strip()[:PROFILE_FIELDS[key]]
+        elif key == "asked":
+            profile["asked"] = bool(value)
+    prefs["profile"] = profile
+    conn.execute("UPDATE users SET preferences = ? WHERE id = ?", (json.dumps(prefs, ensure_ascii=False), user_id))
+    return get_profile(conn, user_id)
+
+
+def last_user_message_at(conn: sqlite3.Connection, user_id: str, before: str) -> str | None:
+    """Quando a pessoa falou com a equipe pela última vez antes desta mensagem (qualquer conversa dela)."""
+    row = conn.execute("SELECT MAX(m.created_at) FROM messages m JOIN conversations c ON c.id = m.conversation_id "
+                       "WHERE c.user_id = ? AND m.role = 'user' AND m.created_at < ?", (user_id, before)).fetchone()
+    return row[0] if row else None

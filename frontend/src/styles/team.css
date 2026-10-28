@@ -552,3 +552,44 @@
 .radar-backlink:hover {
   background: var(--surface-2);
 }
+
+/* ------------------------------------------------------------------ conversa: menções, encadeamento e oferta */
+
+/* @menções no texto dos agentes chegam como links "#agente-<id>"; mesma aparência do chip de menção. */
+.msg .md a[href^="#agente-"] {
+  --agent: var(--agent-coordenador);
+  padding: 0 5px;
+  font-weight: 620;
+  color: var(--ink);
+  text-decoration: none;
+  background: color-mix(in srgb, var(--agent) 15%, transparent);
+  border-bottom: 2px solid var(--agent);
+  border-radius: 6px 6px 3px 3px;
+}
+.msg .md a[href^="#agente-"]:hover { background: color-mix(in srgb, var(--agent) 26%, transparent); }
+.msg .md a[href^="#agente-"]:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.msg .md a[href="#agente-planejador"] { --agent: var(--agent-diagnostico); }
+.msg .md a[href="#agente-analista"] { --agent: var(--agent-simulacao); }
+.msg .md a[href="#agente-economista"] { --agent: var(--agent-pesquisa); }
+.msg .md a[href="#agente-riscos"] { --agent: var(--agent-riscos); }
+.msg .md a[href="#agente-comportamental"] { --agent: var(--agent-educacao); }
+.msg .md a[href="#agente-cripto"] { --agent: var(--agent-cripto); }
+.msg .md a[href="#agente-mila"] { --agent: var(--agent-mila); }
+.msg .md a[href="#agente-auditor"] { --agent: var(--agent-auditor); }
+
+.team-replying {
+  grid-column: 2;
+  margin: 0;
+  color: var(--ink-3);
+}
+
+.team-offer {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.team-notice .btn { margin-left: 8px; }

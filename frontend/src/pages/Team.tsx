@@ -18,6 +18,7 @@ import {
   getTeamMemory,
   getTeamMessages,
   getTeamRuns,
+  putProfile,
   removeParticipant,
   renameTeamConversation,
   sendTeamMessage,
@@ -34,7 +35,7 @@ import { Markdown } from "../components/Markdown";
 import { Badge, ErrorNotice, Loading, Notice, Segmented } from "../components/ui";
 import { formatDate, formatDateTime } from "../lib/dates";
 import { MODE_LABEL, seats, threadBlocks, type ThreadBlock } from "../lib/council";
-import { applyMention, filterCandidates, mentionAt, type MentionQuery } from "../lib/mentions";
+import { applyMention, filterCandidates, linkMentions, mentionAt, splitMentions, type MentionQuery } from "../lib/mentions";
 import { maybeMask } from "../lib/privacy";
 import { useAsync } from "../lib/useAsync";
 import "../styles/team.css";
@@ -116,6 +117,7 @@ export function TeamPage() {
             key={conversationId}
             id={conversationId}
             agents={agents}
+            onDirect={(agent) => void openDirect(agent)}
             onChanged={() => void convs.reload()}
             onDeleted={() => {
               void convs.reload();
@@ -183,7 +185,7 @@ function TeamList(props: {
       </div>
 
       <div className="team-section">
-        {agents.filter((a) => a.kind !== "auditor").map((a) => {
+        {agents.map((a) => {
           const conv = latestDirect(a.id);
           return (
             <button key={a.id} type="button" className="team-row" onClick={() => props.onDirect(a.id)}
@@ -206,7 +208,7 @@ function TeamList(props: {
           </button>
         </div>
         {newGroup && (
-          <NewGroupForm agents={agents.filter((a) => a.kind === "specialist")} onCancel={() => setNewGroup(false)}
+          <NewGroupForm agents={agents.filter((a) => a.kind !== "coordinator")} onCancel={() => setNewGroup(false)}
             onCreate={(t, p) => { setNewGroup(false); props.onCreate("group", t, p); }} />
         )}
         {groups.map((c) => row(c, "mentor", c.title))}
@@ -262,7 +264,9 @@ function NewGroupForm({ agents, onCreate, onCancel }: { agents: Agent[]; onCreat
 
 // ---------------------------------------------------------------- conversa
 
-function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: AgentMap; onChanged: () => void; onDeleted: () => void }) {
+function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
+  id: string; agents: AgentMap; onDirect: (agent: string) => void; onChanged: () => void; onDeleted: () => void;
+}) {
   const conv = useAsync(() => getTeamConversation(id), [id]);
   const messages = useAsync(() => getTeamMessages(id), [id]);
   const runsQ = useAsync(() => getTeamRuns(id), [id]);
@@ -361,6 +365,15 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
     if (nearBottom) endRef.current?.scrollIntoView({ block: "end" });
   }, [msgs.length, working.length, working.map(([, s]) => s.text?.length ?? 0).join()]);
 
+  async function saveName(nome: string) {
+    try {
+      await putProfile({ nome });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail : "Não foi possível salvar o nome.");
+      throw e;
+    }
+  }
+
   async function send(text: string, reply?: string) {
     setError(null);
     try {
@@ -425,6 +438,10 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
   const panelSeat = panelSeats.find((st) => st.agent === panel?.agent);
   const canCouncil = c.channel === "group" || (c.channel === "direct" && c.agent_id === "mentor");
   const byId = Object.fromEntries(msgs.map((m) => [m.id, m]));
+  // Oferta do Bento ainda em aberto: a última, sem mensagem da pessoa depois dela.
+  const lastUser = msgs.reduce((at, m, i) => (m.role === "user" ? i : at), -1);
+  const offerAt = msgs.reduce((at, m, i) => (m.meta?.council_offer ? i : at), -1);
+  const openOffer = offerAt > lastUser ? msgs[offerAt]!.id : undefined;
 
   return (
     <div className="team-thread">
@@ -474,8 +491,12 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
         {blocks.map((b) => {
           const item = (m: TeamMessage) => (
             <MessageItem key={m.id} m={m} agents={agents} masked={masked} quoted={m.reply_to_id && m.role === "user" ? byId[m.reply_to_id] : undefined}
+              onMention={presenting ? undefined : onDirect}
+              onConvene={!presenting && m.id === openOffer ? () => void send("Sim, pode reunir os especialistas.").catch(() => undefined) : undefined}
+              onSaveName={presenting ? undefined : saveName}
               onReply={c.channel === "routine" || presenting ? undefined : () => setReplyTo(m)}
               onRecord={!presenting && m.role === "assistant" && m.kind === "message" && m.status === "ok" && m.agent_id !== "lastro"
+                && m.meta?.chat?.style !== "conversa"
                 ? () => void record(m.id) : undefined}
               onRetry={!presenting && m.status === "error" && m.reply_to_id && byId[m.reply_to_id] ? () => void send(byId[m.reply_to_id!]!.content).catch(() => undefined) : undefined} />
           );
@@ -544,7 +565,7 @@ function Intro({ conv, agents, onPick }: { conv: TeamConversation; agents: Agent
     <div className="team-intro">
       <p className="small muted">{agent?.summary ?? (conv.channel === "council"
         ? "Apresente uma decisão: Lia, Caio e Vera analisam em paralelo (Téo entra quando o tema é cripto); Rui e Nina avaliam o que eles disseram; o Bento consolida e a Cora verifica. Toque em qualquer participante para ver o parecer."
-        : "Mencione um especialista com @ para chamá-lo. Sem menção, o Mentor decide quem responde.")}</p>
+        : "Converse à vontade: fale com todos ou chame alguém com @. Para uma análise formal, peça ao Bento para reunir o Conselho.")}</p>
       {agent && <p className="tiny muted">Ferramentas: {agent.tools.join(" · ") || "nenhuma"}</p>}
       <div className="suggestions">
         {examples.map((e) => <button key={e} type="button" className="suggestion" onClick={() => onPick(e)}>{e}</button>)}
@@ -553,17 +574,42 @@ function Intro({ conv, agents, onPick }: { conv: TeamConversation; agents: Agent
   );
 }
 
-function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, masked = false }: {
+/** Texto da pessoa com as @menções a agentes coloridas e clicáveis (abrem a conversa individual). */
+function MentionText({ text, agents, onMention }: { text: string; agents: AgentMap; onMention?: (id: string) => void }) {
+  return (
+    <>
+      {splitMentions(text, Object.values(agents)).map((p, i) => (typeof p === "string" ? p : (
+        <button key={i} type="button" className="mention-chip" style={{ ["--agent" as string]: p.color }} disabled={!onMention}
+          onClick={() => onMention?.(p.id)} aria-label={`${p.name}: abrir conversa individual`}>
+          <span aria-hidden="true">@</span>{p.name}
+        </button>
+      )))}
+    </>
+  );
+}
+
+function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, onMention, onConvene, onSaveName, masked = false }: {
   m: TeamMessage; agents: AgentMap; quoted?: TeamMessage | undefined; onReply?: () => void; onRetry?: () => void;
-  onRecord?: () => void; masked?: boolean;
+  onRecord?: () => void; onMention?: (id: string) => void; onConvene?: () => void;
+  onSaveName?: (nome: string) => Promise<void>; masked?: boolean;
 }) {
+  const [saved, setSaved] = useState(false);
   if (m.kind === "notice" && m.meta?.captures?.length) return <CaptureNotice captures={m.meta.captures} masked={masked} />;
+  const suggestion = m.meta?.profile_suggestion;
+  if (m.kind === "notice" && suggestion && onSaveName) {
+    return (
+      <p className="team-notice" role="note">
+        {saved ? `Salvo: a equipe vai chamar você de “${suggestion.nome}”.` : m.content}
+        {!saved && <button type="button" className="btn btn-ghost btn-sm" onClick={() => void onSaveName(suggestion.nome).then(() => setSaved(true), () => undefined)}>Salvar no perfil</button>}
+      </p>
+    );
+  }
   if (m.kind === "notice") return <p className="team-notice" role="note">{maybeMask(m.content, masked)}</p>;
   if (m.role === "user") {
     return (
       <div className="msg user">
         {quoted && <blockquote className="team-quote">{agentName(agents, quoted.agent_id)}: {quoted.content.slice(0, 140)}</blockquote>}
-        <div style={{ whiteSpace: "pre-wrap" }}>{maybeMask(m.content, masked)}</div>
+        <div style={{ whiteSpace: "pre-wrap" }}><MentionText text={maybeMask(m.content, masked)} agents={agents} onMention={onMention} /></div>
       </div>
     );
   }
@@ -575,9 +621,20 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, masked = f
   const content = maybeMask(m.content, masked);
   const [before, rest] = m.kind === "message" ? content.split(/##\s*Diverg[^\n]*\n?/i, 2) : [content, undefined];
   const divergences = rest?.split(/\n##\s/)[0]?.trim();
-  const body = <Markdown text={divergences ? `${before ?? ""}${rest!.slice(rest!.indexOf(divergences) + divergences.length)}` : content} />;
+  const linked = (t: string) => linkMentions(t, Object.values(agents));
+  const body = <Markdown text={linked(divergences ? `${before ?? ""}${rest!.slice(rest!.indexOf(divergences) + divergences.length)}` : content)} />;
+  const respondsTo = m.meta?.chat?.responds_to;
+  // papo não precisa de selo de auditoria limpo nem de "Registrar no Diário"; ressalva ou reprovação continuam visíveis
+  const chatty = m.meta?.chat?.style === "conversa";
+  // menções no texto do agente são links "#agente-<id>": o clique abre a conversa individual com quem foi citado
+  const openMention = (e: React.MouseEvent) => {
+    const link = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#agente-"]');
+    if (!link) return;
+    e.preventDefault();
+    onMention?.(link.getAttribute("href")!.slice(8));
+  };
   return (
-    <article className={`msg assistant${m.status === "error" ? " team-error" : ""}`} aria-label={`Mensagem de ${name}`}>
+    <article className={`msg assistant${m.status === "error" ? " team-error" : ""}`} aria-label={`Mensagem de ${name}`} onClick={openMention}>
       <Avatar id={m.agent_id ?? "mentor"} agents={agents} />
       <div className="msg-who">
         {name}
@@ -585,13 +642,23 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, masked = f
         {stance && <span className="tag plain">posição: {STANCE_LABEL[stance] ?? stance}</span>}
         <span className="msg-meta">{formatDateTime(m.created_at)}</span>
       </div>
+      {respondsTo && (
+        <p className="team-replying tiny">↳ respondendo a <MentionText text={`@${agents[respondsTo]?.handle ?? respondsTo}`} agents={agents} onMention={onMention} /></p>
+      )}
       {m.kind === "analysis" && !isMap ? (
         <details className="team-analysis"><summary>Ver análise de {name}</summary>{body}</details>
       ) : body}
       {divergences && (
         <div className="team-divergences"><span className="eyebrow">Divergências</span><Markdown text={divergences} /></div>
       )}
-      <MessageFoot m={m} name={name} onRetry={onRetry} onReply={onReply} onRecord={onRecord} />
+      {onConvene && (
+        <div className="team-offer">
+          <button type="button" className="btn btn-primary btn-sm" onClick={onConvene}><Icon name="layers" /> Reunir os especialistas</button>
+          <span className="tiny muted">Abre uma reunião do Conselho com este assunto. Se preferir só conversar, é só seguir escrevendo.</span>
+        </div>
+      )}
+      <MessageFoot m={chatty && m.audit?.verdict === "PASSA" ? { ...m, audit: null } : m} name={name} onRetry={onRetry}
+        onReply={onReply} onRecord={onRecord} />
     </article>
   );
 }
@@ -697,7 +764,7 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
   }
   const candidates = useMemo(() => {
     if (!mention || (conv.channel !== "group" && conv.channel !== "council")) return [];
-    const pool = isCouncil ? Object.values(agents).filter((a) => a.kind !== "auditor") : conv.participants.map((p) => agents[p]);
+    const pool = isCouncil ? Object.values(agents) : conv.participants.map((p) => agents[p]);
     return filterCandidates(pool.filter((a): a is Agent => !!a), mention.query);
   }, [mention, conv, agents]);
 

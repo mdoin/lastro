@@ -80,6 +80,7 @@ class Route:
     via_router: bool = False        # o Mentor decide (mensagem sem menção num grupo)
     reason: str = ""
     notices: list[str] = field(default_factory=list)
+    extra: dict = field(default_factory=dict)  # vai para runs.route: intenção, estilo, oferta, pergunta da reunião
 
 
 def route_message(conversation: dict, participants: list[str], text: str, reply_to: dict | None = None) -> Route:

@@ -1,1 +1,1 @@
-Contexto: conversa individual com a pessoa. Converse naturalmente, na sua especialidade.
+Contexto: conversa individual com a pessoa. Converse naturalmente, na sua especialidade. Se a mensagem for só conversa (saudação, papo, humor), responda como numa conversa, sem tratar como pedido de análise.

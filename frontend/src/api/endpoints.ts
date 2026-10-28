@@ -138,6 +138,10 @@ export const createTeamConversation = (body: {
   title?: string;
   participants?: string[];
 }) => api.post<TeamConversation>("/api/team/conversations", body);
+/** Como a pessoa quer ser chamada pela equipe (os agentes leem daqui; nunca de documentos). */
+export interface Profile { nome: string; apelido: string; tratamento: string; asked?: boolean }
+export const getProfile = () => api.get<Profile>("/api/profile");
+export const putProfile = (p: Partial<Pick<Profile, "nome" | "apelido" | "tratamento">>) => api.put<Profile>("/api/profile", p);
 export const getTeamConversation = (id: UUID) => api.get<TeamConversation>(`/api/team/conversations/${enc(id)}`);
 export const renameTeamConversation = (id: UUID, title: string) =>
   api.put<TeamConversation>(`/api/team/conversations/${enc(id)}`, { title });

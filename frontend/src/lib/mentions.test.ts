@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { applyMention, filterCandidates, mentionAt } from "./mentions";
+import { applyMention, filterCandidates, linkMentions, mentionAt, resolveMention, splitMentions } from "./mentions";
 
 const agents = [
   { handle: "economista", name: "Economista" },
@@ -27,5 +27,15 @@ describe("menções", () => {
       text: "Pergunta para @economista agora",
       caret: 26,
     });
+  });
+});
+
+describe("menções no texto", () => {
+  const team = [{ id: "riscos", handle: "rui", name: "Rui" }, { id: "comportamental", handle: "nina", name: "Nina" }];
+  it("só agentes reais viram menção; e-mail e @desconhecido seguem texto", () => {
+    expect(splitMentions("Concordo com o @rui e a @Nina. @fulano, a@b.com", team)).toEqual(
+      ["Concordo com o ", team[0], " e a ", team[1], ". @fulano, a@b.com"]);
+    expect(linkMentions("@RUI, e aí?", team)).toBe("[@Rui](#agente-riscos), e aí?");
+    expect(resolveMention(team, "riscos")?.name).toBe("Rui");
   });
 });
