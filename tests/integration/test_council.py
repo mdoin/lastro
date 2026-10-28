@@ -83,7 +83,7 @@ def test_dynamic_selection_by_topic_mode_and_request():
                                "completo", limits=Limits(max_participants=4))
     assert len(many) == 4 and many[-1] == "riscos"  # o contraponto de riscos nunca é cortado
     assert deliberation.addressed("Bento, quero ouvir a Nina antes da decisão.") == ["mentor", "comportamental"]
-    assert deliberation.addressed("@rui, por que você discorda do Caio?") == ["riscos", "analista"]
+    assert deliberation.addressed("@rui, por que você discorda do Caio?") == ["riscos"]
 
 
 # troca real de mensagens, contestação e pauta validada ---------------------------------------------------------------
@@ -206,7 +206,7 @@ def test_close_command_stops_discussion_and_still_gives_a_verdict(conn):
 def test_direct_questions_after_the_meeting(conn):
     conv, rt, o, _ = run_council(conn, script_factory(plans=(END,)))
     out = send(o, conv, "@caio, responda aos argumentos do Rui.")
-    assert out["run"]["kind"] == "reply" and out["run"]["route"]["agents"] == ["analista", "riscos"]
+    assert out["run"]["kind"] == "reply" and out["run"]["route"]["agents"] == ["analista"]
     out = send(o, conv, "Bento, quero ouvir a Nina antes da decisão.")
     assert out["run"]["route"]["agents"] == ["comportamental"]
     asyncio.run(drain(o))

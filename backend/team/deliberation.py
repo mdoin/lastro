@@ -68,8 +68,11 @@ def parse_command(text: str) -> tuple[str | None, str]:
 
 
 def addressed(text: str) -> list[str]:
-    """Agentes a quem a pessoa se dirige: @menções e nomes de exibição ("Bento, quero ouvir a Nina")."""
+    """Agentes a quem a pessoa se dirige. Com @menção, só os mencionados ("@rui, por que discorda do Caio?" é para
+    o Rui); sem @, nomes de exibição ("Bento, quero ouvir a Nina")."""
     found = [a for a in (resolve_handle(m.group(1)) for m in MENTION.finditer(text or "")) if a]
+    if found:
+        return list(dict.fromkeys(found))
     folded = fold(text or "")
     for spec in AGENTS.values():
         if spec.chat_enabled and re.search(rf"(?<![\w@]){re.escape(fold(spec.name))}(?!\w)", folded):

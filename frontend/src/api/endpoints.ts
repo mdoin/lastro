@@ -151,6 +151,7 @@ export const sendTeamMessage = (id: UUID, body: { text: string; client_id: strin
   api.post<SubmitResult>(`/api/team/conversations/${enc(id)}/messages`, body);
 export const getTeamRuns = (id: UUID) => api.get<TeamRun[]>(`/api/team/conversations/${enc(id)}/runs`);
 export const cancelRun = (runId: UUID) => api.post<TeamRun>(`/api/team/runs/${enc(runId)}/cancel`);
+export const closeRun = (runId: UUID) => api.post<TeamRun>(`/api/team/runs/${enc(runId)}/close`);
 export const teamStreamUrl = (id: UUID) => `/api/team/conversations/${enc(id)}/stream`;
 export const getTeamMemory = () => api.get<TeamMemory>("/api/team/memory");
 export const addFact = (body: { key: string; value: string; note?: string }) => api.post<Fact>("/api/team/facts", body);

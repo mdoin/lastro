@@ -527,8 +527,10 @@ export type Stance = "favoravel" | "contraria" | "condicional" | "insuficiente";
 export type OpinionExcerpt = "tese" | "risco" | "evidencia" | "fonte" | "lacuna" | "nao agir";
 /** Segmento do veredito: texto puro ou menção já resolvida pelo servidor (id estável do agente). */
 export type VerdictSegment = { t: string } | { agent: string };
+export type VerdictKey = "conclusao" | "fundamentos" | "participacao" | "concordancia" | "reconsideradas" | "diverg"
+  | "risco" | "informac" | "condicoes" | "proxim";
 export interface Verdict {
-  sections: { key: "conclusao" | "concordancia" | "diverg" | "risco" | "informac" | "proxim"; title: string; items: VerdictSegment[][] }[];
+  sections: { key: VerdictKey; title: string; items: VerdictSegment[][] }[];
   mentioned: string[];
 }
 export type Channel = "direct" | "group" | "council" | "routine";
@@ -600,6 +602,16 @@ export interface TeamMessage {
     opinion?: { stance: Stance | null; sections: string[]; excerpts?: Partial<Record<OpinionExcerpt, string>> };
     verdict?: Verdict | null;
     captures?: import("./ledger").Capture[];
+    intervention_for?: string;
+    convocation?: { kind: string; event_id?: string; asset?: string; summary?: string; severity?: string };
+    deliberation?: {
+      phase?: string; round?: string | number; kind?: string; reaction?: string | null; revised?: boolean; stance?: Stance | null;
+      role?: string | null; verdict?: string; mode?: string; limits_hit?: string[];
+      responds_to?: { agent?: string; message_id?: string | null; person?: boolean } | null;
+      plan?: { turns?: { speaker: string; target: string | null; kind: string; prompt: string }[]; agreements?: string[];
+        divergences?: string[]; missing?: string[]; ask_user?: string; close?: boolean };
+      interventions?: string[];
+    };
     document?: { id: string; status: string; summary: import("./ledger").DocSummary };
     positions?: Record<string, { initial: Stance | null; final: Stance | null }>;
     contested?: string[];
@@ -628,7 +640,12 @@ export interface TeamRun {
   message_id: UUID;
   kind: "reply" | "council";
   status: RunState;
-  route: { agents?: string[]; via_router?: boolean; reason?: string; radar?: string; lineup?: string[] };
+  route: {
+    agents?: string[]; via_router?: boolean; reason?: string; radar?: string; lineup?: string[];
+    mode?: "rapida" | "completo" | "debate" | "rodada" | "revisao";
+    origin?: { kind: string; event_id?: string; asset?: string; summary?: string; severity?: string };
+  };
+  close_requested?: boolean;
   error: string | null;
   created_at: ISODateTime;
   steps?: RunStep[];

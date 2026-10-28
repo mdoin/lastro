@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Agent, TeamMessage, TeamRun } from "../api/types";
 import { seats } from "../lib/council";
-import { AgentPanel, CouncilRoom, VerdictView } from "./Council";
+import { AgentPanel, CouncilDiscussion, CouncilRoom, VerdictView } from "./Council";
 
 const agent = (id: string, name: string, title: string): Agent => ({
   id: id as Agent["id"], name, handle: name.toLowerCase(), title, kind: "specialist", icon: "chat", color: `var(--agent-${id})`,
@@ -31,19 +31,20 @@ describe("componentes do Conselho", () => {
         agents={AGENTS} onSelect={noop} masked={false} />,
     );
     expect(html).toContain('aria-label="Lia, Planejadora: Consultando informações. Abrir detalhes"');
-    expect(html).toContain('aria-label="Rui, Gestor de riscos: Parecer disponível. Abrir detalhes"');
-    expect(html).toContain('aria-label="Bento, Mentor: Na fila. Abrir detalhes"');
-    expect(html).toContain("Trabalhando agora: Lia.");
+    expect(html).toContain('aria-label="Rui, Gestor de riscos: Parecer disponível, posição contrária. Abrir detalhes"');
+    expect(html).toContain('aria-label="Bento, Mentor: Aguardando. Abrir detalhes"');
+    expect(html).toContain("Agora: Lia (consultando informações).");
     expect(html).toContain("contrária");
   });
 
   it("painel mostra resumo, riscos, fontes, auditoria e o botão de responder; com máscara, sem valores", () => {
     const seat = seats({ run, steps: [], live: {}, messages: [parecer] }).find((s) => s.agent === "riscos")!;
-    const props = { seat, seats: [seat], agents: AGENTS, onClose: noop, onSelect: noop, onReply: noop,
+    const props = { seat, seats: [seat], agents: AGENTS, onClose: noop, onSelect: noop, onReply: noop, onAsk: async () => undefined,
       auditBadge: (m: TeamMessage) => <span>Auditoria: {m.audit?.verdict}</span> };
     const html = renderToStaticMarkup(<AgentPanel {...props} masked={false} />);
     for (const text of ["Resumo da posição", "Não agora: a reserva cobre R$ 9.000,00.", "Riscos e ressalvas", "Auditoria: PASSA COM RESSALVAS",
-      "Parecer completo", "Responder a Rui", 'aria-labelledby="council-panel-title"']) expect(html).toContain(text);
+      "Parecer completo", "Perguntar a Rui", "Participação na reunião (1)", "Parecer inicial", 'aria-labelledby="council-panel-title"'])
+      expect(html).toContain(text);
     const masked = renderToStaticMarkup(<AgentPanel {...props} masked />);
     expect(masked).not.toContain("9.000,00");
     expect(masked).toContain("R$ •••");
@@ -64,5 +65,17 @@ describe("componentes do Conselho", () => {
     expect(html).toContain("--agent:var(--agent-riscos)");
     expect(html).not.toContain("<img");
     expect(html).toContain("&lt;img src=x");
+  });
+
+  it("discussão: cada fala diz quem responde a quem, com reação e menção clicável", () => {
+    const turn: TeamMessage = { ...parecer, id: "t1", step_key: "conselho:debate:1:riscos", content: "**Posição:** contrária (mantida)\n**Reação:** discordo\n\nA reserva cobre menos de 3 meses.",
+      meta: { deliberation: { kind: "contestacao", reaction: "discorda", stance: "contraria", responds_to: { agent: "planejador", message_id: "m0" } } } };
+    const html = renderToStaticMarkup(<CouncilDiscussion messages={[parecer, turn]} live={{}} agents={AGENTS} onOpen={noop} masked={false} />);
+    expect(html).toContain('aria-label="Contestação de Rui para Lia"');
+    expect(html).toContain("↳ respondendo a");
+    expect(html).toContain('aria-label="Lia: abrir parecer"');
+    expect(html).toContain("discorda");
+    expect(html).not.toContain("**Reação:**");  // as linhas de controle viram selos
+    expect(html).toContain("Posições iniciais");
   });
 });

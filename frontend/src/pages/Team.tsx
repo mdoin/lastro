@@ -6,6 +6,7 @@ import {
   addFact,
   addParticipant,
   cancelRun,
+  closeRun,
   createTeamConversation,
   decideFact,
   deleteNote,
@@ -27,12 +28,12 @@ import { getRadarLink } from "../api/radar";
 import type { Agent, RunStep, TeamConversation, TeamEvent, TeamMessage, TeamRun } from "../api/types";
 import { AgentAvatar, type AvatarState } from "../components/AgentAvatar";
 import { CaptureNotice } from "../components/CaptureNotice";
-import { AgentPanel, CouncilRoom, STANCE_LABEL, VerdictView } from "../components/Council";
+import { AgentPanel, CouncilDiscussion, CouncilRoom, STANCE_LABEL, VerdictView } from "../components/Council";
 import { Icon } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
-import { Badge, ErrorNotice, Loading, Notice } from "../components/ui";
+import { Badge, ErrorNotice, Loading, Notice, Segmented } from "../components/ui";
 import { formatDate, formatDateTime } from "../lib/dates";
-import { seats, threadBlocks, type ThreadBlock } from "../lib/council";
+import { MODE_LABEL, seats, threadBlocks, type ThreadBlock } from "../lib/council";
 import { applyMention, filterCandidates, mentionAt, type MentionQuery } from "../lib/mentions";
 import { maybeMask } from "../lib/privacy";
 import { useAsync } from "../lib/useAsync";
@@ -394,6 +395,17 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
     }
   }
 
+  async function closeMeeting() {
+    for (const r of activeRuns.filter((x) => x.kind === "council")) {
+      try {
+        const updated = await closeRun(r.id);
+        setLive((l) => ({ ...l, runs: { ...l.runs, [updated.id]: updated } }));
+      } catch (e) {
+        setError(e instanceof ApiError ? e.detail : "Não foi possível encerrar a deliberação.");
+      }
+    }
+  }
+
   async function remove() {
     if (!c || !window.confirm(`Apagar a conversa "${convLabel(c, agents)}"? As mensagens serão removidas.`)) return;
     try {
@@ -475,6 +487,7 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
               <CouncilRoom input={{ run: b.run, steps: b.run.steps ?? [], live: live.steps[b.run.id] ?? {}, messages: b.messages }}
                 question={b.question} agents={agents} masked={masked} onSelect={open}
                 selected={panel?.run === b.run.id ? panel.agent : null} />
+              <CouncilDiscussion messages={b.messages} live={live.steps[b.run.id] ?? {}} agents={agents} onOpen={open} masked={masked} />
               {synthesis && (synthesis.meta?.verdict ? (
                 <VerdictView message={synthesis} verdict={synthesis.meta.verdict} agents={agents} masked={masked} onOpen={open}
                   footer={presenting ? undefined : <MessageFoot m={synthesis} name={agentName(agents, "mentor")} onReply={() => setReplyTo(synthesis)}
@@ -482,7 +495,7 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
               ) : item(synthesis))}
               {!presenting && b.messages.some((m) => m.step_key !== "conselho:sintese") && (
                 <details className="council-transcript">
-                  <summary className="small">Registro completo da reunião ({b.messages.filter((m) => m.step_key !== "conselho:sintese").length} mensagens)</summary>
+                  <summary className="small">Registro técnico da reunião ({b.messages.filter((m) => m.step_key !== "conselho:sintese").length} mensagens: mapa de posições, auditoria e pareceres completos)</summary>
                   {b.messages.filter((m) => m.step_key !== "conselho:sintese").map(item)}
                 </details>
               )}
@@ -507,6 +520,7 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
         <AgentPanel seat={panelSeat} seats={panelSeats} agents={agents} masked={masked} onClose={() => setPanel(null)}
           onSelect={(agent) => setPanel({ run: panelBlock.run.id, agent })}
           onReply={presenting || c.channel === "routine" ? undefined : (m) => { setReplyTo(m); setPanel(null); }}
+          onAsk={presenting || c.channel === "routine" ? undefined : (agent, text) => send(`@${agents[agent]?.handle ?? agent} ${text}`)}
           auditBadge={(m) => (m.audit ? <AuditBadge audit={m.audit} /> : null)} />
       )}
 
@@ -515,6 +529,8 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
       ) : (
         <Composer conv={c} agents={agents} replyTo={replyTo} onCancelReply={() => setReplyTo(null)}
           busy={activeRuns.length > 0} canCouncil={canCouncil} onStop={() => void stop()}
+          meeting={activeRuns.some((r) => roomRuns.has(r.id)) ? "active" : blocks.some((b) => b.kind === "council") ? "done" : "none"}
+          onCloseMeeting={() => void closeMeeting()}
           onSend={(text) => send(text, replyTo?.id)} />
       )}
     </div>
@@ -652,12 +668,15 @@ function GroupSettings({ conv, agents, onChange }: { conv: TeamConversation; age
 
 // ---------------------------------------------------------------- campo de mensagem
 
-function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onStop, onSend }: {
+function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onStop, onSend, meeting = "none", onCloseMeeting }: {
   conv: TeamConversation; agents: AgentMap; replyTo: TeamMessage | null; onCancelReply: () => void; busy: boolean;
   canCouncil: boolean; onStop: () => void; onSend: (text: string) => Promise<void>;
+  meeting?: "none" | "active" | "done"; onCloseMeeting?: () => void;
 }) {
   const [text, setText] = useState("");
   const [council, setCouncil] = useState(false);
+  const [mode, setMode] = useState<"rapida" | "completo" | "debate">("completo");
+  const isCouncil = conv.channel === "council";
   const [mention, setMention] = useState<MentionQuery | null>(null);
   const [active, setActive] = useState(0);
   const [sending, setSending] = useState(false);
@@ -679,8 +698,9 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
     }
   }
   const candidates = useMemo(() => {
-    if (!mention || conv.channel !== "group") return [];
-    return filterCandidates(conv.participants.map((p) => agents[p]).filter((a): a is Agent => !!a), mention.query);
+    if (!mention || (conv.channel !== "group" && conv.channel !== "council")) return [];
+    const pool = isCouncil ? Object.values(agents).filter((a) => a.kind !== "auditor") : conv.participants.map((p) => agents[p]);
+    return filterCandidates(pool.filter((a): a is Agent => !!a), mention.query);
   }, [mention, conv, agents]);
 
   useEffect(() => { if (replyTo) ref.current?.focus(); }, [replyTo]);
@@ -702,7 +722,10 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
     if (!body || sending) return;
     setSending(true);
     try {
-      await onSend(council ? `/conselho ${body}` : body);
+      // Na Sala do Conselho: durante a reunião a mensagem vira intervenção; depois, @menção vira pergunta direta;
+      // o modo escolhido só vale para uma nova pergunta ao Conselho.
+      const prefix = council ? "/conselho " : isCouncil && meeting !== "active" && !body.startsWith("/") && !/(^|\s)@\w/.test(body) && mode !== "completo" ? `/${mode} ` : "";
+      await onSend(prefix + body);
       setText("");
       setCouncil(false);
     } catch {
@@ -723,6 +746,8 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
   }
 
   const placeholder = conv.channel === "group" ? "Mensagem para o grupo — use @ para chamar um especialista"
+    : isCouncil && meeting === "active" ? "Intervenha na reunião: pergunte a alguém com @ (ex.: @rui, por que discorda do Caio?)"
+    : isCouncil && meeting === "done" ? "Pergunte a um especialista com @, ou apresente uma nova questão ao Conselho"
     : conv.channel === "council" ? "Apresente a decisão para o Conselho"
     : `Mensagem para ${agentName(agents, conv.agent_id)}`;
 
@@ -744,6 +769,19 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
             </li>
           ))}
         </ul>
+      )}
+      {isCouncil && meeting !== "active" && (
+        <div className="council-modes">
+          <Segmented label="Modo da próxima reunião" value={mode} onChange={setMode}
+            options={[{ value: "rapida", label: MODE_LABEL.rapida! }, { value: "completo", label: MODE_LABEL.completo! }, { value: "debate", label: MODE_LABEL.debate! }]} />
+          {meeting === "done" && (
+            <span className="row" style={{ gap: 6 }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void onSend("/rodada")}>Nova rodada</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void onSend("/revisar")}>Revisar veredito</button>
+            </span>
+          )}
+          {mode === "debate" && <span className="tiny muted">Debate: escreva a hipótese e cite quem examina (ex.: @caio @rui); os papéis a favor e contra são de análise, não crenças.</span>}
+        </div>
       )}
       {uploadError && <p className="tiny" role="alert">{uploadError}</p>}
       <label htmlFor="team-text" className="visually-hidden">{placeholder}</label>
@@ -767,6 +805,11 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
         ) : null}
         </span>
         <div className="composer-actions">
+          {meeting === "active" && onCloseMeeting && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onCloseMeeting} title="A fala em curso termina e o Bento dá o veredito">
+              <Icon name="check" /><span className="btn-text">Encerrar deliberação</span>
+            </button>
+          )}
           {busy && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={onStop} aria-label="Interromper execução">
               <Icon name="stop" /><span className="btn-text">Interromper</span>

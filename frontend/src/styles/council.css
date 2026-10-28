@@ -166,8 +166,8 @@
   box-shadow: 0 0 0 2px var(--ink), var(--shadow-sm);
 }
 
-.council-seat[data-state="queued"] .agent-avatar,
-.council-seat[data-state="skipped"] .agent-avatar {
+.council-seat[data-state="waiting"] .agent-avatar,
+.council-seat[data-state="unavailable"] .agent-avatar {
   opacity: 0.55;
   filter: saturate(0.6);
 }
@@ -210,18 +210,21 @@
   background: color-mix(in srgb, var(--good) 13%, transparent);
 }
 
-.council-seat-state[data-state="review"] {
+.council-seat-state[data-state="revising"] {
   color: var(--warning-ink);
   background: color-mix(in srgb, var(--warning) 18%, transparent);
 }
 
-.council-seat-state[data-state="failed"] {
+.council-seat-state[data-state="unavailable"] {
   color: var(--critical-ink);
   background: color-mix(in srgb, var(--critical) 12%, transparent);
 }
 
 .council-seat-state[data-state="analyzing"],
-.council-seat-state[data-state="consulting"] {
+.council-seat-state[data-state="consulting"],
+.council-seat-state[data-state="speaking"],
+.council-seat-state[data-state="responding"],
+.council-seat-state[data-state="questioning"] {
   color: var(--ink);
   background: color-mix(in srgb, var(--agent) 16%, transparent);
 }
@@ -275,6 +278,286 @@
     padding: 2px 6px;
     font-size: 0.66rem;
   }
+}
+
+.council-seat-stance svg {
+  width: 11px;
+  height: 11px;
+  margin-right: 3px;
+  vertical-align: -1px;
+}
+
+.council-auto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-soft);
+  box-shadow: inset 3px 0 0 var(--gold-mark);
+  font-size: 0.88rem;
+}
+
+.council-auto svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ------------------------------------------------------------------ discussão */
+
+.council-feed {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.council-initials {
+  display: grid;
+  gap: 8px;
+}
+
+.council-initials h3 {
+  margin: 0;
+}
+
+.council-initials ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.council-initial {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 12px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: inset 0 3px 0 var(--agent);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+
+.council-initial:hover {
+  transform: translateY(-1px);
+}
+
+.council-initial:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.council-initial-thesis {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.council-note {
+  display: grid;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  font-size: 0.9rem;
+}
+
+.council-note.is-devolucao {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--agent) 55%, transparent);
+}
+
+.council-note .md h2 {
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 8px 0 2px;
+}
+
+.council-bubble {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  animation: council-rise 0.35s var(--ease) both;
+}
+
+.council-bubble-avatar {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 12px;
+}
+
+.council-bubble-avatar:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.council-bubble-body {
+  min-width: 0;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px 16px 16px 16px;
+  box-shadow: inset 3px 0 0 var(--agent);
+  overflow-wrap: anywhere;
+}
+
+.council-bubble-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+}
+
+.council-bubble.is-revised .council-bubble-body {
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+}
+
+.council-bubble.is-live .council-bubble-body {
+  border-style: dashed;
+}
+
+.council-bubble.is-person {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: end;
+}
+
+.council-bubble.is-person .council-bubble-body {
+  max-width: min(560px, 92%);
+  border-radius: 16px 4px 16px 16px;
+  background: var(--primary-bg);
+  color: var(--primary-fg);
+  box-shadow: none;
+}
+
+.council-person-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.council-kind,
+.council-reaction {
+  display: inline-flex;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 620;
+  letter-spacing: 0.02em;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.council-kind[data-kind="Contestação"] {
+  background: color-mix(in srgb, var(--critical) 11%, transparent);
+  color: var(--critical-ink);
+}
+
+.council-kind[data-kind="revisao"] {
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  color: var(--warning-ink);
+}
+
+.council-kind[data-kind="Pergunta"] {
+  background: color-mix(in srgb, var(--agent) 16%, transparent);
+  color: var(--ink);
+}
+
+.council-reaction[data-reaction="discorda"] {
+  color: var(--critical-ink);
+}
+
+.council-reaction[data-reaction="concorda"],
+.council-reaction[data-reaction="reconhece"] {
+  color: var(--good-ink);
+}
+
+.council-reaction[data-reaction="revisa"] {
+  color: var(--warning-ink);
+}
+
+.council-replying {
+  margin: 0 0 4px;
+  color: var(--muted);
+}
+
+.council-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  font-size: 0.86rem;
+}
+
+.council-change svg {
+  width: 14px;
+  height: 14px;
+}
+
+.council-history {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 0.88rem;
+}
+
+.council-history summary {
+  cursor: pointer;
+}
+
+.council-ask {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.council-ask .btn {
+  justify-self: end;
+}
+
+.council-modes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  font: inherit;
 }
 
 /* ------------------------------------------------------------------ menções */
@@ -601,6 +884,8 @@ html[data-presentation] .team .team-chat {
   .council-phases li,
   .council-phase-dot,
   .council-verdict,
+  .council-bubble,
+  .council-initial,
   .council-panel,
   .council-phases li[data-state="active"] .council-phase-dot {
     animation: none !important;
