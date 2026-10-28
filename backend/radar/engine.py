@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
-from app import store, views
+from app import convictions, store, views
 from integrations.catalog import SOURCE_NAMES
 from team.agents import get as get_agent
 
@@ -158,7 +158,8 @@ class Radar:
         now = self.stamp()
         rules.seed_defaults(self.conn, self.user_id, now)
         result = {"sinais": self.evaluate_rules(force=force), "processadas": self.process_pending(),
-                  "avaliacoes": outcomes.compute_due(self.conn, self.today(), now), "em": now}
+                  "avaliacoes": outcomes.compute_due(self.conn, self.today(), now),
+                  "previsoes": convictions.resolve_due(self.conn, self.today()), "em": now}
         self._daily()
         self.last_tick = result
         return result

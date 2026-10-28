@@ -32,7 +32,8 @@ from radar.engine import Radar
 
 from crypto.service import Monitor as CryptoMonitor
 
-from . import admin, auth, crypto_web, db, diary_web, ledger_web, providers_web, radar_web, routines, setup, store, views
+from . import (admin, auth, convictions, crypto_web, db, diary_web, ledger_web, providers_web, radar_web, routines,
+               setup, store, views)
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
 from .turns import ConversationBusy, TurnManager
@@ -162,6 +163,11 @@ class TitleIn(BaseModel):
 
 class ParticipantIn(BaseModel):
     agent_id: str = Field(max_length=40)
+
+
+class PredictionResolveIn(BaseModel):
+    outcome: Literal["aconteceu", "nao_aconteceu", "anulada"]
+    note: str = Field(default="", max_length=300)
 
 
 class ProfileIn(BaseModel):
@@ -570,6 +576,24 @@ def create_app(settings: Settings) -> FastAPI:
             finally:
                 orchestrator.bus.unsubscribe(conv_id, queue)
         return sse(events())
+
+    @app.get("/api/convictions")
+    async def convictions_get(user: str = Depends(current_user)):
+        """Previsões dos agentes e calibração de cada um. Antes, confere o que já venceu com os dados coletados."""
+        convictions.resolve_due(conn, today())
+        return {"agents": convictions.by_agent(conn, user), "predictions": convictions.listing(conn, user),
+                "today": today().isoformat()}
+
+    @app.post("/api/convictions/{pred_id}/resolve")
+    async def convictions_resolve(pred_id: str, body: PredictionResolveIn, user: str = Depends(current_user)):
+        try:
+            result = convictions.resolve_manual(conn, user, pred_id, body.outcome, body.note, today())
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from None
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from None
+        log_access(user, f"prediction.{body.outcome}", pred_id)
+        return result
 
     @app.get("/api/profile")
     async def profile_get(user: str = Depends(current_user)):

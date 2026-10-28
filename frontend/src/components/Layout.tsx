@@ -25,6 +25,7 @@ const NAV: NavItem[] = [
   { to: "/mentor", label: "Mentor e especialistas", short: "Equipe", icon: "chat", group: "Mentor" },
   { to: "/rotinas", label: "Rotinas", short: "Rotinas", icon: "clock", group: "Mentor" },
   { to: "/diario", label: "Diário de decisões", short: "Diário", icon: "book", group: "Mentor" },
+  { to: "/conviccoes", label: "Convicções", short: "Convicções", icon: "target", group: "Mentor" },
   { to: "/radar", label: "Radar", short: "Radar", icon: "pulse", group: "Radar" },
   { to: "/oportunidades", label: "Diário de oportunidades", short: "Oportunidades", icon: "bars", group: "Radar" },
   { to: "/radar-cripto", label: "Radar cripto", short: "Cripto", icon: "coins", group: "Radar" },

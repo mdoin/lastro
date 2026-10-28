@@ -23,6 +23,7 @@ MIGRATIONS = (
     (10, APP_DIR / "migrations" / "010_ledger.sql"),
     (11, APP_DIR / "migrations" / "011_council.sql"),
     (12, APP_DIR / "migrations" / "012_crypto.sql"),
+    (13, APP_DIR / "migrations" / "013_predictions.sql"),
 )
 LATEST_VERSION = MIGRATIONS[-1][0]
 
