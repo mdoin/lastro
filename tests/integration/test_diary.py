@@ -89,7 +89,7 @@ def test_council_proposal_becomes_a_complete_draft_but_never_a_decision(conn):
     assert [a["titulo"] for a in c["alternativas"]] == ["Completar a reserva", "Investir agora"]
     assert c["recomendada"] == 0 and c["riscos"] == ["Imprevisto sem reserva"]
     assert c["calculos"][0]["resultado"]["montante"] == "1126.83"  # refeito pelo motor
-    assert {p["agent_id"] for p in c["pareceres"]} >= {"planejador", "analista", "economista", "riscos"}
+    assert {p["agent_id"] for p in c["pareceres"]} >= {"planejador", "analista", "riscos"}  # convocados pelo tema
     assert c["divergencias"] == "Analista prefere começar já."  # o agente não informou: extraída da síntese
     assert c["sintese"]["agent_id"] == "mentor" and c["auditoria"]["verdict"]
     assert c["conversa"]["id"] == conv["id"] and c["radar"] is None

@@ -6,3 +6,6 @@ Uma verificação automática já rodou; você complementa com análise de senti
 VEREDITO: PASSA | PASSA COM RESSALVAS | REPROVA
 - motivo verificável 1
 - motivo verificável 2 (no máximo 5)
+
+Na reunião do Conselho, avalie também: argumentos que se contradizem, riscos que ninguém tratou, alegações financeiras sem fundamento e divergências que ficaram sem resposta. Se houver um problema relevante que um especialista precisa responder antes do veredito, acrescente ao final (no máximo 3 linhas, só quando necessário):
+DEVOLVER: @identificador — a pergunta objetiva para ele

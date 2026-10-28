@@ -11,8 +11,16 @@ import re
 from .auditor import fold
 from .routing import MENTION, resolve_handle
 
-SECTIONS = (("conclusao", "Conclusão"), ("concordancia", "Concordâncias"), ("diverg", "Divergências"),
-            ("risco", "Riscos"), ("informac", "Informações necessárias"), ("proxim", "Próximos passos"))
+SECTIONS = (("conclusao", "Conclusão"), ("fundamentos", "Argumentos determinantes"), ("participacao", "Participação"),
+            ("concordancia", "Concordâncias"), ("reconsideradas", "Posições reconsideradas"),
+            ("diverg", "Divergências"), ("risco", "Riscos"), ("informac", "Incertezas"),
+            ("condicoes", "Condições que mudariam o resultado"), ("proxim", "Próximos passos"))
+# Títulos aceitos (sem acento, começo do título) → seção. Títulos antigos continuam valendo.
+PREFIXES = (("conclus", "conclusao"), ("decis", "conclusao"), ("argument", "fundamentos"), ("fundament", "fundamentos"),
+            ("participa", "participacao"), ("especialistas", "participacao"), ("concord", "concordancia"),
+            ("posicoes reconsider", "reconsideradas"), ("reconsider", "reconsideradas"), ("mudancas", "reconsideradas"),
+            ("diverg", "diverg"), ("discord", "diverg"), ("risco", "risco"), ("informac", "informac"),
+            ("incertez", "informac"), ("condic", "condicoes"), ("proxim", "proxim"))
 _HEADING = re.compile(r"^#{2,3}\s*(.+?)\s*#*\s*$", re.MULTILINE)
 _BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+")
 _EMPHASIS = re.compile(r"(\*\*|__|`)")
@@ -58,7 +66,7 @@ def parse(text: str, participants: set[str]) -> dict | None:
     sections, mentioned = [], []
     for i, head in enumerate(heads):
         name = fold(head.group(1))
-        key = next((k for k, _ in SECTIONS if name.startswith(k)), None)
+        key = next((k for prefix, k in PREFIXES if name.startswith(prefix)), None)
         if key is None or any(s["key"] == key for s in sections):
             continue
         title = dict(SECTIONS)[key]

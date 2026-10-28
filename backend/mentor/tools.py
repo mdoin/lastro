@@ -183,6 +183,15 @@ async def diario_radar(args: dict) -> dict:
     return await _get("/v1/me/radar", {"days": args.get("dias", 30)})
 
 
+@tool("reunioes_anteriores",
+      "Conclusões das últimas reuniões do Conselho: tema, participantes, posições finais, mudanças de posição, "
+      "divergências e condições de revisão. São deliberações, não decisões da pessoa (essas estão em `decisoes`).",
+      {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 20}},
+       "additionalProperties": False})
+async def reunioes_anteriores(args: dict) -> dict:
+    return await _get("/v1/me/meetings", {"limit": args.get("limit", 5)})
+
+
 @tool("movimentacoes",
       "Livro de movimentações do usuário: totais do mês (receitas, despesas por categoria, estornos; transferências e "
       "pagamento de fatura à parte) e lançamentos recentes com status (registrado, pendente, duplicada, desfeito). "
@@ -257,7 +266,7 @@ async def propor_registro_decisao(_args: dict) -> dict:
     return _text("Rascunho enviado ao Diário. Diga à pessoa que ele aguarda a confirmação dela.")
 
 
-DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes]
+DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes, reunioes_anteriores]
 TOOLS = DATA_TOOLS + [sem_novidade]
 TEAM_TOOLS = {"facts": [memoria_financeira], "market": [dados_mercado], "calc": [calcular],
               "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato], "journal": [diario_radar],

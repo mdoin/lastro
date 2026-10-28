@@ -29,6 +29,7 @@ IMPORT_ALLOWLIST = {
     "mentor/browser.py": {"playwright"},  # só fontes oficiais; garantido pelos testes de allowlist abaixo
     "mentor/worker.py": {"socket"},  # só as constantes de SO_PEERCRED do socket Unix já aberto; nenhuma conexão
     "integrations/collector.py": {"httpx"},  # só APIs oficiais do catálogo; serviço próprio, fora do web e do worker
+    "crypto/sources.py": {"httpx"},  # só data-api.binance.vision, api.coingecko.com e api.llama.fi; sem redirecionar
     "ledger/ocr.py": {"subprocess"},  # só o binário local tesseract, argumentos fixos, stdin, prazo; sem shell nem rede
 }
 
@@ -85,7 +86,7 @@ def test_mentor_tools_are_read_only():
     from mentor.tools import TOOLS
 
     assert {t.name for t in TOOLS} == {"situacao_atual", "diagnostico", "projecao", "metas", "premissas",
-                                       "decisoes", "sem_novidade"}
+                                       "decisoes", "reunioes_anteriores", "sem_novidade"}
     from providers.claude_code import sdk_tool
 
     for t in TOOLS:

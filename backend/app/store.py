@@ -434,7 +434,8 @@ def create_run(conn: sqlite3.Connection, conv: dict, message_id: str, kind: str,
 
 def _run_row(r: sqlite3.Row) -> dict:
     data = {k: r[k] for k in r.keys() if k != "route_json"}
-    return {**data, "route": json.loads(r["route_json"]), "cancel_requested": bool(r["cancel_requested"])}
+    return {**data, "route": json.loads(r["route_json"]), "cancel_requested": bool(r["cancel_requested"]),
+            "close_requested": bool(r["close_requested"]) if "close_requested" in r.keys() else False}
 
 
 def get_run(conn: sqlite3.Connection, run_id: str) -> dict | None:

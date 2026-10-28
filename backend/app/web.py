@@ -521,6 +521,27 @@ def create_app(settings: Settings) -> FastAPI:
         log_access(user, "run.cancel", run_id)
         return await orchestrator.cancel(run)
 
+    @app.post("/api/team/runs/{run_id}/close")
+    async def team_run_close(run_id: str, user: str = Depends(current_user)):
+        """Encerrar a deliberação: a fala em curso termina e o Bento dá o veredito com o que já foi discutido."""
+        run = store.get_run(conn, run_id)
+        if not run or run["user_id"] != user:
+            raise HTTPException(status_code=404, detail="Execução inexistente.")
+        if run["status"] in ("queued", "running") and run["kind"] == "council":
+            store.set_run(conn, run_id, close_requested=1)
+            log_access(user, "run.close", run_id)
+        return store.get_run(conn, run_id)
+
+    @app.get("/api/team/meetings")
+    async def team_meetings(conversation_id: str | None = Query(None, max_length=64), user: str = Depends(current_user)):
+        """Histórico de reuniões do Conselho (registro estruturado; não são decisões da pessoa)."""
+        sql, args = "SELECT * FROM council_records WHERE user_id = ?", [user]
+        if conversation_id:
+            sql, args = sql + " AND conversation_id = ?", [*args, conversation_id]
+        rows = conn.execute(sql + " ORDER BY created_at DESC LIMIT 50", args).fetchall()
+        return [{**{k: r[k] for k in ("run_id", "conversation_id", "mode", "topic", "created_at")},
+                 "record": json.loads(r["record_json"])} for r in rows]
+
     @app.get("/api/team/conversations/{conv_id}/stream")
     async def team_stream(conv_id: str, request: Request, user: str = Depends(current_user)):
         owned(conv_id, user)

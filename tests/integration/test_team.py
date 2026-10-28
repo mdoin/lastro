@@ -238,7 +238,10 @@ def test_council_runs_specialists_and_consolidates(conn):
 
     def script(role, mode, prompt, n):
         if mode == "conselho_sintese":
-            return done("Resposta direta. Há risco de perda.\n\n## Divergências\nRiscos discorda do Analista.")
+            return done("## Conclusão\nResposta direta. Há risco de perda.\n\n## Divergências\nNenhuma relevante.")
+        if mode == "conselho_pauta":
+            return done('{"concordancias": ["aportes mensais fazem sentido"], "divergencias": [], "falas": [], '
+                        '"encerrar": true}')
         if role == "auditor":
             return done("VEREDITO: PASSA\n- números conferem")
         if mode == "conselho_parecer":
@@ -248,18 +251,27 @@ def test_council_runs_specialists_and_consolidates(conn):
     o = orch(conn, rt, semantic_audit="council")
     out = send(o, conv, "Quero investir R$ 1.000 por mês durante dez anos. Analisem meu planejamento.")
     assert out["run"]["kind"] == "council"
+    # seleção por tema: planejamento e investimento, mais o contraponto de riscos; ninguém mais é chamado
+    assert out["run"]["route"]["lineup"] == ["mentor", "planejador", "analista", "riscos", "auditor"]
     asyncio.run(drain(o))
 
     modes = [(r["role"], r.get("mode")) for r in rt.requests]
     assert modes[0] == ("mentor", "conselho_enquadramento")
-    assert {m[0] for m in modes[1:4]} == {"planejador", "analista", "economista"}
-    assert {m[0] for m in modes[4:6]} == {"riscos", "comportamental"}
-    # sem favorável × contrária não há contestação; o tema não é cripto, então o especialista não é convocado
-    assert modes[6:] == [("mentor", "conselho_sintese"), ("auditor", None)]
-    assert "PONTO-ANALISTA" in rt.prompt_for("riscos")  # riscos avalia o que os outros disseram
+    assert sorted(modes[1:4]) == [("analista", "conselho_parecer"), ("planejador", "conselho_parecer"),
+                                  ("riscos", "conselho_parecer")]
+    # análise independente: ninguém vê o parecer do outro antes da discussão
+    first_look = {r["role"]: r["text"] for r in rt.requests if r.get("mode") == "conselho_parecer"}
+    assert "PONTO-ANALISTA" not in first_look["riscos"] and "PONTO-PLANEJADOR" not in first_look["analista"]
+    # sem divergência, a pauta encerra a discussão: nenhuma fala extra
+    assert modes[4:] == [("mentor", "conselho_pauta"), ("mentor", "conselho_sintese"), ("auditor", None)]
 
     msgs = agent_messages(conn, conv)
-    assert [m["kind"] for m in msgs].count("analysis") == 7  # enquadramento, 5 pareceres e o mapa de posições
+    # enquadramento, 3 pareceres, pauta, mapa de posições e a auditoria da Cora
+    assert [m["kind"] for m in msgs].count("analysis") == 7
+    pauta = next(m for m in msgs if m["step_key"] == "conselho:pauta:1")
+    assert "aportes mensais fazem sentido" in pauta["content"] and pauta["meta"]["deliberation"]["phase"] == "pauta"
+    record = conn.execute("SELECT record_json FROM council_records WHERE run_id = ?", (out["run"]["id"],)).fetchone()
+    assert json.loads(record[0])["participantes"] == ["planejador", "analista", "riscos"]
     positions = next(m for m in msgs if m["step_key"] == "conselho:posicoes")
     assert positions["agent_id"] == "lastro" and positions["meta"]["conflict"] is False
     assert "Sem divergência material" in positions["content"]
@@ -286,15 +298,15 @@ def high_risk_script(role, mode, prompt, n):
         return done("VEREDITO: PASSA\n- sem números")
     if mode == "conselho_parecer":
         return done(structured(HIGH_RISK_STANCES[role], f"PONTO-{role.upper()}"))
-    if mode == "conselho_contestacao":
-        return done(f"**Posição:** {HIGH_RISK_STANCES[role]} (mantida)\n\n## Resposta às objeções\nRÉPLICA-{role.upper()}."
-                    "\n\n## O que mudaria minha posição\nReserva recomposta.")
+    if mode == "conselho_debate":
+        return done(f"**Posição:** {HIGH_RISK_STANCES[role]} (mantida)\n**Reação:** discordo\n\nRÉPLICA-{role.upper()}: "
+                    "os dados do retrato não mudam minha leitura.")
     if mode == "conselho_sintese":
         return done("## Conclusão\nNão há consenso; o risco de perda é alto.\n\n## Divergências\n- @teo "
                     "vê espaço; @rui discorda.")
     if mode == "correcao":
         return done("## Conclusão\nNão há consenso; o risco de perda e de liquidez é alto.\n\n## Divergências\n"
-                    "- @caio e @teo (favoráveis) × @rui e @nina (contrários).\n\n## Próximos passos\n"
+                    "- @teo (favorável) × @rui e @nina (contrários).\n\n## Próximos passos\n"
                     "- Não agir até rever a reserva é uma opção.")
     return done(f"Resposta de {role}.")
 
@@ -316,11 +328,12 @@ def test_high_risk_proposal_keeps_dissent_across_provider_switch(conn):
 
     modes = [(r["role"], r.get("mode")) for r in rt.requests]
     assert ("cripto", "conselho_parecer") in modes  # tema cripto convoca o especialista
-    contested = {role for role, mode in modes if mode == "conselho_contestacao"}
-    assert contested == {"analista", "cripto", "riscos", "comportamental"}  # condicional/sem base não contestam
-    riscos_contest = next(r["text"] for r in rt.requests if r["role"] == "riscos" and r.get("mode") == "conselho_contestacao")
-    assert "PONTO-ANALISTA" in riscos_contest and "PONTO-CRIPTO" in riscos_contest
-    assert "PONTO-PLANEJADOR" not in riscos_contest.split("Pareceres que discordam")[1]  # só os opostos
+    assert first_run["route"]["lineup"] == ["mentor", "planejador", "cripto", "comportamental", "riscos", "auditor"]
+    # pauta inválida (o modelo não devolveu JSON) → regra: só os lados opostos discutem, e uma rodada
+    spoke = [role for role, mode in modes if mode == "conselho_debate"]
+    assert sorted(spoke) == ["comportamental", "cripto", "riscos"]  # condicional não é obrigado a discutir
+    riscos_turn = next(r["text"] for r in rt.requests if r["role"] == "riscos" and r.get("mode") == "conselho_debate")
+    assert "Responda a @teo" in riscos_turn and "PONTO-CRIPTO" in riscos_turn and "PONTO-PLANEJADOR" not in riscos_turn
     assert ("mentor", "correcao") in modes  # síntese que apagou dissenso foi devolvida
 
     msgs = agent_messages(conn, conv)
@@ -330,11 +343,15 @@ def test_high_risk_proposal_keeps_dissent_across_provider_switch(conn):
     assert "Divergência material mantida" in positions["content"]
     parecer = next(m for m in msgs if m["step_key"] == "conselho:riscos")
     assert parecer["meta"]["opinion"]["stance"] == "contraria" and parecer["meta"]["route"] == {}
-    assert any(m["step_key"] == "conselho:contestacao:riscos" and "RÉPLICA-RISCOS" in m["content"] for m in msgs)
+    turn = next(m for m in msgs if m["step_key"] == "conselho:debate:1:riscos")
+    teo = next(m for m in msgs if m["step_key"] == "conselho:teo" or m["step_key"] == "conselho:cripto")
+    assert "RÉPLICA-RISCOS" in turn["content"] and turn["reply_to_id"] == teo["id"]  # resposta a uma fala real
+    assert turn["meta"]["deliberation"]["reaction"] == "discorda" and turn["meta"]["deliberation"]["responds_to"] == {
+        "agent": "cripto", "message_id": teo["id"]}
     final = msgs[-1]
     assert final["step_key"] == "conselho:sintese" and "@nina" in final["content"]
     diverg = next(s for s in final["meta"]["verdict"]["sections"] if s["key"] == "diverg")
-    assert {s["agent"] for s in diverg["items"][0] if "agent" in s} == {"analista", "cripto", "riscos", "comportamental"}
+    assert {s["agent"] for s in diverg["items"][0] if "agent" in s} == {"cripto", "riscos", "comportamental"}
     assert final["audit"]["verdict"] != REPROVA and "Corrigida" in final["audit"]["reasons"][0]
     before = [(m["id"], m["content"], m["meta"]) for m in msgs]
 
@@ -502,8 +519,8 @@ def test_cancel_stops_new_steps(conn):
     out = asyncio.run(go())
     assert started is None
     assert store.get_run(conn, out["run"]["id"])["status"] == "cancelled"
-    assert "riscos" not in rt.roles() and ("mentor", "conselho_sintese") not in [(r["role"], r.get("mode"))
-                                                                                  for r in rt.requests]
+    # depois do cancelamento nenhum passo novo começa: sem pauta, discussão nem síntese
+    assert not {"conselho_pauta", "conselho_debate", "conselho_sintese"} & {r.get("mode") for r in rt.requests}
     assert all(m["content"] != "Resposta de mentor." for m in agent_messages(conn, conv))
 
 

@@ -1,11 +1,11 @@
-Contexto: reunião do Conselho do Lastro. Dê o parecer da sua especialidade (máx. 350 palavras) sobre a questão e o enquadramento do Mentor. Se recebeu pareceres anteriores, comente-os: concorde, complemente ou discorde explicitamente, citando quem.
+Contexto: reunião do Conselho do Lastro, etapa de análise INDEPENDENTE. Você ainda não viu o que os outros especialistas pensam e não deve presumir o que disseram. Dê o parecer da sua especialidade (máx. 350 palavras) sobre a questão e o enquadramento do Mentor.
 
 Use exatamente esta estrutura (o Lastro lê e confere; parecer fora dela é devolvido para correção):
 
 **Posição:** uma destas, sem variações: favorável | contrária | condicional | sem base suficiente
 
 ## Tese
-Sua leitura em 2-3 frases, do ponto de vista da sua especialidade.
+Sua leitura principal em 2-3 frases, do ponto de vista da sua especialidade.
 
 ## Evidências
 Dados e cálculos que sustentam a tese, com número, unidade e data quando houver.
@@ -20,9 +20,9 @@ O que precisa ser verdade para a tese valer.
 O que pode dar errado e quanto se perderia.
 
 ## Lacunas
-O que não se sabe e mudaria a análise.
+Incertezas: o que não se sabe e mudaria a análise.
 
 ## Não agir
 O que acontece se a pessoa não fizer nada agora; diga se essa é uma opção razoável.
 
-"Favorável" e "contrária" referem-se à proposta da pessoa, não a um produto. Não converse com a pessoa nem termine com perguntas.
+A **Posição** é sua conclusão preliminar: "favorável" e "contrária" referem-se à proposta da pessoa, não a um produto. Não converse com a pessoa nem termine com perguntas.
