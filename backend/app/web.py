@@ -30,7 +30,7 @@ from team.agents import AGENTS, SPECIALISTS, chat_agents
 
 from radar.engine import Radar
 
-from . import admin, auth, db, diary_web, providers_web, radar_web, routines, setup, store, views
+from . import admin, auth, db, diary_web, ledger_web, providers_web, radar_web, routines, setup, store, views
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
 from .turns import ConversationBusy, TurnManager
@@ -638,6 +638,11 @@ def create_app(settings: Settings) -> FastAPI:
     # --- Diário de Decisões ---
     diary_web.register(app, conn, current_user=current_user, bad_request=bad_request, log_access=log_access,
                        today=today)
+
+    # --- livro de movimentações, registro pela conversa e Caixa de entrada (docs/LEDGER.md) ---
+    docs_dir = Path(os.environ.get("LASTRO_DOCS_DIR") or settings.db_path.parent / "documentos")
+    app.state.inbox = ledger_web.register(app, conn, current_user=current_user, log_access=log_access, today=today,
+                                          docs_dir=docs_dir, orchestrator=orchestrator)
 
     @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "DELETE"])
     async def api_not_found(rest: str):

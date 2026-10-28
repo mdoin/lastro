@@ -22,9 +22,11 @@ import {
   sendTeamMessage,
   teamStreamUrl,
 } from "../api/endpoints";
+import { ACCEPT, uploadDocument } from "../api/ledger";
 import { getRadarLink } from "../api/radar";
 import type { Agent, RunStep, TeamConversation, TeamEvent, TeamMessage, TeamRun } from "../api/types";
 import { AgentAvatar, type AvatarState } from "../components/AgentAvatar";
+import { CaptureNotice } from "../components/CaptureNotice";
 import { AgentPanel, CouncilRoom, STANCE_LABEL, VerdictView } from "../components/Council";
 import { Icon } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
@@ -541,6 +543,7 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, masked = f
   m: TeamMessage; agents: AgentMap; quoted?: TeamMessage | undefined; onReply?: () => void; onRetry?: () => void;
   onRecord?: () => void; masked?: boolean;
 }) {
+  if (m.kind === "notice" && m.meta?.captures?.length) return <CaptureNotice captures={m.meta.captures} masked={masked} />;
   if (m.kind === "notice") return <p className="team-notice" role="note">{maybeMask(m.content, masked)}</p>;
   if (m.role === "user") {
     return (
@@ -658,7 +661,23 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
   const [mention, setMention] = useState<MentionQuery | null>(null);
   const [active, setActive] = useState(0);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Documento pela conversa: vai para a Caixa de entrada e a Mila responde aqui com os números da leitura.
+  async function attach(files: FileList) {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      for (const f of Array.from(files)) await uploadDocument(f, conv.id);
+    } catch (e) {
+      setUploadError(e instanceof ApiError ? e.detail : "Não foi possível enviar o arquivo.");
+    } finally {
+      setUploading(false);
+    }
+  }
   const candidates = useMemo(() => {
     if (!mention || conv.channel !== "group") return [];
     return filterCandidates(conv.participants.map((p) => agents[p]).filter((a): a is Agent => !!a), mention.query);
@@ -726,6 +745,7 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
           ))}
         </ul>
       )}
+      {uploadError && <p className="tiny" role="alert">{uploadError}</p>}
       <label htmlFor="team-text" className="visually-hidden">{placeholder}</label>
       <textarea id="team-text" ref={ref} className="textarea" rows={2} value={text} placeholder={placeholder} maxLength={20000}
         aria-autocomplete="list" aria-expanded={candidates.length > 0}
@@ -733,11 +753,19 @@ function Composer({ conv, agents, replyTo, onCancelReply, busy, canCouncil, onSt
         onSelect={(e) => track(e.currentTarget.value, e.currentTarget.selectionStart)}
         onKeyDown={onKeyDown} />
       <div className="composer-row">
+        <span className="row" style={{ gap: 8 }}>
+          <button type="button" className="icon-btn" aria-label="Anexar extrato, fatura ou comprovante" title="Anexar documento"
+            onClick={() => fileRef.current?.click()} disabled={uploading}>
+            <Icon name={uploading ? "refresh" : "inbox"} />
+          </button>
+          <input ref={fileRef} type="file" multiple accept={ACCEPT} className="visually-hidden" tabIndex={-1}
+            onChange={(e) => { if (e.target.files?.length) void attach(e.target.files); e.target.value = ""; }} />
         {canCouncil ? (
           <label className="team-check small">
             <input type="checkbox" role="switch" checked={council} onChange={(e) => setCouncil(e.target.checked)} /> Convocar o Conselho
           </label>
-        ) : <span />}
+        ) : null}
+        </span>
         <div className="composer-actions">
           {busy && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={onStop} aria-label="Interromper execução">

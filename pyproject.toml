@@ -17,6 +17,8 @@ dependencies = [
 claude-code = ["claude-agent-sdk>=0.2.165"]
 # Navegador de pesquisa em fontes oficiais (Chrome headless via Playwright). Opcional.
 browser = ["playwright>=1.63.0"]
+# Leitura do texto de PDFs na Caixa de entrada (extratos, faturas, comprovantes). Opcional; BSD-3-Clause.
+documents = ["pypdf>=5.0"]
 
 [dependency-groups]
 dev = [

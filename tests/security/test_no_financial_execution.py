@@ -29,6 +29,7 @@ IMPORT_ALLOWLIST = {
     "mentor/browser.py": {"playwright"},  # só fontes oficiais; garantido pelos testes de allowlist abaixo
     "mentor/worker.py": {"socket"},  # só as constantes de SO_PEERCRED do socket Unix já aberto; nenhuma conexão
     "integrations/collector.py": {"httpx"},  # só APIs oficiais do catálogo; serviço próprio, fora do web e do worker
+    "ledger/ocr.py": {"subprocess"},  # só o binário local tesseract, argumentos fixos, stdin, prazo; sem shell nem rede
 }
 
 

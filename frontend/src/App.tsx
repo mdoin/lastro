@@ -20,6 +20,7 @@ const RadarPage = lazy(() => import("./pages/Radar").then((m) => ({ default: m.R
 const OpportunitiesPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunitiesPage })));
 const OpportunityPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunityPage })));
 const SetupPage = lazy(() => import("./pages/Setup").then((m) => ({ default: m.SetupPage })));
+const InboxPage = lazy(() => import("./pages/Inbox").then((m) => ({ default: m.InboxPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 
 // Galeria dos mascotes: só no `npm run dev` (import.meta.env.DEV vira false no build e o módulo some do pacote).
@@ -118,6 +119,7 @@ export function App() {
         <Route path="vida-financeira" element={page(<FinancesPage />)} />
         <Route path="futuro" element={page(<FuturePage />)} />
         <Route path="metas" element={page(<GoalsPage />)} />
+        <Route path="caixa" element={page(<InboxPage />)} />
         <Route path="mentor" element={page(<TeamPage />)} />
         <Route path="mentor/:conversationId" element={page(<TeamPage />)} />
         <Route path="rotinas" element={page(<RoutinesPage />)} />

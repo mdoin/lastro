@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useId, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { createSnapshot, getLatestSnapshot, getSnapshotHistory } from "../api/endpoints";
+import { getLedgerSummary } from "../api/ledger";
 import type { Debt, Snapshot, SnapshotHistoryItem } from "../api/types";
 import { Icon } from "../components/Icon";
 import { compactTick, Legend, LineChart } from "../components/LineChart";
@@ -229,6 +231,7 @@ export function FinancesPage() {
         </form>
       )}
 
+      <LedgerCard />
       <HistoryCard items={history.data} loading={history.loading} />
       <Disclaimer text={app.disclaimer} />
     </div>
@@ -327,6 +330,39 @@ function HistoryCard({ items, loading }: { items: SnapshotHistoryItem[] | undefi
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Movimentações do mês, derivadas do livro (registradas e efetivadas). Ficam ao lado do retrato, nunca dentro dele. */
+function LedgerCard() {
+  const summary = useAsync(() => getLedgerSummary(), []);
+  const s = summary.data;
+  return (
+    <Card title="Movimentações do mês" eyebrow="Derivado do livro de movimentações"
+      aside={<Link className="btn btn-ghost btn-sm" to="/caixa"><Icon name="inbox" /> Caixa de entrada</Link>}>
+      {summary.loading && !s && <Loading />}
+      <ErrorNotice error={summary.error} onRetry={summary.reload} />
+      {s && (
+        <div className="stack">
+          <div className="form-grid">
+            <div><span className="eyebrow">Receitas</span><p className="mono">{formatBRL(s.income)}</p></div>
+            <div><span className="eyebrow">Despesas</span><p className="mono">{formatBRL(s.expenses)}</p>
+              {s.refunds !== "0.00" && <p className="tiny muted">já descontados {formatBRL(s.refunds)} de estornos e reembolsos</p>}</div>
+            <div><span className="eyebrow">Transferências e faturas</span><p className="mono">{formatBRL(s.neutral_moves)}</p>
+              <p className="tiny muted">não contam como receita nem despesa</p></div>
+          </div>
+          {s.by_category.length > 0 && (
+            <ul className="bullets small">
+              {s.by_category.slice(0, 6).map((c) => <li key={c.category}>{c.label}: <span className="mono">{formatBRL(c.amount)}</span></li>)}
+            </ul>
+          )}
+          <p className="tiny muted">
+            {s.basis} {s.pending_total > 0 && <Link to="/caixa">{s.pending_total} pendência(s) aguardam sua revisão.</Link>}
+            {" "}Os campos do retrato acima são informados por você; estes números vêm de lançamentos e dependem de conciliação.
+          </p>
         </div>
       )}
     </Card>

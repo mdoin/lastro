@@ -24,6 +24,13 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
 - Agente **Analista de Ativos Digitais** (`@cripto`): custódia, stablecoins e risco operacional; entra no Conselho
   quando a questão é sobre cripto.
 - Cada mensagem de agente registra conexão, modelo e versão do agente (`meta`), preservados após troca de provedor.
+- Nomes de exibição dos agentes (Bento, Lia, Caio, Vera, Rui, Nina, Téo, Cora, Mila); ids e @menções antigas continuam.
+- **Sala do Conselho** visual: lugares com estado real, painel do participante, veredito com menções coloridas e
+  modo apresentação com máscara de valores.
+- **Livro de movimentações** e **memória financeira automática** a partir da conversa (consentimento, desfazer,
+  pendências que pedem só o que falta) — docs/LEDGER.md.
+- **Mila e Caixa de entrada**: importação de CSV, OFX, PDF (extra `documents`) e imagens (OCR local opcional), com
+  conciliação, duplicatas, idempotência e leitura por IA opcional e sempre pendente.
 - Licença **AGPL-3.0-or-later** (`LICENSE`), cabeçalhos SPDX nos arquivos-fonte, DCO nas contribuições (verificado no
   CI) e política de marca (`TRADEMARKS.md`); link do código-fonte no login e nas Configurações (AGPL §13,
   `LASTRO_SOURCE_URL`).
@@ -36,6 +43,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
 ### Atualização
 - Migração 008 (só acréscimos). Instalações com senha não passam pelo assistente.
 - Migração 009 (só acrescenta `messages.meta_json`). Mensagens antigas ficam com `meta` vazio.
+- Migração 010 (só cria tabelas do livro, documentos, capturas e consentimentos). Novo extra opcional `documents` (pypdf).
 - systemd: a unidade `lastro-mentor` ganhou `LASTRO_IMPLICIT_CLAUDE_CODE=1` e `LASTRO_PROVIDERS_FILE`;
   `scripts/deploy.sh` instala os extras `claude-code` e `browser`.
 

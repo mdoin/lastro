@@ -31,6 +31,8 @@ from team import opinion as opinions
 from team import verdict as verdicts
 from team.agents import AGENTS, get
 
+from ledger import capture
+
 from . import diary, store, views
 
 log = logging.getLogger("lastro.orquestrador")
@@ -122,6 +124,9 @@ class Orchestrator:
             return {"message": message, "run": store.get_run(self.conn, run["id"]) if run else None, "notices": []}
         self.bus.publish(conv["id"], {"type": "message", "message": message})
         notices = [self._notice(conv["id"], n) for n in route.notices]
+        captured = self._capture(conv, message)
+        if captured:
+            notices.append(captured)
         if route.kind == "rejected":
             notices.append(self._notice(conv["id"], route.reason))
             return {"message": message, "run": None, "notices": notices}
@@ -147,6 +152,22 @@ class Orchestrator:
         self.bus.publish(conv["id"], {"type": "run", "run": run})
         self._wake.set()
         return run
+
+    def _capture(self, conv: dict, message: dict) -> dict | None:
+        """Memória financeira automática (ledger/capture.py): o que a pessoa disse explicitamente vira registro ou
+        pendência, com uma confirmação discreta no chat. Falha aqui nunca impede a conversa."""
+        try:
+            done = capture.process_message(self.conn, conv["user_id"], conv["id"], message, self.today())
+        except Exception:  # noqa: BLE001
+            log.exception("reconhecimento de fatos falhou (mensagem %s)", message["id"])
+            return None
+        text = capture.notice_text(done)
+        if not text:
+            return None
+        notice = store.add_message(self.conn, conv["id"], "assistant", text, agent_id=NOTICE_AGENT, kind="notice",
+                                   meta={"captures": [d for d in done if d["status"] != "informativo"]})
+        self.bus.publish(conv["id"], {"type": "message", "message": notice})
+        return notice
 
     def _notice(self, conv_id: str, text: str) -> dict:
         message = store.add_message(self.conn, conv_id, "assistant", text, agent_id=NOTICE_AGENT, kind="notice")

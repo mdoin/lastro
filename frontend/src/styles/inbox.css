@@ -1,0 +1,231 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Caixa de entrada financeira (Mila): área de envio, preferências, documentos e movimentações. */
+
+.inbox {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.inbox-top {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .inbox-top {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+
+.inbox-drop {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: center;
+  padding: 18px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.inbox-drop > .btn {
+  grid-column: 2;
+  justify-self: start;
+}
+
+.inbox-drop.is-over {
+  border-color: var(--agent-mila);
+  background: color-mix(in srgb, var(--agent-mila) 8%, var(--surface));
+}
+
+.inbox-drop-title {
+  margin: 0;
+  font-weight: 620;
+}
+
+.inbox-drop p {
+  margin: 2px 0 0;
+}
+
+.inbox-prefs {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.inbox-prefs .team-check {
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+.inbox-prefs p {
+  margin: 0;
+}
+
+.inbox-alert,
+.inbox-ok {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.inbox-alert {
+  background: var(--danger-soft);
+  color: var(--critical-ink);
+}
+
+.inbox-ok {
+  background: color-mix(in srgb, var(--good) 11%, transparent);
+  color: var(--good-ink);
+}
+
+.inbox-docs,
+.inbox-entries {
+  display: grid;
+  gap: 10px;
+}
+
+.inbox-doc-list,
+.inbox-entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.inbox-doc,
+.inbox-entry {
+  display: grid;
+  gap: 8px 14px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 0;
+}
+
+.inbox-doc {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.inbox-doc-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--agent-mila) 14%, transparent);
+  color: var(--ink);
+}
+
+.inbox-doc-main,
+.inbox-entry-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.inbox-doc-actions,
+.inbox-entry-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.inbox-doc-actions {
+  grid-column: 1 / -1;
+}
+
+.inbox-entry {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.inbox-entry[data-status="desfeito"],
+.inbox-entry[data-status="descartado"] {
+  opacity: 0.6;
+}
+
+.inbox-entry-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.inbox-entry-amount {
+  font-weight: 650;
+  white-space: nowrap;
+  align-self: start;
+}
+
+.inbox-entry-amount.neg {
+  color: var(--neg);
+}
+
+.inbox-entry-actions {
+  grid-column: 1 / -1;
+}
+
+.inbox-entry-actions .select,
+.inbox-entry-actions .input {
+  width: auto;
+  min-width: 0;
+  padding-block: 5px;
+  font-size: 0.84rem;
+}
+
+.inbox-entry-actions .input {
+  max-width: 160px;
+}
+
+.inbox-origin {
+  font-style: italic;
+}
+
+/* confirmação discreta na conversa (registro automático) */
+.capture-notice {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border-left: 3px solid var(--agent-mila);
+  font-size: 0.86rem;
+}
+
+.capture-notice ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.capture-notice li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.capture-notice li > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.capture-notice .input {
+  width: 130px;
+  padding-block: 4px;
+  font-size: 0.84rem;
+}

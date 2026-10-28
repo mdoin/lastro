@@ -116,6 +116,21 @@ export async function request<T>(method: Method, path: string, opts: RequestOpti
   }
 }
 
+/** Envia um arquivo como corpo binário (sem multipart); o nome vai no cabeçalho, codificado. */
+export async function uploadBinary<T>(path: string, file: Blob, filename: string): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: "POST", credentials: "same-origin", cache: "no-store", body: file,
+      headers: { Accept: "application/json", "X-Lastro": "1", "Content-Type": "application/octet-stream", "X-Filename": encodeURIComponent(filename) },
+    });
+  } catch {
+    throw new ApiError(0, "Sem conexão com o servidor. Verifique a rede e tente de novo.");
+  }
+  if (!res.ok) return failFrom(res, {});
+  return (await res.json()) as T;
+}
+
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>("GET", path, opts),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>("POST", path, { ...opts, body }),

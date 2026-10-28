@@ -522,7 +522,7 @@ export interface AppStatus {
 
 // ---------- Equipe: Mentor, especialistas, grupos e Conselho ----------
 
-export type AgentId = "mentor" | "planejador" | "analista" | "economista" | "riscos" | "comportamental" | "cripto" | "auditor";
+export type AgentId = "mentor" | "planejador" | "analista" | "economista" | "riscos" | "comportamental" | "cripto" | "mila" | "auditor";
 export type Stance = "favoravel" | "contraria" | "condicional" | "insuficiente";
 export type OpinionExcerpt = "tese" | "risco" | "evidencia" | "fonte" | "lacuna" | "nao agir";
 /** Segmento do veredito: texto puro ou menção já resolvida pelo servidor (id estável do agente). */
@@ -599,6 +599,8 @@ export interface TeamMessage {
     agent_version?: string;
     opinion?: { stance: Stance | null; sections: string[]; excerpts?: Partial<Record<OpinionExcerpt, string>> };
     verdict?: Verdict | null;
+    captures?: import("./ledger").Capture[];
+    document?: { id: string; status: string; summary: import("./ledger").DocSummary };
     positions?: Record<string, { initial: Stance | null; final: Stance | null }>;
     contested?: string[];
     conflict?: boolean;

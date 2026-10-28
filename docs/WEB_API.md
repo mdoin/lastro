@@ -153,6 +153,20 @@ As antigas `GET/POST /api/decisions` saíram; o `decision_log` é importado para
 | `GET /api/status` | `{"app_version", "engine_version", "mentor": {"available": bool, "logged_in": bool \| null, "subscription": str \| null, "busy": int, "queued": int, "limit_until": datetime \| null}, "data": {"latest_snapshot_as_of": date \| null, "stale": bool}}` |
 | `GET /api/export` | arquivo JSON com todos os dados do usuário (download) |
 
+## Livro de movimentações e Caixa de entrada — ver `docs/LEDGER.md`
+| Rota | Corpo | Resposta |
+|---|---|---|
+| `GET /api/consents` · `PUT /api/consents/{auto_register\|ai_documents}` | `{"granted"}` | estado dos consentimentos da pessoa |
+| `GET /api/ledger?status=&document_id=` | — | movimentações (valor com sinal do fluxo, origem, conciliação) |
+| `GET /api/ledger/summary?month=AAAA-MM` | — | totais derivados (receitas, despesas, estornos, transferências à parte, pendências) |
+| `POST /api/ledger/{id}/{confirmar\|descartar\|desfazer\|restaurar\|corrigir\|e_duplicada\|nao_e_duplicada}` | `{"changes"?}` | movimentação; cada ação vira evento em `ledger_events` |
+| `GET /api/ledger/{id}/events` | — | trilha da movimentação |
+| `GET /api/captures?status=` · `POST /api/captures/{id}/{desfazer\|confirmar\|descartar}` | `{"changes"?}` | registros reconhecidos na conversa |
+| `POST /api/documents?conversation_id=` | corpo binário, `X-Filename` | 201 documento com `summary`; repetido → `repeated: true`; 413/415/422 |
+| `GET /api/documents` · `GET /api/documents/{id}` | — | lista (com OCR/PDF disponíveis e retenção) · documento com lançamentos |
+| `POST /api/documents/{id}/approve` · `DELETE /api/documents/{id}?entries=` | — | aprova pendências completas · exclui (e desfaz lançamentos, se pedido) |
+| `POST /api/documents/{id}/interpret` | `{"confirm": true}` | 202; exige consentimento `ai_documents`; resultado sempre pendente |
+
 ## Equipe (Mentor, especialistas, grupos, Conselho) — ver `docs/MULTIAGENT.md`
 Toda rota exige sessão; conversas e execuções de outra pessoa respondem 404 (igual a inexistentes).
 

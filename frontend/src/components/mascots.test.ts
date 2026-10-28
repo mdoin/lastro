@@ -5,9 +5,9 @@ import { EYE_CHARS, GRID, MASCOTS, runs } from "./mascots";
 describe("mascotes", () => {
   const all = Object.values(MASCOTS);
 
-  it("tem os oito agentes, cada um numa grade 16×16 com só cores da paleta", () => {
+  it("tem os nove agentes, cada um numa grade 16×16 com só cores da paleta", () => {
     expect(Object.keys(MASCOTS).sort()).toEqual(
-      ["analista", "auditor", "comportamental", "cripto", "economista", "mentor", "planejador", "riscos"],
+      ["analista", "auditor", "comportamental", "cripto", "economista", "mentor", "mila", "planejador", "riscos"],
     );
     for (const m of all) {
       expect(m.rows).toHaveLength(GRID);

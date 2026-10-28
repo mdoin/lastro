@@ -41,6 +41,20 @@ verificar endpoint, licença e frequência. Cada novo adaptador exige:
 
 Primeiro adaptador (2026-10-27): `integrations/collector.py` (BCB/SGS, FRED), liberado no teste de imports, em serviço próprio (`lastro-coletor`) com redes privadas bloqueadas; só número e data chegam ao banco.
 
+## 4b. Documentos e livro de movimentações (v0.3, docs/LEDGER.md)
+
+| Ameaça | Controle |
+|---|---|
+| Arquivo malicioso disfarçado | Tipo decidido pelo conteúdo; só PDF/PNG/JPG/CSV/OFX; 10 MB lidos com limite; nada é executado ou renderizado |
+| Caminho no nome do arquivo | Nome interno aleatório (32 hex) em pasta 0700 fora da área servida; nome enviado só exibido, sanitizado |
+| Instrução escondida no documento | Parsers determinísticos não interpretam texto; leitura por IA só a pedido, papel `extrator` sem ferramentas, saída validada e sempre pendente |
+| Agente gravar movimentação | Nenhuma ferramenta de escrita: agentes só leem; gravação só por rotas autenticadas e pelo backend com consentimento |
+| Documento de outra pessoa | Todas as consultas filtram por `user_id`; 404 igual a inexistente |
+| Vazamento por log | Logs com ids e contagens; sem nome de arquivo, valores ou descrições |
+
+Exceção consciente no teste de imports: `ledger/ocr.py` pode usar `subprocess` só para o binário local `tesseract`
+(argumentos fixos, imagem pela stdin, prazo de 60 s, sem shell e sem rede).
+
 ## 4a. Provedores de IA (v0.3)
 
 | Ameaça | Controle |

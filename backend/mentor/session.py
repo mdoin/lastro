@@ -35,7 +35,7 @@ def load_prompt(role: str, mode: str | None = None) -> str:
 
 def team_roster(role: str) -> str:
     """Nomes de exibição vêm do registro (um lugar só): trocar um nome não exige reescrever instruções."""
-    lines = [f"- {a.name} (@{a.handle}): {a.title}" for a in AGENTS.values()]
+    lines = [f"- {a.name} (@{a.handle}): {a.title}" for a in AGENTS.values() if a.kind != "internal"]
     me = f"Seu nome é {AGENTS[role].name}. " if role in AGENTS else ""
     return f"{me}Equipe:\n" + "\n".join(lines)
 

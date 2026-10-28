@@ -9,7 +9,7 @@ export type AvatarState = "idle" | "thinking" | "speaking";
 const RUNS = Object.fromEntries(Object.entries(MASCOTS).map(([id, m]) => [id, runs(m.rows)]));
 // Piscadas fora de sincronia: cada agente com seu atraso (nunca todos ao mesmo tempo).
 const BLINK_DELAY: Record<string, number> = {
-  mentor: 0.4, planejador: 2.1, analista: 3.7, economista: 1.3, riscos: 4.6, comportamental: 2.9, cripto: 3.3, auditor: 5.2,
+  mentor: 0.4, planejador: 2.1, analista: 3.7, economista: 1.3, riscos: 4.6, comportamental: 2.9, cripto: 3.3, mila: 4.1, auditor: 5.2,
 };
 
 /**

@@ -21,6 +21,7 @@ const NAV: NavItem[] = [
   { to: "/vida-financeira", label: "Minha vida financeira", short: "Finanças", icon: "wallet", group: "Painel" },
   { to: "/futuro", label: "Meu futuro", short: "Futuro", icon: "trend", group: "Painel" },
   { to: "/metas", label: "Metas", short: "Metas", icon: "target", group: "Painel" },
+  { to: "/caixa", label: "Caixa de entrada", short: "Caixa", icon: "inbox", group: "Painel" },
   { to: "/mentor", label: "Mentor e especialistas", short: "Equipe", icon: "chat", group: "Mentor" },
   { to: "/rotinas", label: "Rotinas", short: "Rotinas", icon: "clock", group: "Mentor" },
   { to: "/diario", label: "Diário de decisões", short: "Diário", icon: "book", group: "Mentor" },

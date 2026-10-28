@@ -81,6 +81,7 @@
   --agent-coordenador: #121211;
   --agent-auditor: #b38328;
   --agent-cripto: #0f8a9c;
+  --agent-mila: #c4574c;
 
   /* Forma */
   --radius-xl: 26px;
@@ -153,6 +154,7 @@
     --agent-coordenador: #f2f1ec;
     --agent-auditor: #d7b05a;
     --agent-cripto: #3fb6c6;
+    --agent-mila: #ec8a7f;
     --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.3);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px -2px rgba(0, 0, 0, 0.3);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -12px rgba(0, 0, 0, 0.6);
@@ -213,6 +215,7 @@
   --agent-coordenador: #f2f1ec;
   --agent-auditor: #d7b05a;
   --agent-cripto: #3fb6c6;
+  --agent-mila: #ec8a7f;
   --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px -2px rgba(0, 0, 0, 0.3);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 28px -12px rgba(0, 0, 0, 0.6);

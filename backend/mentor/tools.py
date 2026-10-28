@@ -183,6 +183,26 @@ async def diario_radar(args: dict) -> dict:
     return await _get("/v1/me/radar", {"days": args.get("dias", 30)})
 
 
+@tool("movimentacoes",
+      "Livro de movimentações do usuário: totais do mês (receitas, despesas por categoria, estornos; transferências e "
+      "pagamento de fatura à parte) e lançamentos recentes com status (registrado, pendente, duplicada, desfeito). "
+      "month no formato AAAA-MM (vazio = mês atual).",
+      {"type": "object", "properties": {"month": {"type": "string", "pattern": "^(\\d{4}-\\d{2})?$"},
+                                        "status": {"type": "string", "enum": ["", "registrado", "pendente", "duplicada",
+                                                                              "desfeito", "descartado"]}},
+       "additionalProperties": False})
+async def movimentacoes(args: dict) -> dict:
+    return await _get("/v1/me/ledger", {"month": args.get("month", ""), "status": args.get("status", "")})
+
+
+@tool("caixa_documentos",
+      "Documentos enviados à Caixa de entrada (extratos, faturas, comprovantes) e o resultado de cada leitura: "
+      "quantas movimentações foram identificadas, registradas, para revisão e duplicadas.",
+      {})
+async def caixa_documentos(_args: dict) -> dict:
+    return await _get("/v1/me/documents")
+
+
 @tool("solicitar_especialista",
       "Pede a análise de outro especialista. O orquestrador do Lastro decide (limites de profundidade, ciclos e "
       "duplicatas) e devolve o parecer num próximo passo. Use só quando a pergunta exigir a especialidade do outro.",
@@ -241,7 +261,7 @@ DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes]
 TOOLS = DATA_TOOLS + [sem_novidade]
 TEAM_TOOLS = {"facts": [memoria_financeira], "market": [dados_mercado], "calc": [calcular],
               "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato], "journal": [diario_radar],
-              "diary": [propor_registro_decisao]}
+              "diary": [propor_registro_decisao], "ledger": [movimentacoes, caixa_documentos]}
 # Ferramentas que não fazem nada no worker: o orquestrador lê o pedido (entrada) e decide o que fazer com ele.
 RECORDED_TOOLS = {"solicitar_especialista", "anotar_memoria", "propor_fato", "propor_registro_decisao"}
 BROWSER_TOOL_NAME = "ler_pagina_oficial"

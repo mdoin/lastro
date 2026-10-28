@@ -11,7 +11,7 @@ Capacidades são aplicadas em código: o servidor MCP de cada sessão só regist
 
 from dataclasses import dataclass, field
 
-REGISTRY_VERSION = "2026-10-28.1"
+REGISTRY_VERSION = "2026-10-28.2"
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ class Capabilities:
     memory: bool = False              # anotar memória individual / propor fato financeiro (o dono confirma)
     journal: bool = False             # Diário de Oportunidades do Radar (leitura; contém decisões do dono)
     diary: bool = False               # propor rascunho ao Diário de Decisões (só a pessoa confirma)
+    ledger: bool = False              # livro de movimentações e caixa de documentos (leitura)
 
 
 @dataclass(frozen=True)
@@ -63,10 +64,11 @@ class AgentSpec:
                                                 ("consulta a especialistas", self.caps.delegate),
                                                 ("Diário de Oportunidades", self.caps.journal),
                                                 ("rascunhos do Diário de Decisões", self.caps.diary),
+                                                ("movimentações e documentos", self.caps.ledger),
                                                 ("leitura de fontes oficiais", bool(self.caps.browser))) if on)}
 
 
-SPECIALISTS = ("planejador", "analista", "economista", "riscos", "comportamental", "cripto")
+SPECIALISTS = ("planejador", "analista", "economista", "riscos", "comportamental", "cripto", "mila")
 
 AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
     AgentSpec(
@@ -74,7 +76,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         prompt="mentor.md", icon="layers", color="var(--agent-coordenador)", max_turns=25, effort="high",
         aliases=("mentor", "coordenador", "lastro"),
         caps=Capabilities(data=True, browser="owner", facts=True, market=True, calc=True, delegate=True, memory=True,
-                          journal=True, diary=True),
+                          journal=True, diary=True, ledger=True),
         can_delegate_to=SPECIALISTS,
         summary="Entende o que você precisa, chama os especialistas certos e junta tudo numa resposta clara.",
         examples=("O que faço com o dinheiro disponível este mês?", "Me ajuda a organizar minhas prioridades.")),
@@ -82,8 +84,8 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         id="planejador", name="Lia", handle="lia", title="Planejadora · orçamento, reserva e metas",
         kind="specialist", prompt="planejador.md", icon="wallet", color="var(--agent-diagnostico)",
         aliases=("planejador", "planejamento", "planejadora", "orcamento"),
-        caps=Capabilities(data=True, facts=True, calc=True, delegate=True, memory=True, journal=True),
-        can_delegate_to=("analista", "economista", "riscos", "comportamental"),
+        caps=Capabilities(data=True, facts=True, calc=True, delegate=True, memory=True, journal=True, ledger=True),
+        can_delegate_to=("analista", "economista", "riscos", "comportamental", "mila"),
         summary="Orçamento, reserva, dívidas, metas e capacidade de poupança, antes de qualquer produto.",
         examples=("Quanto devo ter de reserva?", "Quito o cartão ou começo a investir?")),
     AgentSpec(
@@ -130,6 +132,21 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         summary="Cripto, stablecoins e tokens: custódia, liquidez, risco operacional e de contraparte, sem euforia.",
         examples=("Faz sentido ter bitcoin na minha carteira?", "Stablecoin é igual a dólar guardado?")),
     AgentSpec(
+        id="mila", name="Mila", handle="mila", title="Organizadora financeira · documentos e conciliação",
+        kind="specialist", prompt="mila.md", icon="inbox", color="var(--agent-mila)",
+        aliases=("organizadora", "documentos", "caixa"),
+        # Só leitura: o registro de movimentações é feito pelo backend (caixa de entrada e confirmações da pessoa).
+        caps=Capabilities(data=True, facts=True, calc=True, delegate=True, memory=True, ledger=True),
+        can_delegate_to=("planejador",),
+        summary="Lê extratos, faturas e comprovantes, concilia lançamentos e aponta duplicatas e pendências.",
+        examples=("O que ficou pendente na minha caixa de entrada?", "Quanto gastei com transporte este mês?")),
+    AgentSpec(
+        id="extrator", name="Mila", handle="extrator", title="Leitura de documento (interna)", kind="internal",
+        prompt="extrator.md", icon="inbox", color="var(--agent-mila)", max_turns=1, effort="low",
+        # Sem nenhuma ferramenta: o texto de um documento é dado não confiável e esta sessão só devolve JSON.
+        caps=Capabilities(data=False),
+        summary="Sessão interna da caixa de entrada para ler texto de documento quando a pessoa pede."),
+    AgentSpec(
         id="auditor", name="Cora", handle="cora", title="Auditora · verificação independente", kind="auditor",
         prompt="auditor.md", icon="shieldCheck", color="var(--agent-auditor)", max_turns=6,
         caps=Capabilities(data=True, facts=True, market=True, calc=True, journal=True),
@@ -139,7 +156,8 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
 
 # Modos de trabalho: complementos de instrução por situação (mentor/prompts/modos/<modo>.md).
 MODES = ("direto", "grupo", "delegado", "integracao", "conselho_enquadramento", "conselho_parecer",
-         "conselho_sintese", "conselho_contestacao", "correcao", "radar_parecer", "radar_sintese")
+         "conselho_sintese", "conselho_contestacao", "correcao", "radar_parecer", "radar_sintese",
+         "extracao_documento")
 
 
 def get(agent_id: str) -> AgentSpec:

@@ -697,7 +697,7 @@ def test_user_cannot_access_another_users_conversation(tmp_path):
                            headers=H).status_code == 422
         assert {a["id"] for a in client.get("/api/agents").json()} == {
             "mentor", "planejador", "analista", "economista", "riscos", "comportamental", "cripto",
-            "auditor"}
+            "mila", "auditor"}
 
 
 # adversariais -----------------------------------------------------------------------------------------------------

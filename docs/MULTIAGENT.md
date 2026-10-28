@@ -9,6 +9,7 @@
 | Economista | macro, Selic/CDI/IPCA/câmbio | mercado, motor, navegador de fontes oficiais, delegação, notas — **sem dados do dono** |
 | Gestor de Riscos | perdas, liquidez, concentração, estresse | dados, memória financeira, mercado, motor, delegação, notas |
 | Conselheiro | vieses e comportamento | dados, memória financeira, delegação, notas |
+| Mila | documentos, registros e conciliação (Caixa de entrada) | dados, memória financeira, motor, livro e documentos (leitura), delegação à Lia, notas — **sem escrita** |
 | Analista de Ativos Digitais | cripto, stablecoins, custódia e risco operacional | dados, memória financeira, mercado, motor, delegação, notas (o Lastro não coleta preço de cripto: o agente diz que o dado não existe) |
 | Auditor | verificação (não conversa) | dados, memória financeira, mercado, motor |
 
