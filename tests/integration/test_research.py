@@ -290,7 +290,8 @@ def researcher(final="Conferi no TSE (https://www.tse.jus.br/resultados): a tota
         if quiet_first and n == 1:
             return done("Anotado.")
         return done("Vou conferir os dados oficiais.", [{"name": "pesquisar_web", "input": {
-            "pergunta": "Resultado oficial do segundo turno de 2026; a Ana tem R$ 9.000,00", "fontes": ["tse.jus.br"]}}])
+            "pergunta": "Resultado oficial do segundo turno de 2026; a Ana tem R$ 9.000,00", "fontes": ["tse.jus.br"],
+            "motivo": "Ana guarda R$ 7.500,00 no CDB"}}])
     return FakeRuntime(script)
 
 
@@ -307,7 +308,7 @@ def test_recent_question_triggers_real_research_isolated_from_personal_data(conn
     assert [r["mode"] for r in rt.requests] == ["direto", "pesquisa_web", "integracao"]
     assert "pesquisar_web" in rt.requests[0]["text"] and "fatos recentes" in rt.requests[0]["text"]
     sent = rt.requests[1]["text"]  # o que a sessão de pesquisa (com internet) recebeu
-    assert "9.000" not in sent and "Ana" not in sent and "Mensagens recentes" not in sent and "Identidade" not in sent
+    assert "9.000" not in sent and "7.500" not in sent and "Ana" not in sent and "Mensagens recentes" not in sent and "Identidade" not in sent
     assert "tse.jus.br" in sent
     assert "https://www.tse.jus.br/resultados" in rt.requests[2]["text"]
     msg = agent_messages(conn, conv)[-1]
