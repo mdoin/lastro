@@ -212,7 +212,9 @@ function FeedEntry({ item, agents, onOpen, masked }: { item: FeedItem; agents: A
         <p className="council-bubble-who">
           <strong>{nameOf(agents, id)}</strong> <span className="tiny muted">{roleOf(agents, id)}</span>
           <span className="council-kind" data-kind={item.revised ? "revisao" : item.label}>{item.label}</span>
-          {item.reaction && <span className="council-reaction" data-reaction={item.reaction}>{REACTION_LABEL[item.reaction] ?? item.reaction}</span>}
+          {item.reaction && (REACTION_LABEL[item.reaction] ?? item.reaction).toLowerCase() !== item.label.toLowerCase() && (
+            <span className="council-reaction" data-reaction={item.reaction}>{REACTION_LABEL[item.reaction] ?? item.reaction}</span>
+          )}
           {stance && <span className="council-seat-stance" data-stance={stance}>{item.revised ? "agora " : ""}{STANCE_LABEL[stance]}</span>}
         </p>
         {(item.target || item.toPerson) && (
