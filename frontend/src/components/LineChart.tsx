@@ -38,6 +38,8 @@ interface Props {
   height?: number;
   /** Arredonda candidatos a rótulo do eixo X (ex.: anos inteiros). */
   snapX?: (x: number) => number;
+  /** Eixo Y a partir do zero (padrão). Desligado para séries de preço, em que a variação é o que importa. */
+  zeroBased?: boolean;
 }
 
 const compact = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
@@ -52,8 +54,8 @@ function niceStep(range: number, count: number): number {
   return nice * pow;
 }
 
-export function niceDomain(min: number, max: number, count = 4): { lo: number; hi: number; ticks: number[] } {
-  const lo0 = Math.min(0, min);
+export function niceDomain(min: number, max: number, count = 4, zeroBased = true): { lo: number; hi: number; ticks: number[] } {
+  const lo0 = zeroBased ? Math.min(0, min) : min;
   const hi0 = max > lo0 ? max : lo0 + 1;
   const step = niceStep(hi0 - lo0, count);
   const lo = Math.floor(lo0 / step) * step;
@@ -91,6 +93,7 @@ export function LineChart({
   yMin,
   height = 200,
   snapX,
+  zeroBased = true,
 }: Props) {
   const [wrapRef, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
@@ -108,8 +111,8 @@ export function LineChart({
     const ys = series.flatMap((s) => s.points.map((p) => p.y)).filter(Number.isFinite);
     const dataMax = yMax ?? (ys.length ? Math.max(...ys) : 1);
     const dataMin = yMin ?? (ys.length ? Math.min(...ys) : 0);
-    return niceDomain(dataMin, dataMax);
-  }, [series, yMax, yMin]);
+    return niceDomain(dataMin, dataMax, 4, zeroBased);
+  }, [series, yMax, yMin, zeroBased]);
 
   const sx = (x: number) => M.left + (xMax === xMin ? plotW / 2 : ((x - xMin) / (xMax - xMin)) * plotW);
   const sy = (y: number) => M.top + plotH - ((y - lo) / (hi - lo || 1)) * plotH;

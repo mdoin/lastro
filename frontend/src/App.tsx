@@ -20,6 +20,8 @@ const RadarPage = lazy(() => import("./pages/Radar").then((m) => ({ default: m.R
 const OpportunitiesPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunitiesPage })));
 const OpportunityPage = lazy(() => import("./pages/Opportunities").then((m) => ({ default: m.OpportunityPage })));
 const SetupPage = lazy(() => import("./pages/Setup").then((m) => ({ default: m.SetupPage })));
+const CryptoRadarPage = lazy(() => import("./pages/CryptoRadar").then((m) => ({ default: m.CryptoRadarPage })));
+const NotificationsPage = lazy(() => import("./pages/Notifications").then((m) => ({ default: m.NotificationsPage })));
 const InboxPage = lazy(() => import("./pages/Inbox").then((m) => ({ default: m.InboxPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 
@@ -120,6 +122,8 @@ export function App() {
         <Route path="futuro" element={page(<FuturePage />)} />
         <Route path="metas" element={page(<GoalsPage />)} />
         <Route path="caixa" element={page(<InboxPage />)} />
+        <Route path="radar-cripto" element={page(<CryptoRadarPage />)} />
+        <Route path="notificacoes" element={page(<NotificationsPage />)} />
         <Route path="mentor" element={page(<TeamPage />)} />
         <Route path="mentor/:conversationId" element={page(<TeamPage />)} />
         <Route path="rotinas" element={page(<RoutinesPage />)} />

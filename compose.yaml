@@ -110,6 +110,8 @@ services:
       LASTRO_DB: /data/lastro.db
       LASTRO_TZ: ${LASTRO_TZ:-America/Sao_Paulo}
       FRED_API_KEY: ${FRED_API_KEY:-}
+      LASTRO_COINGECKO_API_KEY: ${LASTRO_COINGECKO_API_KEY:-}
+      LASTRO_CRYPTO_MONITOR: ${LASTRO_CRYPTO_MONITOR:-1}
     volumes:
       - data:/data
     depends_on:

@@ -1,0 +1,240 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Radar cripto e central de notificações: cartões editoriais, gravidade por cor discreta, sem estética de corretora. */
+
+.crypto h2 {
+  font-size: 1.1rem;
+  margin: 0 0 6px;
+}
+
+.crypto-assets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.crypto-asset,
+.crypto-provider,
+.crypto-event {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.crypto-asset p,
+.crypto-provider p,
+.crypto-event p {
+  margin: 0;
+}
+
+.crypto-symbol {
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.crypto-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 1.5rem;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+}
+
+.crypto-ccy {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.crypto-change {
+  font-size: 0.86rem;
+}
+
+.crypto-change.neg {
+  color: var(--neg);
+}
+
+.crypto-change.pos {
+  color: var(--pos);
+}
+
+.crypto-ind {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+}
+
+.crypto-ind div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px dashed var(--border);
+  padding: 2px 0;
+}
+
+.crypto-ind dt {
+  color: var(--muted);
+}
+
+.crypto-ind dd {
+  margin: 0;
+}
+
+.crypto-events {
+  display: grid;
+  gap: 10px;
+}
+
+.crypto-tier {
+  display: grid;
+  gap: 8px;
+}
+
+.crypto-tier h3 {
+  margin: 6px 0 0;
+}
+
+.crypto-event[data-severity="conselho"] {
+  box-shadow: inset 3px 0 0 var(--critical);
+}
+
+.crypto-event[data-severity="risco"] {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.crypto-event[data-severity="atencao"] {
+  box-shadow: inset 3px 0 0 var(--border-strong);
+}
+
+.crypto-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.crypto-key {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.crypto-prefs {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.crypto-prefs fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.crypto-prefs label.small {
+  display: grid;
+  gap: 4px;
+}
+
+.crypto-watch,
+.crypto-holdings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.crypto-holdings label {
+  width: 140px;
+}
+
+.crypto-grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px 16px;
+  align-items: end;
+}
+
+.crypto-autonomy {
+  padding: 12px !important;
+  border-radius: var(--radius) !important;
+  background: var(--gold-soft) !important;
+}
+
+.crypto-autonomy .team-check {
+  align-items: flex-start;
+  line-height: 1.45;
+}
+
+.crypto-limits {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+/* central de notificações */
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.notif {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.notif[data-status="novo"] {
+  box-shadow: inset 3px 0 0 var(--gold-mark);
+}
+
+.notif[data-status="lido"] {
+  opacity: 0.75;
+}
+
+.notif-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.notif-main p {
+  margin: 0 0 2px;
+}
+
+.notif-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.notif-actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

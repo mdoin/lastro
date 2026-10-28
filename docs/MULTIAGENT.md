@@ -17,6 +17,9 @@ Registro: `backend/team/agents.py` (versão em `REGISTRY_VERSION`). Instruções
 (`prompts/modos/*.md`: direto, grupo, delegado, integração, Conselho, correção). Nenhum agente tem terminal, arquivos,
 web livre ou execução: o worker continua com `tools=[]`, servidor MCP próprio e `can_use_tool` por agente.
 
+Conselho deliberativo (análise independente, pauta, discussão, auditoria que devolve questões, veredito, modos e
+limites): **docs/COUNCIL.md**. Reuniões convocadas pelo Radar cripto: **docs/CRYPTO.md**.
+
 ## Fluxo
 ```
 Navegador ─POST /api/team/conversations/{id}/messages (202)─► Orquestrador (web app, SQLite)

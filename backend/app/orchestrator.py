@@ -727,10 +727,22 @@ class Orchestrator:
             turns=[{k: t.get(k) for k in ("round", "agent", "target", "person", "kind", "reaction", "revised",
                                           "message_id")} for t in transcript],
             verdict=verdict, audit=audit, plan_notes=notes[:12], limits_hit=ctx.limits_hit)
+        record["consumo"] = {"chamadas": ctx.calls, "tokens": ctx.tokens}
+        origin = ctx.run["route"].get("origin")
+        if origin:
+            record["origem"] = origin
         self.conn.execute("INSERT OR REPLACE INTO council_records (run_id, user_id, conversation_id, mode, topic, "
                           "record_json, created_at) VALUES (?,?,?,?,?,?,?)",
                           (ctx.run["id"], ctx.conv["user_id"], ctx.conv["id"], mode, ctx.question[:300],
                            json.dumps(record, ensure_ascii=False, default=str), store.utcnow()))
+        if origin:  # reunião convocada pelo sistema: a pessoa é avisada do veredito (ou da falta dele)
+            conclusion = " ".join(record.get("conclusao") or []) or "O Bento não conseguiu consolidar a reunião."
+            self.conn.execute(
+                "INSERT OR IGNORE INTO notifications (id, user_id, kind, severity, title, body, link, ref, status, "
+                "created_at) VALUES (?,?,?,?,?,?,?,?,'novo',?)",
+                (store.new_id(), ctx.conv["user_id"], "reuniao_concluida", "info",
+                 f"Veredito: {origin.get('summary', 'reunião extraordinária')}"[:200], conclusion[:1500],
+                 f"/mentor/{ctx.conv['id']}", ctx.run["id"], store.utcnow()))
         for m in self._interventions(ctx):  # chegou depois da última pauta: vira pergunta direta, sem se perder
             asked = [a for a in deliberation.addressed(m["content"]) if a != "mentor"] or ["mentor"]
             run = store.create_run(self.conn, ctx.conv, m["id"], "reply",

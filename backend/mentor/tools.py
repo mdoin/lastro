@@ -183,6 +183,16 @@ async def diario_radar(args: dict) -> dict:
     return await _get("/v1/me/radar", {"days": args.get("dias", 30)})
 
 
+@tool("mercado_cripto",
+      "Dados de cripto coletados pelo Lastro (Binance pública, CoinGecko, DefiLlama): cotação com moeda explícita "
+      "(USDT não é USD), horário de referência e de coleta, indicadores determinísticos (retornos, volatilidade, volume "
+      "relativo, drawdown) e eventos recentes do Radar. Sem cotação em tempo real nem operação de compra ou venda.",
+      {"type": "object", "properties": {"symbol": {"type": "string", "pattern": "^[A-Z0-9]{0,15}$"}},
+       "additionalProperties": False})
+async def mercado_cripto(args: dict) -> dict:
+    return await _get("/v1/me/crypto", {"symbol": args.get("symbol", "")})
+
+
 @tool("reunioes_anteriores",
       "Conclusões das últimas reuniões do Conselho: tema, participantes, posições finais, mudanças de posição, "
       "divergências e condições de revisão. São deliberações, não decisões da pessoa (essas estão em `decisoes`).",
@@ -266,7 +276,8 @@ async def propor_registro_decisao(_args: dict) -> dict:
     return _text("Rascunho enviado ao Diário. Diga à pessoa que ele aguarda a confirmação dela.")
 
 
-DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes, reunioes_anteriores]
+# mercado_cripto é dado do dono (eventos levam em conta exposição e lista de acompanhamento): só com caps.data
+DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes, reunioes_anteriores, mercado_cripto]
 TOOLS = DATA_TOOLS + [sem_novidade]
 TEAM_TOOLS = {"facts": [memoria_financeira], "market": [dados_mercado], "calc": [calcular],
               "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato], "journal": [diario_radar],

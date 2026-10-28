@@ -153,6 +153,18 @@ As antigas `GET/POST /api/decisions` saíram; o `decision_log` é importado para
 | `GET /api/status` | `{"app_version", "engine_version", "mentor": {"available": bool, "logged_in": bool \| null, "subscription": str \| null, "busy": int, "queued": int, "limit_until": datetime \| null}, "data": {"latest_snapshot_as_of": date \| null, "stale": bool}}` |
 | `GET /api/export` | arquivo JSON com todos os dados do usuário (download) |
 
+## Conselho deliberativo e Radar cripto — ver `docs/COUNCIL.md` e `docs/CRYPTO.md`
+| Rota | Corpo | Resposta |
+|---|---|---|
+| `POST /api/team/runs/{id}/close` | — | pede o fim da discussão; o veredito sai com o que já foi dito |
+| `GET /api/team/meetings?conversation_id=` | — | registros estruturados das reuniões (não são decisões) |
+| `GET /api/crypto/overview` | — | ativos (cotação com moeda e fonte, indicadores, série), eventos, fontes, preferências, limitações |
+| `PUT /api/crypto/prefs` | preferências (opt-in, limites, silêncio, orçamento, carteira) | preferências validadas |
+| `PUT /api/crypto/coingecko-key` · `DELETE …` | `{"key"}` | 204; a chave nunca é devolvida |
+| `POST /api/crypto/providers/{binance\|coingecko\|defillama}/test` · `POST /api/crypto/collect` | — | teste/coleta (no coletor, em produção) |
+| `POST /api/crypto/events/{id}/convene` | — | pede a análise do Conselho para um evento |
+| `GET /api/notifications` · `POST /api/notifications/{id}/read` · `POST /api/notifications/read-all` | — | central interna |
+
 ## Livro de movimentações e Caixa de entrada — ver `docs/LEDGER.md`
 | Rota | Corpo | Resposta |
 |---|---|---|

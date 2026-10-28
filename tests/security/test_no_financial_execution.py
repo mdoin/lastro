@@ -86,7 +86,7 @@ def test_mentor_tools_are_read_only():
     from mentor.tools import TOOLS
 
     assert {t.name for t in TOOLS} == {"situacao_atual", "diagnostico", "projecao", "metas", "premissas",
-                                       "decisoes", "reunioes_anteriores", "sem_novidade"}
+                                       "decisoes", "reunioes_anteriores", "mercado_cripto", "sem_novidade"}
     from providers.claude_code import sdk_tool
 
     for t in TOOLS:

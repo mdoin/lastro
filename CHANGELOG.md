@@ -31,6 +31,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
   pendências que pedem só o que falta) — docs/LEDGER.md.
 - **Mila e Caixa de entrada**: importação de CSV, OFX, PDF (extra `documents`) e imagens (OCR local opcional), com
   conciliação, duplicatas, idempotência e leitura por IA opcional e sempre pendente.
+- **Conselho deliberativo** (docs/COUNCIL.md): análise independente, pauta do Bento, rodadas de falas que respondem a
+  falas, intervenção da pessoa durante a reunião, auditoria que devolve questões, modos rápida/completo/debate,
+  limites de custo e registro estruturado de cada reunião.
+- **Radar cripto** (docs/CRYPTO.md): Binance pública, CoinGecko Demo (chave opcional) e DefiLlama; sinais
+  determinísticos; eventos com deduplicação e cooldown; **reuniões extraordinárias autônomas** com opt-in, limites e
+  orçamento; central de notificações.
 - Licença **AGPL-3.0-or-later** (`LICENSE`), cabeçalhos SPDX nos arquivos-fonte, DCO nas contribuições (verificado no
   CI) e política de marca (`TRADEMARKS.md`); link do código-fonte no login e nas Configurações (AGPL §13,
   `LASTRO_SOURCE_URL`).
@@ -44,6 +50,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
 - Migração 008 (só acréscimos). Instalações com senha não passam pelo assistente.
 - Migração 009 (só acrescenta `messages.meta_json`). Mensagens antigas ficam com `meta` vazio.
 - Migração 010 (só cria tabelas do livro, documentos, capturas e consentimentos). Novo extra opcional `documents` (pypdf).
+- Migração 011 (coluna `runs.close_requested` e tabela `council_records`) e 012 (cripto e notificações): só acréscimos.
 - systemd: a unidade `lastro-mentor` ganhou `LASTRO_IMPLICIT_CLAUDE_CODE=1` e `LASTRO_PROVIDERS_FILE`;
   `scripts/deploy.sh` instala os extras `claude-code` e `browser`.
 

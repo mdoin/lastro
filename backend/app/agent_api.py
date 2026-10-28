@@ -221,6 +221,12 @@ def _add_owner_routes(app: FastAPI, auth: list, db_path: Path) -> None:
 
         return read(lambda conn: journal_summary(conn, store.OWNER, today(), days))
 
+    @app.get("/v1/me/crypto", dependencies=auth)
+    def my_crypto(symbol: str = Query("", pattern=r"^[A-Z0-9]{0,15}$")):
+        from crypto.service import Monitor
+
+        return read(lambda conn: Monitor(conn, user_id=store.OWNER).for_agents(symbol or None))
+
     @app.get("/v1/me/meetings", dependencies=auth)
     def my_meetings(limit: int = Query(5, ge=1, le=20)):
         def build(conn):

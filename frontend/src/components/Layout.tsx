@@ -27,6 +27,8 @@ const NAV: NavItem[] = [
   { to: "/diario", label: "Diário de decisões", short: "Diário", icon: "book", group: "Mentor" },
   { to: "/radar", label: "Radar", short: "Radar", icon: "pulse", group: "Radar" },
   { to: "/oportunidades", label: "Diário de oportunidades", short: "Oportunidades", icon: "bars", group: "Radar" },
+  { to: "/radar-cripto", label: "Radar cripto", short: "Cripto", icon: "coins", group: "Radar" },
+  { to: "/notificacoes", label: "Notificações", short: "Avisos", icon: "inbox", group: "Sistema" },
   { to: "/configuracoes", label: "Configurações e auditoria", short: "Ajustes", icon: "settings", group: "Sistema" },
 ];
 
@@ -48,7 +50,7 @@ function mentorState(status: AppStatus | null): { tone: string; label: string; d
 }
 
 export function Layout() {
-  const { unreadCount, status } = useApp();
+  const { unreadCount, notificationsUnread, status } = useApp();
   const [moreOpen, setMoreOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -94,6 +96,9 @@ export function Layout() {
                 <NavLink key={n.to} to={n.to} end={n.to === "/"}>
                   <Icon name={n.icon} className="nav-icon" />
                   {n.label}
+                  {n.to === "/notificacoes" && notificationsUnread > 0 && (
+                    <span className="nav-dot" role="img" aria-label={`${notificationsUnread} notificação(ões) não lida(s)`} />
+                  )}
                   {n.to === "/rotinas" && unreadCount > 0 && (
                     <span className="nav-dot" role="img" aria-label={`${unreadCount} resultado(s) não lido(s)`} />
                   )}

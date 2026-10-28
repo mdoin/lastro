@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ApiError } from "../api/client";
+import { getNotifications } from "../api/crypto";
 import { getDiagnosis, getInbox, getStatus } from "../api/endpoints";
 import type { AppStatus } from "../api/types";
 import { Icon } from "../components/Icon";
@@ -10,6 +11,8 @@ interface AppContextValue {
   /** Aviso legal do motor (guidance.disclaimer). `null` enquanto não houver snapshot. */
   disclaimer: string | null;
   unreadCount: number;
+  /** Notificações internas não lidas (Radar cripto, reuniões extraordinárias). */
+  notificationsUnread: number;
   refresh: () => Promise<void>;
   setDisclaimer: (text: string) => void;
   /** Notificação curta no topo ("ilha"). Use tone "error" para falhas e "info" para avisos neutros. */
@@ -26,11 +29,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [disclaimer, setDisclaimerState] = useState<string | null>(null);
   const [unreadCount, setUnread] = useState(0);
+  const [notificationsUnread, setNotificationsUnread] = useState(0);
   const [toastMsg, setToastMsg] = useState<{ text: string; tone: ToastTone; n: number } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
 
   const refresh = useCallback(async () => {
-    const [s, inbox, diag] = await Promise.allSettled([getStatus(), getInbox(), getDiagnosis()]);
+    const [s, inbox, diag, notes] = await Promise.allSettled([getStatus(), getInbox(), getDiagnosis(), getNotifications()]);
+    if (notes.status === "fulfilled") setNotificationsUnread(notes.value.unread);
     if (s.status === "fulfilled") setStatus(s.value);
     if (inbox.status === "fulfilled") setUnread(inbox.value.filter((r) => !r.read).length);
     if (diag.status === "fulfilled") setDisclaimerState(diag.value.guidance.disclaimer || null);
@@ -52,8 +57,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AppContextValue>(
-    () => ({ status, disclaimer, unreadCount, refresh, setDisclaimer: setDisclaimerState, toast }),
-    [status, disclaimer, unreadCount, refresh, toast],
+    () => ({ status, disclaimer, unreadCount, notificationsUnread, refresh, setDisclaimer: setDisclaimerState, toast }),
+    [status, disclaimer, unreadCount, notificationsUnread, refresh, toast],
   );
 
   return (

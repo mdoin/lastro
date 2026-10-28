@@ -280,8 +280,15 @@ async def main() -> None:
     parser = argparse.ArgumentParser(prog="lastro-coletor")
     parser.add_argument("--loop", action="store_true")
     args = parser.parse_args()
-    conn = db.connect(Path(os.environ.get("LASTRO_DB", "/var/lib/patrimonio/lastro.db")))
+    db_path = Path(os.environ.get("LASTRO_DB", "/var/lib/patrimonio/lastro.db"))
+    conn = db.connect(db_path)
     db.migrate(conn)
+    if args.loop and os.environ.get("LASTRO_CRYPTO_MONITOR", "1") != "0":
+        # Cripto (docs/CRYPTO.md): só coleta aqui; quem avalia e convoca o Conselho é o web (sem acesso à internet).
+        from crypto.service import Monitor
+
+        crypto = Monitor(db.connect(db_path), key_file=db_path.parent / "coingecko.key", owner_id="coletor")
+        crypto_task = asyncio.create_task(crypto.run_forever(collect=True, evaluate=False))  # noqa: F841 — mantém a referência
     while True:
         log.info("coleta %s: %s", datetime.now().isoformat(timespec="seconds"), await collect_once(conn))
         async with httpx.AsyncClient(timeout=httpx.Timeout(120.0), headers={"User-Agent": USER_AGENT},

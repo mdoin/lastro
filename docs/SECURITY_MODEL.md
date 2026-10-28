@@ -55,6 +55,20 @@ Primeiro adaptador (2026-10-27): `integrations/collector.py` (BCB/SGS, FRED), li
 Exceção consciente no teste de imports: `ledger/ocr.py` pode usar `subprocess` só para o binário local `tesseract`
 (argumentos fixos, imagem pela stdin, prazo de 60 s, sem shell e sem rede).
 
+## 4c. Radar cripto e Conselho autônomo (v0.3, docs/CRYPTO.md)
+
+| Ameaça | Controle |
+|---|---|
+| Operação financeira | Só endpoints públicos de leitura; nenhuma função de ordem, custódia, carteira ou seed phrase (teste de nomes) |
+| SSRF por símbolo ou provedor | Hosts fixos em `crypto/sources.py`, só https, sem redirecionamento, identificadores validados por regex |
+| Rede no web | Coleta só no `lastro-coletor` (mesma política de saída do coletor oficial); o web avalia e convoca sem internet |
+| Vazamento da chave CoinGecko | Arquivo 0600 ou variável de ambiente; só no cabeçalho; nunca em URL, log, saúde, resposta, prompt ou exportação |
+| Consumo autônomo de IA | Opt-in explícito (desligado), limite diário, cooldown, uma reunião por vez, orçamento de tokens, horário de silêncio, pausa |
+| Texto externo como instrução | Nomes de protocolos limpos e limitados; contexto da reunião montado pelo Lastro e marcado como dado |
+| Agente sem dados do dono vendo exposição | `mercado_cripto` só para agentes com acesso aos dados do dono (eventos refletem a carteira informada) |
+
+Exceção consciente no teste de imports: `crypto/sources.py` pode usar `httpx` (só os três hosts acima).
+
 ## 4a. Provedores de IA (v0.3)
 
 | Ameaça | Controle |
