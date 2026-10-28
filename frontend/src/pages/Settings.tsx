@@ -216,6 +216,7 @@ function ProfileCard() {
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
   return (
     <Card title="Como a equipe chama você" eyebrow="Seu perfil">
+      <div className="stack">
       <p className="small muted">Bento, Lia, Caio e os demais usam isto em todas as conversas, individuais e em grupo. Nenhum nome é tirado de extratos ou documentos.</p>
       <ErrorNotice error={profile.error} onRetry={profile.reload} />
       <form className="stack" onSubmit={(e) => void save(e)}>
@@ -237,6 +238,7 @@ function ProfileCard() {
         {error && <p className="small" role="alert">{error}</p>}
         <div className="row"><button type="submit" className="btn btn-primary btn-sm" disabled={saving || !profile.data}>Salvar</button></div>
       </form>
+      </div>
     </Card>
   );
 }

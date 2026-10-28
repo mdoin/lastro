@@ -577,9 +577,9 @@
 .msg .md a[href="#agente-mila"] { --agent: var(--agent-mila); }
 .msg .md a[href="#agente-auditor"] { --agent: var(--agent-auditor); }
 
-.team-replying {
+.team-reacts {
   grid-column: 2;
-  margin: 0;
+  margin: 2px 0 4px;
   color: var(--ink-3);
 }
 

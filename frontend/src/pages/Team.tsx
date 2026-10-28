@@ -643,7 +643,7 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, onMention,
         <span className="msg-meta">{formatDateTime(m.created_at)}</span>
       </div>
       {respondsTo && (
-        <p className="team-replying tiny">↳ respondendo a <MentionText text={`@${agents[respondsTo]?.handle ?? respondsTo}`} agents={agents} onMention={onMention} /></p>
+        <p className="team-reacts tiny">↳ respondendo a <MentionText text={`@${agents[respondsTo]?.handle ?? respondsTo}`} agents={agents} onMention={onMention} /></p>
       )}
       {m.kind === "analysis" && !isMap ? (
         <details className="team-analysis"><summary>Ver análise de {name}</summary>{body}</details>
