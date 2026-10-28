@@ -13,6 +13,7 @@ import {
   postponeDraft,
   setReviewPlan,
 } from "../api/endpoints";
+import { getLabJournal } from "../api/lab";
 import { DECISION_LABEL, type Decision as RadarDecision } from "../api/radar";
 import type { DecisionDraft, DiaryDecision, DraftContent, FinancialContext } from "../api/types";
 import { DateInput } from "../components/DateInput";
@@ -105,6 +106,7 @@ export function DecisionsPage() {
 
       {diary.loading && !d && <Loading />}
       <ErrorNotice error={diary.error} onRetry={diary.reload} />
+      <LabAnalyses />
 
       {d && (d.due_reviews.length > 0 || returning.length > 0) && (
         <Card title="Revisões pendentes" eyebrow="O Lastro pergunta">
@@ -721,6 +723,26 @@ function ManualForm({ onCancel, onDone }: { onCancel: () => void; onDone: () => 
           <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancelar</button>
         </div>
       </form>
+    </Card>
+  );
+}
+
+/** Análises do Laboratório do Conselho: produzidas por IA, separadas das decisões (que só você registra). */
+function LabAnalyses() {
+  const q = useAsync(getLabJournal, []);
+  const items = (q.data ?? []).filter((j) => j.kind === "analise_ia").slice(0, 5);
+  if (!items.length) return null;
+  return (
+    <Card title="Análises do Laboratório" eyebrow="Produzidas por IA — não são decisões suas">
+      <ul className="diary-list">
+        {items.map((j) => (
+          <li key={j.id} className="small">
+            <Link to={`/laboratorio/${j.experiment_id}`}>{String(j.payload.problema ?? "Experimento")}</Link>
+            <span className="muted"> · {formatDateTime(j.created_at)} · Bento sozinho × Conselho</span>
+          </li>
+        ))}
+      </ul>
+      <p className="tiny muted">Recomendação não é decisão, e decisão não é operação. Para registrar o que você decidiu, use o experimento ou o registro manual.</p>
     </Card>
   );
 }

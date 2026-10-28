@@ -22,6 +22,7 @@ const OpportunityPage = lazy(() => import("./pages/Opportunities").then((m) => (
 const SetupPage = lazy(() => import("./pages/Setup").then((m) => ({ default: m.SetupPage })));
 const CryptoRadarPage = lazy(() => import("./pages/CryptoRadar").then((m) => ({ default: m.CryptoRadarPage })));
 const ConvictionsPage = lazy(() => import("./pages/Convictions").then((m) => ({ default: m.ConvictionsPage })));
+const LabPage = lazy(() => import("./pages/Lab").then((m) => ({ default: m.LabPage })));
 const NotificationsPage = lazy(() => import("./pages/Notifications").then((m) => ({ default: m.NotificationsPage })));
 const InboxPage = lazy(() => import("./pages/Inbox").then((m) => ({ default: m.InboxPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
@@ -127,6 +128,8 @@ export function App() {
         <Route path="radar-cripto" element={page(<CryptoRadarPage />)} />
         <Route path="notificacoes" element={page(<NotificationsPage />)} />
         <Route path="conviccoes" element={page(<ConvictionsPage />)} />
+        <Route path="laboratorio" element={page(<LabPage />)} />
+        <Route path="laboratorio/:experimentId" element={page(<LabPage />)} />
         <Route path="mentor" element={page(<TeamPage />)} />
         <Route path="mentor/:conversationId" element={page(<TeamPage />)} />
         <Route path="rotinas" element={page(<RoutinesPage />)} />
