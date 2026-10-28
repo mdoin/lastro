@@ -522,8 +522,15 @@ export interface AppStatus {
 
 // ---------- Equipe: Mentor, especialistas, grupos e Conselho ----------
 
-export type AgentId = "mentor" | "planejador" | "analista" | "economista" | "riscos" | "comportamental" | "cripto";
+export type AgentId = "mentor" | "planejador" | "analista" | "economista" | "riscos" | "comportamental" | "cripto" | "auditor";
 export type Stance = "favoravel" | "contraria" | "condicional" | "insuficiente";
+export type OpinionExcerpt = "tese" | "risco" | "evidencia" | "fonte" | "lacuna" | "nao agir";
+/** Segmento do veredito: texto puro ou menção já resolvida pelo servidor (id estável do agente). */
+export type VerdictSegment = { t: string } | { agent: string };
+export interface Verdict {
+  sections: { key: "conclusao" | "concordancia" | "diverg" | "risco" | "informac" | "proxim"; title: string; items: VerdictSegment[][] }[];
+  mentioned: string[];
+}
 export type Channel = "direct" | "group" | "council" | "routine";
 export type TeamVerdict = "PASSA" | "PASSA COM RESSALVAS" | "REPROVA";
 
@@ -532,7 +539,7 @@ export interface Agent {
   name: string;
   handle: string;
   title: string;
-  kind: "coordinator" | "specialist";
+  kind: "coordinator" | "specialist" | "auditor";
   icon: string;
   color: string;
   summary: string;
@@ -590,7 +597,8 @@ export interface TeamMessage {
   meta?: {
     route?: { connection?: string; model?: string };
     agent_version?: string;
-    opinion?: { stance: Stance | null; sections: string[] };
+    opinion?: { stance: Stance | null; sections: string[]; excerpts?: Partial<Record<OpinionExcerpt, string>> };
+    verdict?: Verdict | null;
     positions?: Record<string, { initial: Stance | null; final: Stance | null }>;
     contested?: string[];
     conflict?: boolean;
@@ -618,7 +626,7 @@ export interface TeamRun {
   message_id: UUID;
   kind: "reply" | "council";
   status: RunState;
-  route: { agents?: string[]; via_router?: boolean; reason?: string };
+  route: { agents?: string[]; via_router?: boolean; reason?: string; radar?: string; lineup?: string[] };
   error: string | null;
   created_at: ISODateTime;
   steps?: RunStep[];

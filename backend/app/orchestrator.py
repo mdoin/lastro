@@ -125,8 +125,12 @@ class Orchestrator:
         if route.kind == "rejected":
             notices.append(self._notice(conv["id"], route.reason))
             return {"message": message, "run": None, "notices": notices}
+        extra = {}
+        if route.kind == "council":  # a sala do Conselho mostra os convocados antes de cada um começar
+            first, second = routing.council_agents(routing.strip_council_command(text)[1] or text)
+            extra["lineup"] = ["mentor", *first, *second, "auditor"]
         run = store.create_run(self.conn, conv, message["id"], "council" if route.kind == "council" else "reply",
-                               {"agents": route.agents, "via_router": route.via_router, "reason": route.reason})
+                               {"agents": route.agents, "via_router": route.via_router, "reason": route.reason, **extra})
         self.bus.publish(conv["id"], {"type": "run", "run": run})
         self._wake.set()
         return {"message": message, "run": run, "notices": notices}

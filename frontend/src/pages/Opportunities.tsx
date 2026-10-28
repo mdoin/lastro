@@ -34,14 +34,14 @@ import { AgentStack, PriorityBadge } from "./Radar";
 import { DateInput } from "../components/DateInput";
 
 const AGENT_NAMES: Record<string, string> = {
-  mentor: "Mentor",
-  planejador: "Planejador",
-  analista: "Analista",
-  economista: "Economista",
-  riscos: "Gestor de Riscos",
-  comportamental: "Conselheiro",
-  cripto: "Analista de Ativos Digitais",
-  auditor: "Auditor",
+  mentor: "Bento",
+  planejador: "Lia",
+  analista: "Caio",
+  economista: "Vera",
+  riscos: "Rui",
+  comportamental: "Nina",
+  cripto: "Téo",
+  auditor: "Cora",
 };
 
 const RUN_LABEL: Record<string, string> = {

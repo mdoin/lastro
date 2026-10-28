@@ -433,8 +433,8 @@ def create_app(settings: Settings) -> FastAPI:
         return agent_id
 
     @app.get("/api/agents", dependencies=private)
-    async def agents_list():
-        return [a.public() for a in chat_agents()]
+    async def agents_list():  # a Auditora não conversa, mas aparece na sala do Conselho com nome e cor
+        return [a.public() for a in chat_agents()] + [AGENTS["auditor"].public()]
 
     @app.get("/api/team/conversations")
     async def team_conversations(user: str = Depends(current_user)):

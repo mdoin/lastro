@@ -696,7 +696,8 @@ def test_user_cannot_access_another_users_conversation(tmp_path):
         assert client.post("/api/team/conversations", json={"channel": "direct", "agent_id": "auditor"},
                            headers=H).status_code == 422
         assert {a["id"] for a in client.get("/api/agents").json()} == {
-            "mentor", "planejador", "analista", "economista", "riscos", "comportamental", "cripto"}
+            "mentor", "planejador", "analista", "economista", "riscos", "comportamental", "cripto",
+            "auditor"}
 
 
 # adversariais -----------------------------------------------------------------------------------------------------

@@ -1,0 +1,613 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Conselho do Lastro como reunião: sala (pergunta, etapas, lugares), painel do participante, veredito do Bento,
+   menções coloridas e modo apresentação. Cada participante traz a própria cor em --agent; o texto continua na tinta
+   do tema (contraste garantido) e a cor aparece em barras, fundos tingidos e no "@". */
+
+.council-block {
+  display: grid;
+  gap: 14px;
+}
+
+/* ------------------------------------------------------------------ sala */
+
+.council-room {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.council-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.council-question {
+  margin: 0;
+  font-size: clamp(1.08rem, 1.9vw, 1.36rem);
+  line-height: 1.38;
+  letter-spacing: -0.012em;
+  font-weight: 560;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.council-question::before {
+  content: "“";
+  color: var(--gold-mark);
+  margin-right: 2px;
+}
+
+.council-question::after {
+  content: "”";
+  color: var(--gold-mark);
+  margin-left: 2px;
+}
+
+.council-phases {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.council-phases li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: color 0.3s var(--ease);
+}
+
+.council-phase-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
+}
+
+.council-phase-dot svg {
+  width: 11px;
+  height: 11px;
+}
+
+.council-phases li[data-state="done"] {
+  color: var(--ink-2);
+}
+
+.council-phases li[data-state="done"] .council-phase-dot {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+.council-phases li[data-state="active"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.council-phases li[data-state="active"] .council-phase-dot {
+  border-color: var(--gold-mark);
+  box-shadow: 0 0 0 3px var(--gold-soft);
+  animation: council-breathe 1.6s ease-in-out infinite;
+}
+
+.council-phases li[data-state="failed"] .council-phase-dot {
+  border-color: var(--critical);
+}
+
+.council-seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+}
+
+.council-seat {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 3px;
+  padding: 16px 8px 12px;
+  text-align: center;
+  font: inherit;
+  color: inherit;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.25s var(--ease);
+}
+
+.council-seat::before {
+  content: "";
+  position: absolute;
+  inset: 0 22% auto;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--agent);
+  opacity: 0.85;
+}
+
+.council-seat:hover {
+  background: var(--surface);
+  transform: translateY(-1px);
+}
+
+.council-seat:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.council-seat[data-active] {
+  background: var(--surface);
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--agent) 60%, transparent), var(--shadow-sm);
+}
+
+.council-seat[aria-pressed="true"] {
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--ink), var(--shadow-sm);
+}
+
+.council-seat[data-state="queued"] .agent-avatar,
+.council-seat[data-state="skipped"] .agent-avatar {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
+
+.council-seat .agent-avatar {
+  margin-bottom: 4px;
+  transition: opacity 0.3s var(--ease), filter 0.3s var(--ease);
+}
+
+.council-seat-name {
+  font-weight: 650;
+  font-size: 0.95rem;
+  letter-spacing: -0.005em;
+}
+
+.council-seat-role {
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+.council-seat-state {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 560;
+  line-height: 1.5;
+  color: var(--ink-2);
+  background: var(--surface-3);
+  animation: council-pop 0.34s var(--ease-spring) both;
+}
+
+.council-seat-state[data-state="available"],
+.council-seat-state[data-state="done"] {
+  color: var(--good-ink);
+  background: color-mix(in srgb, var(--good) 13%, transparent);
+}
+
+.council-seat-state[data-state="review"] {
+  color: var(--warning-ink);
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+}
+
+.council-seat-state[data-state="failed"] {
+  color: var(--critical-ink);
+  background: color-mix(in srgb, var(--critical) 12%, transparent);
+}
+
+.council-seat-state[data-state="analyzing"],
+.council-seat-state[data-state="consulting"] {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--agent) 16%, transparent);
+}
+
+.council-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: council-breathe 1.2s ease-in-out infinite;
+}
+
+.council-seat-act {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.council-seat-stance {
+  font-size: 0.72rem;
+  font-weight: 560;
+  color: var(--ink-2);
+}
+
+.council-seat-stance[data-stance="favoravel"] {
+  color: var(--good-ink);
+}
+
+.council-seat-stance[data-stance="contraria"] {
+  color: var(--critical-ink);
+}
+
+.council-seat-stance[data-stance="condicional"] {
+  color: var(--warning-ink);
+}
+
+@media (max-width: 560px) {
+  .council-room {
+    padding: 14px;
+  }
+  .council-seats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .council-seat {
+    padding: 12px 4px 10px;
+  }
+  .council-seat-role {
+    font-size: 0.68rem;
+  }
+  .council-seat-state {
+    padding: 2px 6px;
+    font-size: 0.66rem;
+  }
+}
+
+/* ------------------------------------------------------------------ menções */
+
+.mention-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  margin: 0 1px 0 0;
+  padding: 0 6px 0 5px;
+  font: inherit;
+  font-weight: 620;
+  line-height: 1.45;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--agent) 15%, transparent);
+  border: 0;
+  border-bottom: 2px solid var(--agent);
+  border-radius: 6px 6px 3px 3px;
+  cursor: pointer;
+  vertical-align: baseline;
+  transition: background 0.2s var(--ease);
+}
+
+.mention-chip > span {
+  color: var(--agent);
+  font-weight: 700;
+}
+
+.mention-chip:hover {
+  background: color-mix(in srgb, var(--agent) 26%, transparent);
+}
+
+.mention-chip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.mention-chip:disabled {
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ veredito */
+
+.council-verdict {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  animation: council-rise 0.5s var(--ease) both;
+}
+
+.council-verdict-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.council-conclusion {
+  margin: 4px 0 0;
+  font-size: 1.06rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.council-verdict-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+.council-verdict-section {
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.council-verdict-section[data-key="diverg"] {
+  background: var(--gold-soft);
+  box-shadow: inset 3px 0 0 var(--gold-mark);
+}
+
+.council-verdict-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.council-verdict-section h3 svg {
+  width: 14px;
+  height: 14px;
+}
+
+.council-verdict-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.council-verdict-foot {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.council-transcript > summary {
+  cursor: pointer;
+  color: var(--ink-2);
+  padding: 4px 0;
+}
+
+.council-transcript[open] {
+  display: grid;
+  gap: 12px;
+}
+
+/* ------------------------------------------------------------------ painel do participante */
+
+.council-scrim {
+  z-index: 44;
+}
+
+.council-panel {
+  position: fixed;
+  z-index: 45;
+  inset: auto 0 0 0;
+  max-height: 84vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 0 var(--gutter) calc(24px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  box-shadow: var(--shadow-lg);
+  border-top: 4px solid var(--agent);
+  animation: council-sheet 0.3s var(--ease) both;
+}
+
+.council-panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding-top: 16px;
+  padding-bottom: 8px;
+  background: var(--surface);
+}
+
+.council-panel-head h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: -0.01em;
+}
+
+.council-panel-head h2:focus {
+  outline: none;
+}
+
+.council-panel-head p {
+  margin: 2px 0 0;
+}
+
+.council-panel-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.council-panel-tags .council-seat-state {
+  margin-top: 0;
+}
+
+.council-panel-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.council-panel-switch button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.council-panel-switch button[aria-current="true"] {
+  border-color: var(--ink);
+  background: var(--surface);
+}
+
+.council-panel-block {
+  display: grid;
+  gap: 4px;
+}
+
+.council-panel-block p {
+  margin: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.council-panel-block > summary {
+  cursor: pointer;
+}
+
+@media (min-width: 960px) {
+  .council-panel {
+    inset: 16px 16px 16px auto;
+    width: min(440px, 36vw);
+    max-height: none;
+    border-radius: 20px;
+    border-top: 0;
+    box-shadow: inset 0 4px 0 var(--agent), var(--shadow-lg);
+    animation-name: council-drawer;
+  }
+}
+
+/* ------------------------------------------------------------------ modo apresentação */
+
+.presentation-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.presentation-bar .btn {
+  margin-left: auto;
+}
+
+html[data-presentation] .sidebar,
+html[data-presentation] .topbar,
+html[data-presentation] .bottom-nav,
+html[data-presentation] .team-list,
+html[data-presentation] .team-back,
+html[data-presentation] .team-hide-presenting,
+html[data-presentation] .radar-backlink {
+  display: none !important;
+}
+
+html[data-presentation] .shell {
+  display: block;
+}
+
+html[data-presentation] .main {
+  max-width: 1080px;
+  padding-bottom: 40px;
+}
+
+html[data-presentation] .team {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-presentation] .team .team-chat {
+  display: block;
+}
+
+/* ------------------------------------------------------------------ movimento */
+
+@keyframes council-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes council-pop {
+  from {
+    transform: scale(0.9);
+    opacity: 0.4;
+  }
+}
+
+@keyframes council-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes council-sheet {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes council-drawer {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .council-seat,
+  .council-seat-state,
+  .council-pulse,
+  .council-phases li,
+  .council-phase-dot,
+  .council-verdict,
+  .council-panel,
+  .council-phases li[data-state="active"] .council-phase-dot {
+    animation: none !important;
+    transition: none !important;
+  }
+  .council-seat[data-active],
+  .council-seat:hover {
+    transform: none;
+  }
+}

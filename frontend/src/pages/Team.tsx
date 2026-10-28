@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import {
   addFact,
@@ -25,26 +25,18 @@ import {
 import { getRadarLink } from "../api/radar";
 import type { Agent, RunStep, TeamConversation, TeamEvent, TeamMessage, TeamRun } from "../api/types";
 import { AgentAvatar, type AvatarState } from "../components/AgentAvatar";
+import { AgentPanel, CouncilRoom, STANCE_LABEL, VerdictView } from "../components/Council";
 import { Icon } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
 import { Badge, ErrorNotice, Loading, Notice } from "../components/ui";
 import { formatDate, formatDateTime } from "../lib/dates";
+import { seats, threadBlocks, type ThreadBlock } from "../lib/council";
 import { applyMention, filterCandidates, mentionAt, type MentionQuery } from "../lib/mentions";
+import { maybeMask } from "../lib/privacy";
 import { useAsync } from "../lib/useAsync";
 import "../styles/team.css";
+import "../styles/council.css";
 
-const COUNCIL_STAGES = [
-  ["conselho:enquadramento", "mentor", "Enquadramento"],
-  ["conselho:planejador", "planejador", "Planejamento"],
-  ["conselho:analista", "analista", "Investimentos"],
-  ["conselho:economista", "economista", "Economia"],
-  ["conselho:riscos", "riscos", "Riscos"],
-  ["conselho:comportamental", "comportamental", "Comportamento"],
-  ["conselho:sintese", "mentor", "Síntese"],
-  ["conselho:auditoria", "auditor", "Auditoria"],
-] as const;
-const CRYPTO_STAGE = ["conselho:cripto", "cripto", "Ativos digitais"] as const;
-const STANCE_LABEL: Record<string, string> = { favoravel: "favorável", contraria: "contrária", condicional: "condicional", insuficiente: "sem base suficiente" };
 const ACTIVE: TeamRun["status"][] = ["queued", "running"];
 const VERDICT_TONE = { PASSA: "good", "PASSA COM RESSALVAS": "warning", REPROVA: "critical", REVISAR: "warning", BLOQUEAR: "critical" } as const;
 
@@ -52,7 +44,7 @@ type AgentMap = Record<string, Agent>;
 
 interface Live {
   runs: Record<string, TeamRun>;
-  steps: Record<string, Record<string, Partial<RunStep> & { agent_id: string; text?: string; wait?: string }>>;
+  steps: Record<string, Record<string, Partial<RunStep> & { agent_id: string; text?: string; wait?: string; tool?: string }>>;
 }
 
 /** Prévia de uma linha: sem marcação de Markdown. */
@@ -63,7 +55,6 @@ const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${
 function agentName(agents: AgentMap, id: string | null | undefined): string {
   if (!id) return "Você";
   if (id === "lastro") return "Lastro";
-  if (id === "auditor") return "Auditor";
   return agents[id]?.name ?? "Agente";
 }
 
@@ -137,7 +128,7 @@ export function TeamPage() {
               Ninguém aqui movimenta dinheiro nem decide por você.
             </p>
             <button type="button" className="btn btn-primary" onClick={() => void openDirect("mentor")}>
-              <Icon name="chat" /> Conversar com o Mentor
+              <Icon name="chat" /> Conversar com o Bento
             </button>
           </div>
         )}
@@ -189,7 +180,7 @@ function TeamList(props: {
       </div>
 
       <div className="team-section">
-        {agents.map((a) => {
+        {agents.filter((a) => a.kind !== "auditor").map((a) => {
           const conv = latestDirect(a.id);
           return (
             <button key={a.id} type="button" className="team-row" onClick={() => props.onDirect(a.id)}
@@ -276,6 +267,11 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
   const [replyTo, setReplyTo] = useState<TeamMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
+  const [panel, setPanel] = useState<{ run: string; agent: string } | null>(null);
+  const [params, setParams] = useSearchParams();
+  // Modo apresentação: só muda a tela (esconde navegação e controles, mascara valores). Nada é gravado.
+  const presenting = params.get("apresentacao") === "1";
+  const masked = presenting && params.get("mascarar") !== "0";
   const navigate = useNavigate();
   const endRef = useRef<HTMLDivElement>(null);
   const c = conv.data;
@@ -324,6 +320,7 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
           if (ev.status === "running" || ev.status === "retrying") run[ev.step_key] = { ...cur, status: ev.status, kind: ev.kind ?? cur.kind, text: "" };
           else delete run[ev.step_key];
         } else if (ev.type === "delta") run[ev.step_key] = { ...cur, text: (cur.text ?? "") + ev.text, wait: undefined };
+        else if (ev.type === "tool") run[ev.step_key] = { ...cur, tool: ev.name };
         else if (ev.type === "wait") run[ev.step_key] = { ...cur, wait: ev.kind === "waiting_limit" ? ev.message ?? "Aguardando limite de uso." : "Na fila do serviço…" };
         return { ...l, steps: { ...l.steps, [ev.run_id]: run } };
       });
@@ -334,9 +331,27 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-presentation", presenting);
+    return () => document.documentElement.removeAttribute("data-presentation");
+  }, [presenting]);
+
+  const setPresentation = (on: boolean, mask = true) => setParams((p) => {
+    const next = new URLSearchParams(p);
+    if (on) { next.set("apresentacao", "1"); next.set("mascarar", mask ? "1" : "0"); } else { next.delete("apresentacao"); next.delete("mascarar"); }
+    return next;
+  }, { replace: true });
+
   const msgs = messages.data ?? [];
   const activeRuns = Object.values(live.runs).filter((r) => ACTIVE.includes(r.status));
-  const working = Object.values(live.steps).flatMap((s) => Object.entries(s));
+  const allRuns = useMemo(() => {
+    const known = (runsQ.data ?? []).map((r) => ({ ...r, ...(live.runs[r.id] ?? {}), steps: r.steps }));
+    return [...known, ...Object.values(live.runs).filter((r) => !known.some((k) => k.id === r.id))];
+  }, [runsQ.data, live.runs]);
+  const blocks = useMemo(() => threadBlocks(msgs, allRuns), [msgs, allRuns]);
+  const roomRuns = new Set(blocks.flatMap((b) => (b.kind === "council" ? [b.run.id] : [])));
+  // Na sala do Conselho o andamento aparece nos lugares de cada participante; aqui só o resto.
+  const working = Object.entries(live.steps).filter(([rid]) => !roomRuns.has(rid)).flatMap(([, s]) => Object.entries(s));
 
   useEffect(() => {
     const nearBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 320;
@@ -391,7 +406,9 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
   if (!c) return <Loading />;
 
   const people = c.participants.filter((p) => p !== "mentor" || c.channel !== "direct");
-  const lastCouncil = (runsQ.data ?? []).find((r) => r.kind === "council");
+  const panelBlock = panel ? blocks.find((b): b is Extract<ThreadBlock, { kind: "council" }> => b.kind === "council" && b.run.id === panel.run) : undefined;
+  const panelSeats = panelBlock ? seats({ run: panelBlock.run, steps: panelBlock.run.steps ?? [], live: live.steps[panelBlock.run.id] ?? {}, messages: panelBlock.messages }) : [];
+  const panelSeat = panelSeats.find((st) => st.agent === panel?.agent);
   const canCouncil = c.channel === "group" || (c.channel === "direct" && c.agent_id === "mentor");
   const byId = Object.fromEntries(msgs.map((m) => [m.id, m]));
 
@@ -413,8 +430,22 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
             <Icon name="settings" />
           </button>
         )}
-        <button type="button" className="icon-btn" aria-label="Apagar conversa" onClick={() => void remove()}><Icon name="trash" /></button>
+        <button type="button" className="icon-btn" aria-pressed={presenting} onClick={() => setPresentation(!presenting)}
+          aria-label={presenting ? "Sair do modo apresentação" : "Modo apresentação"} title={presenting ? "Sair do modo apresentação" : "Modo apresentação"}>
+          <Icon name={presenting ? "x" : "monitor"} />
+        </button>
+        <button type="button" className="icon-btn team-hide-presenting" aria-label="Apagar conversa" onClick={() => void remove()}><Icon name="trash" /></button>
       </header>
+
+      {presenting && (
+        <div className="presentation-bar" role="region" aria-label="Modo apresentação">
+          <span className="small"><strong>Modo apresentação.</strong> Só a tela muda; nada do que está guardado é alterado.</span>
+          <label className="team-check small">
+            <input type="checkbox" role="switch" checked={masked} onChange={(e) => setPresentation(true, e.target.checked)} /> Mascarar valores
+          </label>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPresentation(false)}>Sair</button>
+        </div>
+      )}
 
       <RadarLink conversationId={c.id} />
 
@@ -426,14 +457,36 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
         {messages.loading && !msgs.length && <Loading />}
         <ErrorNotice error={messages.error} onRetry={messages.reload} />
         {!msgs.length && !messages.loading && <Intro conv={c} agents={agents} onPick={(t) => void send(t).catch(() => undefined)} />}
-        {lastCouncil && <CouncilProgress run={live.runs[lastCouncil.id] ?? lastCouncil} steps={lastCouncil.steps ?? []} live={live.steps[lastCouncil.id] ?? {}} agents={agents} />}
-        {msgs.map((m) => (
-          <MessageItem key={m.id} m={m} agents={agents} quoted={m.reply_to_id && m.role === "user" ? byId[m.reply_to_id] : undefined}
-            onReply={c.channel === "routine" ? undefined : () => setReplyTo(m)}
-            onRecord={m.role === "assistant" && m.kind === "message" && m.status === "ok" && m.agent_id !== "lastro"
-              ? () => void record(m.id) : undefined}
-            onRetry={m.status === "error" && m.reply_to_id && byId[m.reply_to_id] ? () => void send(byId[m.reply_to_id!]!.content).catch(() => undefined) : undefined} />
-        ))}
+        {blocks.map((b) => {
+          const item = (m: TeamMessage) => (
+            <MessageItem key={m.id} m={m} agents={agents} masked={masked} quoted={m.reply_to_id && m.role === "user" ? byId[m.reply_to_id] : undefined}
+              onReply={c.channel === "routine" || presenting ? undefined : () => setReplyTo(m)}
+              onRecord={!presenting && m.role === "assistant" && m.kind === "message" && m.status === "ok" && m.agent_id !== "lastro"
+                ? () => void record(m.id) : undefined}
+              onRetry={!presenting && m.status === "error" && m.reply_to_id && byId[m.reply_to_id] ? () => void send(byId[m.reply_to_id!]!.content).catch(() => undefined) : undefined} />
+          );
+          if (b.kind === "message") return presenting && b.message.kind === "notice" ? null : item(b.message);
+          const synthesis = b.messages.find((m) => m.step_key === "conselho:sintese");
+          const open = (agent: string) => setPanel({ run: b.run.id, agent });
+          return (
+            <div key={b.run.id} className="council-block">
+              <CouncilRoom input={{ run: b.run, steps: b.run.steps ?? [], live: live.steps[b.run.id] ?? {}, messages: b.messages }}
+                question={b.question} agents={agents} masked={masked} onSelect={open}
+                selected={panel?.run === b.run.id ? panel.agent : null} />
+              {synthesis && (synthesis.meta?.verdict ? (
+                <VerdictView message={synthesis} verdict={synthesis.meta.verdict} agents={agents} masked={masked} onOpen={open}
+                  footer={presenting ? undefined : <MessageFoot m={synthesis} name={agentName(agents, "mentor")} onReply={() => setReplyTo(synthesis)}
+                    onRecord={synthesis.status === "ok" ? () => void record(synthesis.id) : undefined} />} />
+              ) : item(synthesis))}
+              {!presenting && b.messages.some((m) => m.step_key !== "conselho:sintese") && (
+                <details className="council-transcript">
+                  <summary className="small">Registro completo da reunião ({b.messages.filter((m) => m.step_key !== "conselho:sintese").length} mensagens)</summary>
+                  {b.messages.filter((m) => m.step_key !== "conselho:sintese").map(item)}
+                </details>
+              )}
+            </div>
+          );
+        })}
         {working.map(([key, s]) => (
           <article key={key} className="msg assistant team-typing" aria-label={`${agentName(agents, s.agent_id)} está respondendo`}>
             <Avatar id={s.agent_id} agents={agents} state={s.text ? "speaking" : "thinking"} />
@@ -442,13 +495,20 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
             {s.text ? <Markdown text={s.text} /> : <span className="typing" role="status"><span /><span /><span /></span>}
           </article>
         ))}
-        {activeRuns.length > 0 && !working.length && <p className="tiny muted team-queued" role="status">Na fila… a equipe já vai responder.</p>}
+        {activeRuns.some((r) => !roomRuns.has(r.id)) && !working.length && <p className="tiny muted team-queued" role="status">Na fila… a equipe já vai responder.</p>}
         <div ref={endRef} />
       </div>
 
       {error && <Notice tone="warning" title="Atenção.">{error}</Notice>}
 
-      {c.channel === "routine" ? (
+      {panelSeat && panelBlock && (
+        <AgentPanel seat={panelSeat} seats={panelSeats} agents={agents} masked={masked} onClose={() => setPanel(null)}
+          onSelect={(agent) => setPanel({ run: panelBlock.run.id, agent })}
+          onReply={presenting || c.channel === "routine" ? undefined : (m) => { setReplyTo(m); setPanel(null); }}
+          auditBadge={(m) => (m.audit ? <AuditBadge audit={m.audit} /> : null)} />
+      )}
+
+      {presenting ? null : c.channel === "routine" ? (
         <p className="small muted">Conversa de rotina: só leitura.</p>
       ) : (
         <Composer conv={c} agents={agents} replyTo={replyTo} onCancelReply={() => setReplyTo(null)}
@@ -463,11 +523,11 @@ function Intro({ conv, agents, onPick }: { conv: TeamConversation; agents: Agent
   const agent = conv.channel === "direct" ? agents[conv.agent_id ?? "mentor"] : undefined;
   const examples = agent?.examples ?? (conv.channel === "council"
     ? ["Quero investir R$ 1.000 por mês durante dez anos. Analisem meu planejamento."]
-    : ["@Economista, o que você acha do cenário de juros?", "O que vocês acham da minha reserva de emergência?"]);
+    : ["@vera, o que você acha do cenário de juros?", "O que vocês acham da minha reserva de emergência?"]);
   return (
     <div className="team-intro">
       <p className="small muted">{agent?.summary ?? (conv.channel === "council"
-        ? "Apresente uma decisão: Planejador, Analista e Economista analisam em paralelo; Riscos e Conselheiro avaliam o que eles disseram; o Mentor consolida e o Auditor verifica."
+        ? "Apresente uma decisão: Lia, Caio e Vera analisam em paralelo (Téo entra quando o tema é cripto); Rui e Nina avaliam o que eles disseram; o Bento consolida e a Cora verifica. Toque em qualquer participante para ver o parecer."
         : "Mencione um especialista com @ para chamá-lo. Sem menção, o Mentor decide quem responde.")}</p>
       {agent && <p className="tiny muted">Ferramentas: {agent.tools.join(" · ") || "nenhuma"}</p>}
       <div className="suggestions">
@@ -477,16 +537,16 @@ function Intro({ conv, agents, onPick }: { conv: TeamConversation; agents: Agent
   );
 }
 
-function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord }: {
+function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, masked = false }: {
   m: TeamMessage; agents: AgentMap; quoted?: TeamMessage | undefined; onReply?: () => void; onRetry?: () => void;
-  onRecord?: () => void;
+  onRecord?: () => void; masked?: boolean;
 }) {
-  if (m.kind === "notice") return <p className="team-notice" role="note">{m.content}</p>;
+  if (m.kind === "notice") return <p className="team-notice" role="note">{maybeMask(m.content, masked)}</p>;
   if (m.role === "user") {
     return (
       <div className="msg user">
         {quoted && <blockquote className="team-quote">{agentName(agents, quoted.agent_id)}: {quoted.content.slice(0, 140)}</blockquote>}
-        <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
+        <div style={{ whiteSpace: "pre-wrap" }}>{maybeMask(m.content, masked)}</div>
       </div>
     );
   }
@@ -495,9 +555,10 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord }: {
   const tag = isMap ? "mapa de posições" : m.step_key?.startsWith("conselho:contestacao:") ? "contestação" : "parecer";
   const stance = m.meta?.opinion?.stance;
   // A seção "## Divergências" da síntese vira um destaque próprio (e sai do corpo para não repetir).
-  const [before, rest] = m.kind === "message" ? m.content.split(/##\s*Diverg[^\n]*\n?/i, 2) : [m.content, undefined];
+  const content = maybeMask(m.content, masked);
+  const [before, rest] = m.kind === "message" ? content.split(/##\s*Diverg[^\n]*\n?/i, 2) : [content, undefined];
   const divergences = rest?.split(/\n##\s/)[0]?.trim();
-  const body = <Markdown text={divergences ? `${before ?? ""}${rest!.slice(rest!.indexOf(divergences) + divergences.length)}` : m.content} />;
+  const body = <Markdown text={divergences ? `${before ?? ""}${rest!.slice(rest!.indexOf(divergences) + divergences.length)}` : content} />;
   return (
     <article className={`msg assistant${m.status === "error" ? " team-error" : ""}`} aria-label={`Mensagem de ${name}`}>
       <Avatar id={m.agent_id ?? "mentor"} agents={agents} />
@@ -513,6 +574,15 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord }: {
       {divergences && (
         <div className="team-divergences"><span className="eyebrow">Divergências</span><Markdown text={divergences} /></div>
       )}
+      <MessageFoot m={m} name={name} onRetry={onRetry} onReply={onReply} onRecord={onRecord} />
+    </article>
+  );
+}
+
+function MessageFoot({ m, name, onRetry, onReply, onRecord }: {
+  m: TeamMessage; name: string; onRetry?: () => void; onReply?: () => void; onRecord?: () => void;
+}) {
+  return (
       <div className="team-msg-foot">
         {m.audit && <AuditBadge audit={m.audit} />}
         {m.sources.length > 0 && (
@@ -534,7 +604,6 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord }: {
         {onReply && <button type="button" className="btn btn-ghost btn-sm" onClick={onReply} aria-label={`Responder a ${name}`}><Icon name="arrow" /> Responder</button>}
         {onRecord && <button type="button" className="btn btn-ghost btn-sm" onClick={onRecord}><Icon name="book" /> Registrar no Diário</button>}
       </div>
-    </article>
   );
 }
 
@@ -546,32 +615,6 @@ function AuditBadge({ audit }: { audit: NonNullable<TeamMessage["audit"]> }) {
       {audit.reasons.length ? <ul className="bullets small">{audit.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
         : <p className="small muted">Sem achados. {audit.checked_numbers ? `${audit.checked_numbers} número(s) conferido(s).` : ""}</p>}
     </details>
-  );
-}
-
-function CouncilProgress({ run, steps, live, agents }: { run: TeamRun; steps: RunStep[]; live: Live["steps"][string]; agents: AgentMap }) {
-  const byKey = Object.fromEntries(steps.map((s) => [s.step_key, s]));
-  const state = (key: string) => (live[key] ? "running" : byKey[key]?.status ?? (ACTIVE.includes(run.status) ? "waiting" : "skipped"));
-  // Ativos digitais só entram em reunião sobre cripto; contestação só quando há favorável × contrária.
-  const keys = new Set([...steps.map((s) => s.step_key), ...Object.keys(live)]);
-  const contest = [...keys].filter((k) => /^conselho:contestacao:[^:]+$/.test(k)).map((k) => [k, k.slice("conselho:contestacao:".length), "Contestação"] as const);
-  const stages = [...COUNCIL_STAGES.slice(0, 4), ...(keys.has(CRYPTO_STAGE[0]) ? [CRYPTO_STAGE] : []), ...COUNCIL_STAGES.slice(4, 6), ...contest, ...COUNCIL_STAGES.slice(6)];
-  const label: Record<string, string> = { running: "trabalhando", succeeded: "concluído", failed: "falhou", waiting: "aguardando", skipped: "não executado", cancelled: "cancelado", rejected: "recusado", retrying: "tentando de novo" };
-  return (
-    <section className="team-council" aria-label="Andamento do Conselho">
-      <div className="row between"><span className="eyebrow">Conselho do Lastro</span><span className="tag plain">{{ queued: "na fila", running: "em reunião", succeeded: "concluído", partial: "concluído com falhas", failed: "falhou", cancelled: "interrompido" }[run.status]}</span></div>
-      <ol>
-        {stages.map(([key, agent, title]) => {
-          const st = state(key);
-          return (
-            <li key={key} data-state={st}>
-              <Avatar id={agent} agents={agents} size={26} state={st === "running" ? (live[key]?.text ? "speaking" : "thinking") : "idle"} />
-              <span><strong>{title}</strong> <span className="tiny muted">{agentName(agents, agent)} · {label[st] ?? st}</span></span>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
   );
 }
 
