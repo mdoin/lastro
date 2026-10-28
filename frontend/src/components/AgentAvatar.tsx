@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { memo, type CSSProperties } from "react";
 import { BrandMark } from "./Icon";
+import { overlay, strokeColor, type Expression } from "../lib/expressions";
 import { EYE_CHARS, GRID, MASCOTS, runs } from "./mascots";
 import "../styles/mascots.css";
 
@@ -23,6 +24,7 @@ export const AgentAvatar = memo(function AgentAvatar({
   decorative = false,
   className = "",
   label,
+  expression = "neutro",
 }: {
   id: string;
   size?: number;
@@ -31,6 +33,8 @@ export const AgentAvatar = memo(function AgentAvatar({
   className?: string;
   /** Nome a anunciar quando o id não é de um mascote (ex.: nome vindo da API). */
   label?: string;
+  /** Postura narrativa na reunião (lib/expressions.ts): sobrancelhas e boca desenhadas por cima do mascote. */
+  expression?: Expression;
 }) {
   const mascot = MASCOTS[id];
   const a11y = decorative ? { "aria-hidden": true as const } : { role: "img", "aria-label": mascot?.alt ?? label ?? id };
@@ -54,10 +58,14 @@ export const AgentAvatar = memo(function AgentAvatar({
   const eyes = RUNS[id]!.filter((r) => EYE_CHARS.has(r.ch));
   const fill = (ch: string) => (ch === "o" ? `var(--mascot-outline, ${mascot.palette.o})` : mascot.palette[ch] ?? "#ff00ff");
   return (
-    <span className={`agent-avatar is-${state} ${size < 24 ? "is-tiny" : ""} ${className}`} style={style} {...a11y}>
+    <span className={`agent-avatar is-${state} is-expr-${expression} ${size < 24 ? "is-tiny" : ""} ${className}`} style={style} {...a11y}>
       <svg viewBox={`0 0 ${GRID} ${GRID}`} width={size} height={size} shapeRendering="crispEdges" focusable="false" aria-hidden="true">
         {body.map((r) => (
           <rect key={`${r.x}-${r.y}`} x={r.x} y={r.y} width={r.w} height={1} fill={fill(r.ch)} />
+        ))}
+        {size >= 24 && overlay(id, expression).map((p, i) => (
+          <rect key={`x${i}`} x={p.x} y={p.y} width={1} height={1} fill={p.c === "b" ? mascot.palette.b : strokeColor(id)}
+            className="agent-avatar-expr" />
         ))}
         <g className="agent-avatar-eyes">
           {eyes.map((r) => (

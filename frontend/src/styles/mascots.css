@@ -112,11 +112,42 @@ button:hover > .agent-avatar {
   }
 }
 
+/* Postura na reunião: um gesto só quando a expressão muda (nada contínuo sem atividade). */
+.agent-avatar.is-expr-concordando svg {
+  animation: mascot-nod 0.5s steps(3, end) 1;
+}
+
+.agent-avatar.is-expr-discordando svg,
+.agent-avatar.is-expr-irritado svg {
+  animation: mascot-shake 0.42s steps(4, end) 1;
+}
+
+.agent-avatar.is-expr-surpreso svg,
+.agent-avatar.is-expr-entusiasmado svg {
+  animation: mascot-hop 0.42s steps(3, end) 1;
+}
+
+@keyframes mascot-nod {
+  40% {
+    transform: translateY(6%);
+  }
+}
+
+@keyframes mascot-shake {
+  25% {
+    transform: translateX(-5%);
+  }
+  75% {
+    transform: translateX(5%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .agent-avatar,
   .agent-avatar-eyes,
   .agent-avatar.is-speaking,
-  .agent-avatar.is-thinking .agent-avatar-eyes {
+  .agent-avatar.is-thinking .agent-avatar-eyes,
+  .agent-avatar[class*="is-expr-"] svg {
     animation: none !important;
     transition: none !important;
     transform: none !important;

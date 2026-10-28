@@ -2,6 +2,7 @@
 /** Galeria de desenvolvimento dos mascotes (só existe em `npm run dev`; fora do build de produção). */
 import { AgentAvatar, type AvatarState } from "../components/AgentAvatar";
 import { MASCOTS } from "../components/mascots";
+import { EXPRESSION_LABEL, type Expression } from "../lib/expressions";
 
 const SIZES = [24, 32, 48, 64, 96];
 
@@ -40,6 +41,15 @@ export function MascotGallery() {
           <AgentAvatar key={m.id} id={m.id} size={96} />
         ))}
       </div>
+      <h2>Expressões na reunião (72 px)</h2>
+      <div data-theme="light" className="mascot-strip light expr-grid">
+        <span />
+        {(Object.keys(EXPRESSION_LABEL) as Expression[]).map((e) => <b key={e} className="expr-head">{EXPRESSION_LABEL[e]}</b>)}
+        {Object.values(MASCOTS).flatMap((m) => [
+          <b key={`${m.id}-n`} className="expr-head">{m.name}</b>,
+          ...(Object.keys(EXPRESSION_LABEL) as Expression[]).map((e) => <AgentAvatar key={`${m.id}-${e}`} id={m.id} size={72} expression={e} />),
+        ])}
+      </div>
       <h2>Estados: pensando e começando a responder; e id desconhecido</h2>
       <div className="mascot-strip light lineup">
         <AgentAvatar id="analista" size={64} state="thinking" />
@@ -57,6 +67,8 @@ export function MascotGallery() {
         .mascot-strip figure { margin: 0; display: grid; gap: 6px; justify-items: center; }
         .mascot-sizes { display: flex; align-items: flex-end; gap: 10px; }
         .lineup { align-items: flex-end; }
+        .expr-grid { display: grid; grid-template-columns: 120px repeat(12, 72px); gap: 8px; align-items: center; }
+        .expr-head { font-size: 11px; }
       `}</style>
     </main>
   );
