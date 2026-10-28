@@ -25,6 +25,9 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
   quando a questão é sobre cripto.
 - Cada mensagem de agente registra conexão, modelo e versão do agente (`meta`), preservados após troca de provedor.
 - Nomes de exibição dos agentes (Bento, Lia, Caio, Vera, Rui, Nina, Téo, Cora, Mila); ids e @menções antigas continuam.
+- **Identidade comportamental dos agentes** (docs/CONVERSAS.md): prompt em camadas com identidade própria por
+  personagem, vozes escolhidas pelo assunto, liberdade de ficar em silêncio, fala opcional que só ecoa não é publicada,
+  selo de auditoria e "Registrar no Diário" só em respostas com conteúdo financeiro, e `scripts/eval_conversas.py`.
 - **Sala do Conselho** visual: lugares com estado real, painel do participante, veredito com menções coloridas e
   modo apresentação com máscara de valores.
 - **Livro de movimentações** e **memória financeira automática** a partir da conversa (consentimento, desfazer,

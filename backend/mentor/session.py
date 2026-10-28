@@ -32,7 +32,10 @@ def load_prompt(role: str, mode: str | None = None) -> str:
     file = spec.prompt if spec else f"{role}.md"
     if spec and spec.chat_prompt and (mode in CHAT_MODES or mode == "pesquisa_web"):
         file = spec.chat_prompt
-    parts = [PROMPTS / "_base.md", PROMPTS / file] + ([PROMPTS / "modos" / f"{mode}.md"] if mode else [])
+    # Camadas: regras comuns (_base), quem é você (equipe + identidade), seu papel e a situação (modo).
+    identity = PROMPTS / "identidades" / f"{role}.md"
+    parts = [PROMPTS / "_base.md", *([identity] if identity.exists() else []), PROMPTS / file] \
+        + ([PROMPTS / "modos" / f"{mode}.md"] if mode else [])
     texts = [p.read_text(encoding="utf-8") for p in parts]
     texts.insert(1, team_roster(role))
     return "\n\n".join(texts)
@@ -43,9 +46,6 @@ def team_roster(role: str) -> str:
     lines = [f"- {a.name} (@{a.handle}): {a.title}" for a in AGENTS.values() if a.kind != "internal"]
     spec = AGENTS.get(role)
     me = f"Seu nome é {spec.name}. " if spec else ""
-    if spec and spec.persona:
-        me += (f"Seu jeito: {spec.persona}. Isso muda o estilo, nunca os fatos; varie as palavras e não transforme "
-               "o jeito em bordão. ")
     return f"{me}Equipe:\n" + "\n".join(lines)
 
 

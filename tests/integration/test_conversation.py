@@ -68,7 +68,9 @@ SOCIAL = ["Oi, pessoal!", "Como vocês estão?", "Tô entediado hoje.", "@nina, 
 @pytest.mark.parametrize("room", ["group", "council"])
 def test_small_talk_never_starts_an_analysis_and_gets_real_answers(conn, room):
     conv = group(conn, "comportamental", "riscos", "analista") if room == "group" else council_room(conn)
-    rt = FakeRuntime(lambda r, m, p, n: done(f"Oi! Aqui é {r}."))
+    lines = {"mentor": "Oi! Que bom te ver por aqui.", "riscos": "E aí. Tudo calmo, por enquanto.",
+             "comportamental": "Olá! Chegou com cara de quem quer conversar.", "analista": "Opa, apareceu gente!"}
+    rt = FakeRuntime(lambda r, m, p, n: done(lines.get(r, f"Fala de {r}, cada uma do seu jeito.")))
     o = orch(conn, rt)
     for text in SOCIAL:
         out = send(o, conv, text)
@@ -83,7 +85,7 @@ def test_small_talk_never_starts_an_analysis_and_gets_real_answers(conn, room):
             current = m["content"]
         elif m["kind"] != "notice":
             by_text.setdefault(current, []).append(m["agent_id"])
-    assert by_text["Oi, pessoal!"][0] == "mentor" and len(by_text["Oi, pessoal!"]) == 3  # o grupo responde, não só um
+    assert by_text["Oi, pessoal!"][0] == "mentor" and len(by_text["Oi, pessoal!"]) == 2  # o grupo responde, sem coro
     assert by_text["@nina, me conta alguma coisa."] == ["comportamental"]
     assert by_text["@rui, por que você é tão desconfiado?"] == ["riscos"]
 
@@ -102,8 +104,11 @@ def test_two_mentions_both_answer_and_the_second_reads_the_first(conn):
 
 def test_agents_call_each_other_with_a_hard_limit(conn):
     conv = group(conn, "comportamental", "riscos", "analista", "economista", "planejador")
-    # todo mundo chama todo mundo: sem limite, seria um laço
-    rt = FakeRuntime(lambda r, m, p, n: done("@lia @caio @vera @rui @nina, o que acham?"))
+    # todo mundo chama todo mundo: sem limite, seria um laço (falas diferentes, para não serem filtradas como eco)
+    lines = {"mentor": "Quero ouvir a @lia e o @caio sobre isso.", "planejador": "Eu chamaria a @vera aqui.",
+             "analista": "Curioso: @rui, você vê risco nisso?", "economista": "Depende do contexto, @nina.",
+             "riscos": "Desconfio. @caio, prova?", "comportamental": "@rui, relaxa um pouco."}
+    rt = FakeRuntime(lambda r, m, p, n: done(lines[r]))
     o = orch(conn, rt)
     send(o, conv, "Oi, gente!")
     asyncio.run(drain(o))
@@ -112,7 +117,7 @@ def test_agents_call_each_other_with_a_hard_limit(conn):
     assert len({m["agent_id"] for m in said}) == len(said)  # cada um fala uma vez por mensagem
     spontaneous = [m for m in said if m["meta"]["chat"].get("responds_to")]
     ids = {m["id"] for m in said}
-    assert len(spontaneous) == 1 and spontaneous[0]["reply_to_id"] in ids  # responde à fala do colega que o chamou
+    assert len(spontaneous) == 2 and all(m["reply_to_id"] in ids for m in spontaneous)  # responde a quem o chamou
 
 
 def test_decision_gets_an_offer_and_accepting_convenes_with_the_original_question(conn):
@@ -198,9 +203,9 @@ def test_cora_can_chat_with_her_own_prompt(conn):
 
 
 def test_personalities_reach_the_prompt():
-    assert "cético, protetor" in load_prompt("riscos", "conversa")
-    assert "empática, perspicaz e bem-humorada" in load_prompt("comportamental", "grupo")
-    assert "acolhedor, ponderado e conciliador" in load_prompt("mentor", "conselho_sintese")
+    assert "Quem você é (Rui)" in load_prompt("riscos", "conversa")
+    assert "Quem você é (Nina)" in load_prompt("comportamental", "grupo")
+    assert "Quem você é (Bento)" in load_prompt("mentor", "conselho_sintese")
 
 
 def test_intervention_after_the_discussion_still_gets_an_answer(conn):
@@ -239,7 +244,7 @@ def test_every_agent_sees_the_configured_name_in_group_and_individual_chats(conn
     direct = store.create_conversation(conn, "Rui", channel="direct", agent_id="riscos")
     send(o, direct, "Oi, Rui")
     asyncio.run(drain(o))
-    assert len(rt.requests) == 4
+    assert len(rt.requests) == 3  # "bom dia, pessoal": duas vozes, sem coro; e a conversa individual
     for r in rt.requests:
         assert "prefere ser chamada de Ana (apelido: Aninha)" in r["text"] and "pode ser informal" in r["text"]
         assert "não em toda mensagem" in r["text"] and "Não presuma gênero" in r["text"]

@@ -36,6 +36,7 @@ import { Badge, ErrorNotice, Loading, Notice, Segmented } from "../components/ui
 import { formatDate, formatDateTime } from "../lib/dates";
 import { MODE_LABEL, researchLabel, seats, threadBlocks, type ThreadBlock } from "../lib/council";
 import { applyMention, filterCandidates, linkMentions, mentionAt, splitMentions, type MentionQuery } from "../lib/mentions";
+import { canRecord, visibleAudit } from "../lib/messageControls";
 import { maybeMask } from "../lib/privacy";
 import { useAsync } from "../lib/useAsync";
 import "../styles/team.css";
@@ -495,9 +496,7 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
               onConvene={!presenting && m.id === openOffer ? () => void send("Sim, pode reunir os especialistas.").catch(() => undefined) : undefined}
               onSaveName={presenting ? undefined : saveName}
               onReply={c.channel === "routine" || presenting ? undefined : () => setReplyTo(m)}
-              onRecord={!presenting && m.role === "assistant" && m.kind === "message" && m.status === "ok" && m.agent_id !== "lastro"
-                && m.meta?.chat?.style !== "conversa"
-                ? () => void record(m.id) : undefined}
+              onRecord={!presenting && canRecord(m) ? () => void record(m.id) : undefined}
               onRetry={!presenting && m.status === "error" && m.reply_to_id && byId[m.reply_to_id] ? () => void send(byId[m.reply_to_id!]!.content).catch(() => undefined) : undefined} />
           );
           if (b.kind === "message") return presenting && b.message.kind === "notice" ? null : item(b.message);
@@ -631,8 +630,6 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, onMention,
   const linked = (t: string) => linkMentions(t, Object.values(agents));
   const body = <Markdown text={linked(divergences ? `${before ?? ""}${rest!.slice(rest!.indexOf(divergences) + divergences.length)}` : content)} />;
   const respondsTo = m.meta?.chat?.responds_to;
-  // papo não precisa de selo de auditoria limpo nem de "Registrar no Diário"; ressalva ou reprovação continuam visíveis
-  const chatty = m.meta?.chat?.style === "conversa";
   // menções no texto do agente são links "#agente-<id>": o clique abre a conversa individual com quem foi citado
   const openMention = (e: React.MouseEvent) => {
     const link = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#agente-"]');
@@ -664,7 +661,8 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, onMention,
           <span className="tiny muted">Abre uma reunião do Conselho com este assunto. Se preferir só conversar, é só seguir escrevendo.</span>
         </div>
       )}
-      <MessageFoot m={chatty && m.audit?.verdict === "PASSA" ? { ...m, audit: null } : m} name={name} onRetry={onRetry}
+      {/* papo não ganha selo de auditoria limpo; ressalva ou reprovação continuam visíveis (lib/messageControls) */}
+      <MessageFoot m={{ ...m, audit: visibleAudit(m) }} name={name} onRetry={onRetry}
         onReply={onReply} onRecord={onRecord} />
     </article>
   );
