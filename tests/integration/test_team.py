@@ -241,6 +241,8 @@ def test_council_runs_specialists_and_consolidates(conn):
             return done("Resposta direta. Há risco de perda.\n\n## Divergências\nRiscos discorda do Analista.")
         if role == "auditor":
             return done("VEREDITO: PASSA\n- números conferem")
+        if mode == "conselho_parecer":
+            return done(structured("condicional", f"PONTO-{role.upper()}"))
         return done(f"Parecer de {role}: PONTO-{role.upper()}.")
     rt = FakeRuntime(script)
     o = orch(conn, rt, semantic_audit="council")
@@ -252,15 +254,123 @@ def test_council_runs_specialists_and_consolidates(conn):
     assert modes[0] == ("mentor", "conselho_enquadramento")
     assert {m[0] for m in modes[1:4]} == {"planejador", "analista", "economista"}
     assert {m[0] for m in modes[4:6]} == {"riscos", "comportamental"}
+    # sem favorável × contrária não há contestação; o tema não é cripto, então o especialista não é convocado
     assert modes[6:] == [("mentor", "conselho_sintese"), ("auditor", None)]
     assert "PONTO-ANALISTA" in rt.prompt_for("riscos")  # riscos avalia o que os outros disseram
 
     msgs = agent_messages(conn, conv)
-    assert [m["kind"] for m in msgs].count("analysis") == 6
+    assert [m["kind"] for m in msgs].count("analysis") == 7  # enquadramento, 5 pareceres e o mapa de posições
+    positions = next(m for m in msgs if m["step_key"] == "conselho:posicoes")
+    assert positions["agent_id"] == "lastro" and positions["meta"]["conflict"] is False
+    assert "Sem divergência material" in positions["content"]
     final = msgs[-1]
     assert final["agent_id"] == "mentor" and final["kind"] == "message" and "Divergências" in final["content"]
     assert final["audit"]["verdict"] in (PASSA, RESSALVAS)
     assert store.get_run(conn, out["run"]["id"])["status"] == "succeeded"
+
+
+def structured(stance, mark=""):
+    return (f"**Posição:** {stance}\n\n## Tese\nLeitura {mark}.\n\n## Evidências\nRetrato de 2026-10-20.\n\n"
+            "## Fontes\nRetrato financeiro.\n\n## Hipóteses\nRenda estável.\n\n## Riscos\nRisco de perda e de liquidez."
+            "\n\n## Lacunas\nPrazo da meta.\n\n## Não agir\nManter a reserva é razoável.")
+
+
+HIGH_RISK_STANCES = {"planejador": "condicional", "analista": "favorável", "economista": "sem base suficiente",
+                     "cripto": "favorável", "riscos": "contrária", "comportamental": "contrária"}
+
+
+def high_risk_script(role, mode, prompt, n):
+    """Proposta de risco alto: os especialistas discordam e mantêm a posição na contestação. A primeira síntese
+    omite parte do dissenso; a correção nomeia todos."""
+    if role == "auditor":
+        return done("VEREDITO: PASSA\n- sem números")
+    if mode == "conselho_parecer":
+        return done(structured(HIGH_RISK_STANCES[role], f"PONTO-{role.upper()}"))
+    if mode == "conselho_contestacao":
+        return done(f"**Posição:** {HIGH_RISK_STANCES[role]} (mantida)\n\n## Resposta às objeções\nRÉPLICA-{role.upper()}."
+                    "\n\n## O que mudaria minha posição\nReserva recomposta.")
+    if mode == "conselho_sintese":
+        return done("Não há consenso; o risco de perda é alto.\n\n## Divergências\nO Analista de Ativos Digitais "
+                    "vê espaço; o Gestor de Riscos discorda.")
+    if mode == "correcao":
+        return done("Não há consenso; o risco de perda e de liquidez é alto.\n\n## Divergências\nAnalista e Analista "
+                    "de Ativos Digitais (favoráveis) × Gestor de Riscos e Conselheiro (contrários).\n\n## Próximo passo\n"
+                    "Não agir até rever a reserva é uma opção.")
+    return done(f"Resposta de {role}.")
+
+
+def council(conn):
+    conv = store.create_conversation(conn, "Conselho", kind="panel", channel="council")
+    for a in ("mentor", "planejador", "analista", "economista", "riscos", "comportamental", "cripto"):
+        store.add_participant(conn, conv["id"], a)
+    return conv
+
+
+def test_high_risk_proposal_keeps_dissent_across_provider_switch(conn):
+    conv = council(conn)
+    rt = FakeRuntime(high_risk_script)
+    o = orch(conn, rt, semantic_audit="council")
+    question = "Quero colocar toda a minha reserva de emergência em bitcoin agora."
+    first_run = send(o, conv, question)["run"]
+    asyncio.run(drain(o))
+
+    modes = [(r["role"], r.get("mode")) for r in rt.requests]
+    assert ("cripto", "conselho_parecer") in modes  # tema cripto convoca o especialista
+    contested = {role for role, mode in modes if mode == "conselho_contestacao"}
+    assert contested == {"analista", "cripto", "riscos", "comportamental"}  # condicional/sem base não contestam
+    riscos_contest = next(r["text"] for r in rt.requests if r["role"] == "riscos" and r.get("mode") == "conselho_contestacao")
+    assert "PONTO-ANALISTA" in riscos_contest and "PONTO-CRIPTO" in riscos_contest
+    assert "PONTO-PLANEJADOR" not in riscos_contest.split("Pareceres que discordam")[1]  # só os opostos
+    assert ("mentor", "correcao") in modes  # síntese que apagou dissenso foi devolvida
+
+    msgs = agent_messages(conn, conv)
+    positions = next(m for m in msgs if m["step_key"] == "conselho:posicoes")
+    assert positions["meta"]["conflict"] is True
+    assert positions["meta"]["positions"]["riscos"] == {"initial": "contraria", "final": "contraria"}
+    assert "Divergência material mantida" in positions["content"]
+    parecer = next(m for m in msgs if m["step_key"] == "conselho:riscos")
+    assert parecer["meta"]["opinion"]["stance"] == "contraria" and parecer["meta"]["route"] == {}
+    assert any(m["step_key"] == "conselho:contestacao:riscos" and "RÉPLICA-RISCOS" in m["content"] for m in msgs)
+    final = msgs[-1]
+    assert final["step_key"] == "conselho:sintese" and "Conselheiro" in final["content"]
+    assert final["audit"]["verdict"] != REPROVA and "Corrigida" in final["audit"]["reasons"][0]
+    before = [(m["id"], m["content"], m["meta"]) for m in msgs]
+
+    # troca de provedor: Riscos e Analista passam a outra conexão; o histórico fica como estava
+    store.set_agent_model(conn, "riscos", "openai-teste", "gpt-teste")
+    store.set_agent_model(conn, "analista", "openai-teste")
+    send(o, conv, question)
+    asyncio.run(drain(o))
+
+    after = agent_messages(conn, conv)
+    assert [(m["id"], m["content"], m["meta"]) for m in after[:len(before)]] == before
+    second = [m for m in after[len(before):]]
+    assert all(m["run_id"] != first_run["id"] for m in second)
+    new_riscos = next(m for m in second if m["step_key"] == "conselho:riscos")
+    assert new_riscos["meta"]["route"] == {"connection": "openai-teste", "model": "gpt-teste"}
+    assert any(r["role"] == "riscos" and r.get("connection") == "openai-teste" for r in rt.requests)
+    new_positions = next(m for m in second if m["step_key"] == "conselho:posicoes")
+    assert new_positions["meta"]["conflict"] is True  # a divergência continua visível com o novo provedor
+
+
+def test_unstructured_opinion_is_sent_back_once(conn):
+    conv = council(conn)
+
+    def script(role, mode, prompt, n):
+        if mode == "conselho_parecer":
+            return done("Acho arriscado, mas pode dar certo." if role == "riscos" else structured("condicional"))
+        if mode == "correcao" and role == "riscos":
+            return done(structured("contrária", "corrigido"))
+        if mode == "conselho_sintese":
+            return done("Resumo com risco de perda.\n\n## Divergências: nenhuma relevante")
+        return done(f"Resposta de {role}.")
+    rt = FakeRuntime(script)
+    o = orch(conn, rt)
+    send(o, conv, "Devo trocar de emprego?")
+    asyncio.run(drain(o))
+    riscos = next(m for m in agent_messages(conn, conv) if m["step_key"] == "conselho:riscos")
+    assert riscos["meta"]["opinion"]["stance"] == "contraria" and "corrigido" in riscos["content"]
+    assert "Corrigida" in riscos["audit"]["reasons"][0]
 
 
 def test_council_command_in_group(conn):
@@ -584,7 +694,7 @@ def test_user_cannot_access_another_users_conversation(tmp_path):
         assert client.post("/api/team/conversations", json={"channel": "direct", "agent_id": "auditor"},
                            headers=H).status_code == 422
         assert {a["id"] for a in client.get("/api/agents").json()} == {
-            "mentor", "planejador", "analista", "economista", "riscos", "comportamental"}
+            "mentor", "planejador", "analista", "economista", "riscos", "comportamental", "cripto"}
 
 
 # adversariais -----------------------------------------------------------------------------------------------------

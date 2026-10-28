@@ -11,7 +11,7 @@ Capacidades são aplicadas em código: o servidor MCP de cada sessão só regist
 
 from dataclasses import dataclass, field
 
-REGISTRY_VERSION = "2026-10-27.3"
+REGISTRY_VERSION = "2026-10-27.4"
 
 
 @dataclass(frozen=True)
@@ -66,7 +66,7 @@ class AgentSpec:
                                                 ("leitura de fontes oficiais", bool(self.caps.browser))) if on)}
 
 
-SPECIALISTS = ("planejador", "analista", "economista", "riscos", "comportamental")
+SPECIALISTS = ("planejador", "analista", "economista", "riscos", "comportamental", "cripto")
 
 AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
     AgentSpec(
@@ -91,7 +91,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         kind="specialist", prompt="analista.md", icon="bars", color="var(--agent-simulacao)",
         aliases=("investimentos", "analista-de-investimentos", "analise"),
         caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
-        can_delegate_to=("planejador", "economista", "riscos", "comportamental"),
+        can_delegate_to=("planejador", "economista", "riscos", "comportamental", "cripto"),
         summary="Renda fixa, ações, ETFs, FIIs e fundos: retorno líquido, custos, liquidez e adequação ao prazo.",
         examples=("Quais categorias fazem sentido para 10 anos?", "Compare CDB e Tesouro Selic para minha reserva.")),
     AgentSpec(
@@ -110,7 +110,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         kind="specialist", prompt="riscos.md", icon="alert", color="var(--agent-riscos)",
         aliases=("risco", "gestor", "gestor-de-riscos"),
         caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
-        can_delegate_to=("planejador", "analista", "economista"),
+        can_delegate_to=("planejador", "analista", "economista", "cripto"),
         summary="O contraponto crítico: o que pode dar errado, quanto se perderia e que premissas precisam valer.",
         examples=("Minha carteira está concentrada?", "Quanto eu perderia num cenário ruim?")),
     AgentSpec(
@@ -122,6 +122,14 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         summary="Ajuda a perceber FOMO, aversão à perda e impulsos; disciplina sem culpa. Não faz diagnóstico.",
         examples=("Estou com vontade de vender tudo, é impulso?", "Como manter os aportes todo mês?")),
     AgentSpec(
+        id="cripto", name="Analista de Ativos Digitais", handle="cripto", title="Criptoativos e custódia",
+        kind="specialist", prompt="cripto.md", icon="coins", color="var(--agent-cripto)",
+        aliases=("ativos-digitais", "criptoativos", "bitcoin"),
+        caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
+        can_delegate_to=("analista", "economista", "riscos"),
+        summary="Cripto, stablecoins e tokens: custódia, liquidez, risco operacional e de contraparte, sem euforia.",
+        examples=("Faz sentido ter bitcoin na minha carteira?", "Stablecoin é igual a dólar guardado?")),
+    AgentSpec(
         id="auditor", name="Auditor", handle="auditor", title="Verificação independente", kind="auditor",
         prompt="auditor.md", icon="shieldCheck", color="var(--agent-auditor)", max_turns=6,
         caps=Capabilities(data=True, facts=True, market=True, calc=True, journal=True),
@@ -131,7 +139,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
 
 # Modos de trabalho: complementos de instrução por situação (mentor/prompts/modos/<modo>.md).
 MODES = ("direto", "grupo", "delegado", "integracao", "conselho_enquadramento", "conselho_parecer",
-         "conselho_sintese", "correcao", "radar_parecer", "radar_sintese")
+         "conselho_sintese", "conselho_contestacao", "correcao", "radar_parecer", "radar_sintese")
 
 
 def get(agent_id: str) -> AgentSpec:

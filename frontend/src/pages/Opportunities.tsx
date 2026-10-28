@@ -40,6 +40,7 @@ const AGENT_NAMES: Record<string, string> = {
   economista: "Economista",
   riscos: "Gestor de Riscos",
   comportamental: "Conselheiro",
+  cripto: "Analista de Ativos Digitais",
   auditor: "Auditor",
 };
 

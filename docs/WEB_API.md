@@ -164,7 +164,7 @@ Toda rota exige sessão; conversas e execuções de outra pessoa respondem 404 (
 | `GET/PUT/DELETE /api/team/conversations/{id}` | PUT `{"title"}` | conversa; DELETE 409 se houver execução ativa |
 | `POST /api/team/conversations/{id}/participants` | `{"agent_id"}` | só grupos |
 | `DELETE /api/team/conversations/{id}/participants/{agent}` | — | o Mentor não sai |
-| `GET /api/team/conversations/{id}/messages` | — | mensagens com `agent_id, kind (message/analysis/notice), audit, sources, mentions, reply_to_id, run_id` |
+| `GET /api/team/conversations/{id}/messages` | — | mensagens com `agent_id, kind (message/analysis/notice), audit, sources, mentions, reply_to_id, run_id, meta` (`meta`: `route`, `agent_version`, `opinion.stance`; no mapa do Conselho, `positions` e `conflict`) |
 | `POST /api/team/conversations/{id}/messages` | `{"text", "client_id"?, "reply_to_id"?}` | 202 `{message, run, notices}`; mesmo `client_id` → mesma mensagem e execução |
 | `GET /api/team/conversations/{id}/runs` | — | execuções recentes com `steps` (agente, tipo, pai, profundidade, estado, erro) |
 | `POST /api/team/runs/{run_id}/cancel` | — | execução atualizada |

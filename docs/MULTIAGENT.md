@@ -9,6 +9,7 @@
 | Economista | macro, Selic/CDI/IPCA/câmbio | mercado, motor, navegador de fontes oficiais, delegação, notas — **sem dados do dono** |
 | Gestor de Riscos | perdas, liquidez, concentração, estresse | dados, memória financeira, mercado, motor, delegação, notas |
 | Conselheiro | vieses e comportamento | dados, memória financeira, delegação, notas |
+| Analista de Ativos Digitais | cripto, stablecoins, custódia e risco operacional | dados, memória financeira, mercado, motor, delegação, notas (o Lastro não coleta preço de cripto: o agente diz que o dado não existe) |
 | Auditor | verificação (não conversa) | dados, memória financeira, mercado, motor |
 
 Registro: `backend/team/agents.py` (versão em `REGISTRY_VERSION`). Instruções: `backend/mentor/prompts/<agente>.md` + modo
@@ -29,8 +30,18 @@ Navegador ─POST /api/team/conversations/{id}/messages (202)─► Orquestrador
   ciclo, duplicata, alvo permitido e participação no grupo. Recusas ficam registradas como passo `rejected`.
   Em grupo, o especialista consultado responde como mensagem própria; em conversa individual, vira parecer interno
   e aparece nas fontes. Depois, o solicitante escreve a resposta final (passo `integracao`).
-- **Conselho**: enquadramento (Mentor) → Planejador, Analista e Economista em paralelo → Riscos e Conselheiro (leem os
-  anteriores) → síntese com "## Divergências" → Auditor. Cada parecer é uma mensagem expansível; a síntese traz o veredito.
+- **Conselho**: enquadramento (Mentor) → Planejador, Analista e Economista em paralelo (mais o Analista de Ativos
+  Digitais quando a questão fala de cripto, `routing.council_agents`) → Riscos e Conselheiro (leem os anteriores) →
+  contestação → mapa de posições → síntese com "## Divergências" → Auditor. Cada parecer é uma mensagem expansível.
+  - **Parecer estruturado** (`team/opinion.py`, modo `conselho_parecer`): `**Posição:**` declarada (favorável, contrária,
+    condicional ou sem base suficiente) e as seções Tese, Evidências, Fontes, Hipóteses, Riscos, Lacunas e Não agir.
+    Faltou posição ou seção: o parecer volta uma vez ao agente; se ainda faltar, o Auditor o retém.
+  - **Contestação**: só quando há ao menos um favorável e um contrário. Uma rodada (`conselho:contestacao:<agente>`),
+    só para os lados opostos, cada um lendo os pareceres que discordam do seu; não há segunda rodada.
+  - **Mapa de posições** (`conselho:posicoes`, autor "Lastro"): tabela determinística com a posição de cada parecer e a
+    posição após a contestação, publicada antes da síntese. Não depende do modelo que escreveu a síntese.
+  - **Dissenso preservado**: se a divergência se mantém, a síntese precisa nomear na seção "## Divergências" cada
+    especialista que segue discordando; omitir um deles reprova a síntese (uma correção, depois retenção).
 - **Auditoria** (`team/auditor.py`): toda mensagem de agente passa pela verificação determinística (números refeitos
   pelo motor a partir das entradas que o agente usou, dados do dono, séries externas; promessas; pedido de senha ou
   execução; mercado sem fonte/data; série desatualizada; categorias sem riscos; ativo volátil em etapa de dívida).
@@ -58,6 +69,10 @@ categoria (modo `radar_parecer`), síntese do Mentor (`radar_sintese`) e Auditor
   **propõem** (`propor_fato`); a pessoa confirma na tela "Memória e fontes". A API dos agentes só serve confirmados.
 - **Individual** (`agent_notes`): `anotar_memoria`. Nota feita na conversa individual do próprio agente vale nas
   conversas individuais dele; feita em grupo ou em consulta, vale só naquela conversa.
+- **Autoria** (`messages.meta_json`, migração 009): cada mensagem de agente guarda a conexão e o modelo que a
+  escreveram (`route`, vazio = conexão padrão), a versão do registro do agente e, nos pareceres, a posição declarada.
+  Trocar de provedor não reescreve nada: pareceres, mapa de posições e divergências antigos continuam como foram
+  gravados (teste `test_high_risk_proposal_keeps_dissent_across_provider_switch`).
 - **Compartilhada**: o contexto de cada passo é montado só com as mensagens da própria conversa. Mensagens antigas
   entram compactadas (autor, data e início do texto); texto de terceiros não consegue forjar os marcadores `[ … ]`.
 

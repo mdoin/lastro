@@ -43,6 +43,8 @@ const COUNCIL_STAGES = [
   ["conselho:sintese", "mentor", "Síntese"],
   ["conselho:auditoria", "auditor", "Auditoria"],
 ] as const;
+const CRYPTO_STAGE = ["conselho:cripto", "cripto", "Ativos digitais"] as const;
+const STANCE_LABEL: Record<string, string> = { favoravel: "favorável", contraria: "contrária", condicional: "condicional", insuficiente: "sem base suficiente" };
 const ACTIVE: TeamRun["status"][] = ["queued", "running"];
 const VERDICT_TONE = { PASSA: "good", "PASSA COM RESSALVAS": "warning", REPROVA: "critical", REVISAR: "warning", BLOQUEAR: "critical" } as const;
 
@@ -489,6 +491,9 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord }: {
     );
   }
   const name = agentName(agents, m.agent_id);
+  const isMap = m.step_key === "conselho:posicoes";
+  const tag = isMap ? "mapa de posições" : m.step_key?.startsWith("conselho:contestacao:") ? "contestação" : "parecer";
+  const stance = m.meta?.opinion?.stance;
   // A seção "## Divergências" da síntese vira um destaque próprio (e sai do corpo para não repetir).
   const [before, rest] = m.kind === "message" ? m.content.split(/##\s*Diverg[^\n]*\n?/i, 2) : [m.content, undefined];
   const divergences = rest?.split(/\n##\s/)[0]?.trim();
@@ -498,10 +503,11 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord }: {
       <Avatar id={m.agent_id ?? "mentor"} agents={agents} />
       <div className="msg-who">
         {name}
-        {m.kind === "analysis" && <span className="tag plain">parecer</span>}
+        {m.kind === "analysis" && <span className="tag plain">{tag}</span>}
+        {stance && <span className="tag plain">posição: {STANCE_LABEL[stance] ?? stance}</span>}
         <span className="msg-meta">{formatDateTime(m.created_at)}</span>
       </div>
-      {m.kind === "analysis" ? (
+      {m.kind === "analysis" && !isMap ? (
         <details className="team-analysis"><summary>Ver análise de {name}</summary>{body}</details>
       ) : body}
       {divergences && (
@@ -546,12 +552,16 @@ function AuditBadge({ audit }: { audit: NonNullable<TeamMessage["audit"]> }) {
 function CouncilProgress({ run, steps, live, agents }: { run: TeamRun; steps: RunStep[]; live: Live["steps"][string]; agents: AgentMap }) {
   const byKey = Object.fromEntries(steps.map((s) => [s.step_key, s]));
   const state = (key: string) => (live[key] ? "running" : byKey[key]?.status ?? (ACTIVE.includes(run.status) ? "waiting" : "skipped"));
+  // Ativos digitais só entram em reunião sobre cripto; contestação só quando há favorável × contrária.
+  const keys = new Set([...steps.map((s) => s.step_key), ...Object.keys(live)]);
+  const contest = [...keys].filter((k) => /^conselho:contestacao:[^:]+$/.test(k)).map((k) => [k, k.slice("conselho:contestacao:".length), "Contestação"] as const);
+  const stages = [...COUNCIL_STAGES.slice(0, 4), ...(keys.has(CRYPTO_STAGE[0]) ? [CRYPTO_STAGE] : []), ...COUNCIL_STAGES.slice(4, 6), ...contest, ...COUNCIL_STAGES.slice(6)];
   const label: Record<string, string> = { running: "trabalhando", succeeded: "concluído", failed: "falhou", waiting: "aguardando", skipped: "não executado", cancelled: "cancelado", rejected: "recusado", retrying: "tentando de novo" };
   return (
     <section className="team-council" aria-label="Andamento do Conselho">
       <div className="row between"><span className="eyebrow">Conselho do Lastro</span><span className="tag plain">{{ queued: "na fila", running: "em reunião", succeeded: "concluído", partial: "concluído com falhas", failed: "falhou", cancelled: "interrompido" }[run.status]}</span></div>
       <ol>
-        {COUNCIL_STAGES.map(([key, agent, title]) => {
+        {stages.map(([key, agent, title]) => {
           const st = state(key);
           return (
             <li key={key} data-state={st}>

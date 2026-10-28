@@ -275,25 +275,26 @@ def set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
 
 
 MESSAGE_COLUMNS = ("id, role, content, status, tools_json, audit_json, created_at, agent_id, run_id, step_key, client_id, "
-                   "reply_to_id, mentions_json, sources_json, kind")
+                   "reply_to_id, mentions_json, sources_json, kind, meta_json")
 
 
 def add_message(conn: sqlite3.Connection, conv_id: str, role: str, content: str,
                 status: str = "ok", tools: list | None = None, audit: dict | None = None, *,
                 agent_id: str | None = None, run_id: str | None = None, step_key: str | None = None,
                 client_id: str | None = None, reply_to_id: str | None = None, mentions: list | None = None,
-                sources: list | None = None, kind: str = "message") -> dict:
+                sources: list | None = None, kind: str = "message", meta: dict | None = None) -> dict:
     """Grava uma mensagem. Com (run_id, step_key) ou client_id repetidos, devolve a já existente (idempotente)."""
     if role == "assistant" and agent_id is None:
         agent_id = "mentor"
     msg_id, now = new_id(), utcnow()
     cur = conn.execute(
         "INSERT OR IGNORE INTO messages (id, conversation_id, role, content, status, tools_json, audit_json, created_at, "
-        "agent_id, run_id, step_key, client_id, reply_to_id, mentions_json, sources_json, kind) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        "agent_id, run_id, step_key, client_id, reply_to_id, mentions_json, sources_json, kind, meta_json) "
+        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (msg_id, conv_id, role, content, status, json.dumps(tools or [], ensure_ascii=False),
          json.dumps(audit, ensure_ascii=False) if audit else None, now, agent_id, run_id, step_key, client_id,
-         reply_to_id, json.dumps(mentions or []), json.dumps(sources or [], ensure_ascii=False), kind))
+         reply_to_id, json.dumps(mentions or []), json.dumps(sources or [], ensure_ascii=False), kind,
+         json.dumps(meta, ensure_ascii=False) if meta else None))
     if cur.rowcount == 0:
         where, args = (("run_id = ? AND step_key = ?", (run_id, step_key)) if run_id
                        else ("conversation_id = ? AND client_id = ?", (conv_id, client_id)))
@@ -308,7 +309,8 @@ def _message_row(r: sqlite3.Row) -> dict:
             "tools": json.loads(r["tools_json"]), "audit": json.loads(r["audit_json"]) if r["audit_json"] else None,
             "created_at": r["created_at"], "agent_id": r["agent_id"], "run_id": r["run_id"], "step_key": r["step_key"],
             "client_id": r["client_id"], "reply_to_id": r["reply_to_id"], "mentions": json.loads(r["mentions_json"]),
-            "sources": json.loads(r["sources_json"]), "kind": r["kind"]}
+            "sources": json.loads(r["sources_json"]), "kind": r["kind"],
+            "meta": json.loads(r["meta_json"]) if r["meta_json"] else {}}
 
 
 def get_message(conn: sqlite3.Connection, msg_id: str) -> dict | None:

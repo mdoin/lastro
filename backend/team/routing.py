@@ -18,6 +18,10 @@ from .agents import AGENTS, get
 
 COUNCIL_COMMAND = re.compile(r"^\s*/(conselho|reuniao|reunião)\b[:\s]*", re.IGNORECASE)
 MENTION = re.compile(r"(?<![\w@])@([\wÀ-ÿ][\wÀ-ÿ-]{1,40})")
+COUNCIL_FIRST = ("planejador", "analista", "economista")   # pareceres independentes, em paralelo
+COUNCIL_SECOND = ("riscos", "comportamental")              # leem os anteriores: contraponto e comportamento
+CRYPTO = re.compile(r"\b(cripto\w*|bitcoin|btc|ethereum|ether|eth|stablecoins?|usdt|usdc|tokens?|blockchain|defi|"
+                    r"altcoins?|solana|nfts?|memecoins?|ativos?\s+digita\w*)\b")
 
 
 def _fold(text: str) -> str:
@@ -54,6 +58,12 @@ def parse_mentions(text: str) -> tuple[list[str], list[str]]:
         elif agent_id not in found:
             found.append(agent_id)
     return found, unknown
+
+
+def council_agents(question: str) -> tuple[tuple, tuple]:
+    """Especialistas convocados para a reunião. O de ativos digitais só entra quando o tema é cripto."""
+    extra = ("cripto",) if CRYPTO.search(_fold(question or "")) else ()
+    return COUNCIL_FIRST + extra, COUNCIL_SECOND
 
 
 def strip_council_command(text: str) -> tuple[bool, str]:

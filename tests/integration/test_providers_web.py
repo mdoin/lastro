@@ -126,7 +126,7 @@ def test_existing_installation_skips_onboarding(tmp_path):
     from app import db
 
     conn = db.connect(tmp_path / "old.db")
-    for number, path in db.MIGRATIONS[:-1]:
+    for number, path in (m for m in db.MIGRATIONS if m[0] < 8):  # instalação anterior à v8
         script = path.read_text(encoding="utf-8")
         for statement in db._split_statements(script):
             conn.execute(statement)

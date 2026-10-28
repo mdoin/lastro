@@ -522,7 +522,8 @@ export interface AppStatus {
 
 // ---------- Equipe: Mentor, especialistas, grupos e Conselho ----------
 
-export type AgentId = "mentor" | "planejador" | "analista" | "economista" | "riscos" | "comportamental";
+export type AgentId = "mentor" | "planejador" | "analista" | "economista" | "riscos" | "comportamental" | "cripto";
+export type Stance = "favoravel" | "contraria" | "condicional" | "insuficiente";
 export type Channel = "direct" | "group" | "council" | "routine";
 export type TeamVerdict = "PASSA" | "PASSA COM RESSALVAS" | "REPROVA";
 
@@ -585,6 +586,15 @@ export interface TeamMessage {
   mentions: string[];
   sources: Source[];
   kind: "message" | "analysis" | "notice";
+  /** Conexão/modelo da época, posição declarada no parecer e, no mapa do Conselho, as posições de todos. */
+  meta?: {
+    route?: { connection?: string; model?: string };
+    agent_version?: string;
+    opinion?: { stance: Stance | null; sections: string[] };
+    positions?: Record<string, { initial: Stance | null; final: Stance | null }>;
+    contested?: string[];
+    conflict?: boolean;
+  };
 }
 
 export type RunState = "queued" | "running" | "succeeded" | "partial" | "failed" | "cancelled";

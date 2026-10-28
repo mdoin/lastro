@@ -18,6 +18,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
 - Fuso configurável (`LASTRO_TZ`).
 - Documentação de instalação, atualização, backup, provedores, termos, fontes de dados, licença, testes e release;
   CI com testes em Linux, instalação limpa, gitleaks e auditoria de dependências.
+- **Conselho com discordância verificável** (docs/MULTIAGENT.md): parecer estruturado com posição declarada e seções
+  obrigatórias, rodada única de contestação entre posições opostas, mapa de posições determinístico e reprovação da
+  síntese que omite quem segue discordando.
+- Agente **Analista de Ativos Digitais** (`@cripto`): custódia, stablecoins e risco operacional; entra no Conselho
+  quando a questão é sobre cripto.
+- Cada mensagem de agente registra conexão, modelo e versão do agente (`meta`), preservados após troca de provedor.
 - Licença **AGPL-3.0-or-later** (`LICENSE`), cabeçalhos SPDX nos arquivos-fonte, DCO nas contribuições (verificado no
   CI) e política de marca (`TRADEMARKS.md`); link do código-fonte no login e nas Configurações (AGPL §13,
   `LASTRO_SOURCE_URL`).
@@ -29,6 +35,7 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); 
 
 ### Atualização
 - Migração 008 (só acréscimos). Instalações com senha não passam pelo assistente.
+- Migração 009 (só acrescenta `messages.meta_json`). Mensagens antigas ficam com `meta` vazio.
 - systemd: a unidade `lastro-mentor` ganhou `LASTRO_IMPLICIT_CLAUDE_CODE=1` e `LASTRO_PROVIDERS_FILE`;
   `scripts/deploy.sh` instala os extras `claude-code` e `browser`.
 
