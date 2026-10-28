@@ -95,6 +95,22 @@ export function posture(seat: Seat, messages: TeamMessage[], name: Names): Postu
   }
 }
 
+const STANCE_EXPRESSION: Record<string, Expression> = {
+  favoravel: "entusiasmado", contraria: "preocupado", condicional: "pensativo", insuficiente: "desconfiado",
+};
+
+/** Expressão de uma fala publicada: a reação e a revisão declaradas nela, senão a posição. */
+export function messageExpression(m: TeamMessage): Expression {
+  const d = m.meta?.deliberation ?? {};
+  if (d.revised) return "surpreso";
+  const byReaction: Record<string, Expression> = {
+    discorda: "discordando", concorda: "concordando", reconhece: "satisfeito", pergunta: "desconfiado", complementa: "confiante",
+  };
+  if (d.reaction && byReaction[d.reaction]) return byReaction[d.reaction]!;
+  if (d.kind === "pergunta") return "desconfiado";
+  return STANCE_EXPRESSION[m.meta?.opinion?.stance ?? d.stance ?? ""] ?? "neutro";
+}
+
 // ---------------------------------------------------------------- desenho (sobreposição no pixel art)
 
 export interface Px { x: number; y: number; c: "k" | "b" }

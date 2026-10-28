@@ -28,7 +28,7 @@ import { getRadarLink } from "../api/radar";
 import type { Agent, RunStep, TeamConversation, TeamEvent, TeamMessage, TeamRun } from "../api/types";
 import { AgentAvatar, type AvatarState } from "../components/AgentAvatar";
 import { CaptureNotice } from "../components/CaptureNotice";
-import { AgentPanel, CouncilDiscussion, CouncilRoom, STANCE_LABEL, VerdictView } from "../components/Council";
+import { AgentPanel, CouncilMeeting, STANCE_LABEL, VerdictView } from "../components/Council";
 import { Icon } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
 import { Badge, ErrorNotice, Loading, Notice, Segmented } from "../components/ui";
@@ -480,19 +480,16 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
               onRetry={!presenting && m.status === "error" && m.reply_to_id && byId[m.reply_to_id] ? () => void send(byId[m.reply_to_id!]!.content).catch(() => undefined) : undefined} />
           );
           if (b.kind === "message") return presenting && b.message.kind === "notice" ? null : item(b.message);
-          const synthesis = b.messages.find((m) => m.step_key === "conselho:sintese");
           const open = (agent: string) => setPanel({ run: b.run.id, agent });
           return (
             <div key={b.run.id} className="council-block">
-              <CouncilRoom input={{ run: b.run, steps: b.run.steps ?? [], live: live.steps[b.run.id] ?? {}, messages: b.messages }}
-                question={b.question} agents={agents} masked={masked} onSelect={open}
-                selected={panel?.run === b.run.id ? panel.agent : null} />
-              <CouncilDiscussion messages={b.messages} live={live.steps[b.run.id] ?? {}} agents={agents} onOpen={open} masked={masked} />
-              {synthesis && (synthesis.meta?.verdict ? (
-                <VerdictView message={synthesis} verdict={synthesis.meta.verdict} agents={agents} masked={masked} onOpen={open}
-                  footer={presenting ? undefined : <MessageFoot m={synthesis} name={agentName(agents, "mentor")} onReply={() => setReplyTo(synthesis)}
-                    onRecord={synthesis.status === "ok" ? () => void record(synthesis.id) : undefined} />} />
-              ) : item(synthesis))}
+              <CouncilMeeting run={b.run} question={b.question} messages={b.messages} live={live.steps[b.run.id] ?? {}} agents={agents}
+                masked={masked} presenting={presenting} onOpen={open} selected={panel?.run === b.run.id ? panel.agent : null}
+                renderVerdict={(synthesis, participants) => (synthesis.meta?.verdict ? (
+                  <VerdictView message={synthesis} verdict={synthesis.meta.verdict} agents={agents} masked={masked} onOpen={open} participants={participants}
+                    footer={presenting ? undefined : <MessageFoot m={synthesis} name={agentName(agents, "mentor")} onReply={() => setReplyTo(synthesis)}
+                      onRecord={synthesis.status === "ok" ? () => void record(synthesis.id) : undefined} />} />
+                ) : item(synthesis))} />
               {!presenting && b.messages.some((m) => m.step_key !== "conselho:sintese") && (
                 <details className="council-transcript">
                   <summary className="small">Registro técnico da reunião ({b.messages.filter((m) => m.step_key !== "conselho:sintese").length} mensagens: mapa de posições, auditoria e pareceres completos)</summary>
@@ -518,6 +515,7 @@ function ChatView({ id, agents, onChanged, onDeleted }: { id: string; agents: Ag
 
       {panelSeat && panelBlock && (
         <AgentPanel seat={panelSeat} seats={panelSeats} agents={agents} masked={masked} onClose={() => setPanel(null)}
+          messages={panelBlock.messages}
           onSelect={(agent) => setPanel({ run: panelBlock.run.id, agent })}
           onReply={presenting || c.channel === "routine" ? undefined : (m) => { setReplyTo(m); setPanel(null); }}
           onAsk={presenting || c.channel === "routine" ? undefined : (agent, text) => send(`@${agents[agent]?.handle ?? agent} ${text}`)}

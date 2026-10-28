@@ -53,3 +53,28 @@ evidências, falas, divergências, conclusão, condições de revisão, auditori
 Derivados só de passos, eventos e mensagens: aguardando, analisando, consultando informações (o passo chamou
 ferramenta), falando (texto chegando), respondendo/questionando (pauta pediu e o passo está rodando), revisando
 (correção em curso), parecer disponível, concluído, indisponível (falhou ou esperando limite do provedor).
+
+## A sala como reunião viva (interface)
+Tudo abaixo é derivado do registro (`lib/council.ts`, `lib/expressions.ts`); nada é sorteado, encenado ou inferido
+de palavras soltas do texto.
+- **Palco:** quem fala fica em destaque e quem ouve recebe o contorno; os demais esmaecem. O holofote mostra
+  "Rui → @Caio · Contestação" e a primeira frase, com "Ver na conversa".
+- **Expressões** (`posture()`): saem do estado em curso, da reação e revisão declaradas, de uma contestação ainda sem
+  resposta e da posição; cada uma vem com o motivo em texto (também no rótulo acessível). Discordar duas vezes do mesmo
+  colega vira "irritado". **"debochado" existe no desenho, mas nenhum evento o justifica: nunca é atribuído.**
+- **Etapas narradas** (`narrative()`), na ordem real: convocado → analisando → divergências → discussão → revisões →
+  redação do veredito → auditoria → conclusão. As condicionais só aparecem quando aconteceram; nenhuma aparece concluída
+  antes do registro; numa reunião que falhou, o que não aconteceu fica riscado.
+- **Reunião extraordinária:** a abertura usa `route.origin` e o contexto que o Radar mandou (hipótese, evidências,
+  horário, convocados). Reabrir a página retoma do estado atual, sem recomeçar.
+- **Conversa:** cada fala tem número, hora, tipo (`contributionType()`: análise inicial, concordância, discordância,
+  pergunta, contestação, resposta, revisão de posição, conclusão, auditoria), destinatário, citação do argumento
+  contestado (clicável) e @menções coloridas. Revisões mostram posição inicial, atual e o motivo (a fala que a
+  provocou).
+- **Painel do participante:** postura e motivo, papel, posição inicial e atual, divergências, mudanças e pergunta
+  direta (a resposta aparece na conversa).
+- **Replay** de reuniões encerradas, só com as mensagens gravadas (nenhuma chamada à IA): reproduzir, pausar, avançar,
+  voltar, velocidade, pular para etapa, próxima fala de um participante, ir ao veredito; o andamento é anunciado em texto.
+- **Modo apresentação:** "Focar nesta troca" esmaece o que não faz parte da troca; o veredito ganha destaque; a máscara
+  de valores vale para citações, holofote e abertura.
+- Movimento só em mudanças de estado (sem animação parada), desligado com movimento reduzido.

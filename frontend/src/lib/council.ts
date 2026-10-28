@@ -283,3 +283,176 @@ export function threadBlocks(messages: TeamMessage[], runs: TeamRun[]): ThreadBl
   }
   return blocks;
 }
+
+// ---------------------------------------------------------------- palco, narrativa e replay
+
+/** As duas primeiras linhas de uma fala ("**Posição:**", "**Reação:**") viram selos; o resto é o texto. */
+export const speech = (text: string) => text.replace(/^\s*\**\s*(posi[cç][aã]o|rea[cç][aã]o)\s*:?\**\s*:?[^\n]*\n/gim, "").trim();
+
+/** Primeira frase de um texto (sem marcação), para citações curtas. */
+export function firstSentence(text: string, max = 220): string {
+  const plain = speech(text).replace(/[*_#>`]/g, "").replace(/\s+/g, " ").trim();
+  const cut = /^(.+?[.!?])(\s|$)/.exec(plain)?.[1] ?? plain;
+  return cut.length > max ? `${cut.slice(0, max).replace(/\s+\S*$/, "")}…` : cut;
+}
+
+const isInitial = (key: string) => /^conselho:[a-z]+$/.test(key) && !RESERVED.has(key.slice(9));
+const isTurn = (key: string) => DEBATE.test(key) || key.startsWith("conselho:contestacao:");
+
+/** Tipo da contribuição, só pelo que foi registrado (passo e metadados), nunca por palavras do texto. */
+export function contributionType(m: TeamMessage): { label: string; key: string; fromReaction: boolean } {
+  const key = m.step_key ?? "";
+  const t = (label: string, k: string, fromReaction = false) => ({ label, key: k, fromReaction });
+  if (m.role === "user") return t("Você", "pessoa");
+  if (key === "conselho:enquadramento") return t("Abertura", "abertura");
+  if (key.startsWith("conselho:pauta")) return t("Pauta", "pauta");
+  if (key.startsWith("conselho:sintese")) return t("Conclusão", "conclusao");
+  if (key.startsWith("conselho:auditoria") || key.startsWith("conselho:devolucao")) return t("Auditoria", "auditoria");
+  if (isInitial(key)) return t("Análise inicial", "inicial");
+  const d = m.meta?.deliberation ?? {};
+  if (d.revised) return t("Revisão de posição", "revisao");
+  if (d.kind === "contestacao" || key.startsWith("conselho:contestacao:")) return t("Contestação", "contestacao");
+  if (d.kind === "pergunta") return t("Pergunta", "pergunta");
+  if (d.reaction === "concorda") return t("Concordância", "concordancia", true);
+  if (d.reaction === "discorda") return t("Discordância", "discordancia", true);
+  if (d.reaction === "pergunta") return t("Pergunta", "pergunta", true);
+  return t(KIND_LABEL[d.kind ?? ""] ?? "Fala", d.kind ?? "fala");
+}
+
+export type StepState = "done" | "active" | "pending" | "skipped";
+export interface NarrativeStep { key: string; text: string; state: StepState }
+
+/** Etapas narradas, na ordem real. Etapas condicionais (divergências, discussão, revisão, redação) só entram quando
+ * aconteceram; nenhuma aparece concluída antes do registro correspondente. */
+export function narrative(input: RoomInput, mentor = "Bento"): NarrativeStep[] {
+  const { run, steps, live, messages } = input;
+  const liveKeys = Object.keys(live);
+  const ended = !ACTIVE_RUN.includes(run.status);
+  const mode = run.route.mode ?? "completo";
+  const has = (p: (k: string) => boolean) => messages.some((m) => p(m.step_key ?? ""));
+  const isLive = (p: (k: string) => boolean) => liveKeys.some(p);
+  const st = (done: boolean, active: boolean): StepState => (done ? "done" : active ? "active" : ended ? "skipped" : "pending");
+  const synthesis = byKey(messages, "conselho:sintese");
+  const synthStarted = isLive((k) => k.startsWith("conselho:sintese")) || steps.some((s) => s.step_key === "conselho:sintese");
+  const auditing = isLive((k) => k.startsWith("conselho:auditoria") || k.startsWith("conselho:devolucao"))
+    || (steps.some((s) => s.step_key === "conselho:sintese" && s.status === "succeeded") && !synthesis);
+  const audited = !!synthesis?.audit || has((k) => k === "conselho:auditoria");
+  const out: NarrativeStep[] = [{ key: "convocado", text: run.route.origin ? "Reunião extraordinária convocada" : "O Conselho foi convocado", state: "done" }];
+
+  if (mode !== "revisao" && mode !== "rodada") {
+    const specialists = lineup(run, steps).filter((a) => a !== "mentor" && a !== "auditor");
+    const published = specialists.filter((a) => has((k) => k === `conselho:${a}`)).length;
+    const later = has((k) => k.startsWith("conselho:pauta") || isTurn(k) || k === "conselho:posicoes" || k === "conselho:sintese") || synthStarted;
+    const done = (specialists.length > 0 && published === specialists.length) || later;
+    const active = published > 0 || isLive((k) => specialists.some((a) => k === `conselho:${a}` || k.startsWith(`conselho:${a}:`)));
+    out.push({ key: "analise", text: done ? "Os especialistas analisaram" : "Os especialistas estão analisando", state: st(done, active) });
+  }
+  const diverged = messages.some((m) => (m.meta?.deliberation?.plan?.divergences?.length ?? 0) > 0
+    || (isTurn(m.step_key ?? "") && (m.meta?.deliberation?.reaction === "discorda" || m.meta?.deliberation?.kind === "contestacao")));
+  if (diverged) out.push({ key: "divergencias", text: "Surgiram divergências", state: "done" });
+  const debating = isLive(isTurn) || isLive((k) => k.startsWith("conselho:pauta"));
+  if (debating || has(isTurn)) {
+    out.push({ key: "discussao", text: debating ? "Os participantes estão discutindo" : "Os participantes discutiram", state: debating ? "active" : "done" });
+  }
+  if (messages.some((m) => m.meta?.deliberation?.revised)) out.push({ key: "revisao", text: "As hipóteses foram revisadas", state: "done" });
+  if (synthStarted || synthesis) {
+    const drafting = isLive((k) => k.startsWith("conselho:sintese"));
+    out.push({ key: "redacao", text: drafting ? `O ${mentor} está redigindo o veredito` : `O ${mentor} redigiu o veredito`, state: drafting ? "active" : "done" });
+  }
+  out.push({ key: "auditoria", text: audited ? "A auditoria avaliou o veredito" : "A auditoria está avaliando", state: st(audited, auditing) });
+  out.push({ key: "conclusao", text: `O ${mentor} apresentou uma conclusão`, state: st(synthesis?.status === "ok", false) });
+  return out;
+}
+
+export interface Spotlight { speaker: string; target: string | null; toPerson: boolean; label: string; text: string; live: boolean; message?: TeamMessage }
+
+const excerptOf = (m: TeamMessage) => (isInitial(m.step_key ?? "") ? m.meta?.opinion?.excerpts?.tese ?? firstSentence(m.content) : firstSentence(m.content));
+
+/** Quem está no centro agora: a fala em curso (com o alvo que a pauta pediu) ou a última contribuição publicada. */
+export function spotlight(input: RoomInput): Spotlight | null {
+  const talking = Object.entries(input.live).filter(([k, s]) => isTurn(k) && (s.status === "running" || s.status === "retrying"));
+  if (talking.length) {
+    const [key, s] = talking[talking.length - 1]!;
+    const turn = plannedTurn(input.messages, key);
+    return { speaker: s.agent_id, target: turn?.target ?? null, toPerson: false, label: KIND_LABEL[turn?.kind ?? ""] ?? "Fala",
+      text: s.text ? firstSentence(s.text) : "", live: true };
+  }
+  const m = [...input.messages].reverse().find((x) => x.role === "assistant" && x.status === "ok" && !!x.agent_id
+    && (isTurn(x.step_key ?? "") || isInitial(x.step_key ?? "") || x.step_key === "conselho:sintese" || !!x.step_key?.startsWith("conselho:devolucao")));
+  if (!m) return null;
+  const responds = m.meta?.deliberation?.responds_to;
+  return { speaker: m.agent_id!, target: responds?.agent ?? null, toPerson: !!responds?.person, label: contributionType(m).label,
+    text: excerptOf(m), live: false, message: m };
+}
+
+/** A mensagem a que uma fala responde (o argumento contestado) e o trecho dela que cabe numa citação. */
+export function quoted(m: TeamMessage, messages: TeamMessage[]): { message: TeamMessage; excerpt: string; contested: boolean } | null {
+  const d = m.meta?.deliberation;
+  const id = d?.responds_to?.message_id ?? m.reply_to_id;
+  const before = messages.slice(0, Math.max(0, messages.indexOf(m)));
+  const who = d?.responds_to?.agent;
+  const target = (id ? messages.find((x) => x.id === id) : undefined)
+    ?? (who ? [...before].reverse().find((x) => x.agent_id === who && x.status === "ok" && x.role === "assistant") : undefined);
+  if (!target) return null;
+  return { message: target, excerpt: excerptOf(target), contested: d?.reaction === "discorda" || d?.kind === "contestacao" };
+}
+
+export interface PositionChange { message: TeamMessage; from: Stance | null; to: Stance | null; after: string | null }
+export interface Track { agent: string; initial: Stance | null; current: Stance | null; thesis?: string; now?: string; changes: PositionChange[] }
+
+/** Posição de cada especialista: a inicial (análise independente), a atual e cada mudança com quem a provocou. */
+export function tracks(messages: TeamMessage[], agents: string[]): Track[] {
+  return agents.filter((a) => a !== "mentor" && a !== "auditor").map((agent) => {
+    const first = messages.find((m) => m.step_key === `conselho:${agent}` && m.status === "ok");
+    const initial = first?.meta?.opinion?.stance ?? null;
+    const changes: PositionChange[] = [];
+    let current = initial;
+    let now: string | undefined;
+    for (const m of messages) {
+      if (m.agent_id !== agent || m.status !== "ok" || !isTurn(m.step_key ?? "")) continue;
+      const d = m.meta?.deliberation ?? {};
+      const stance = (d.stance as Stance | undefined) ?? current;
+      if (d.revised || stance !== current) {
+        changes.push({ message: m, from: current, to: stance, after: d.responds_to?.agent ?? null });
+        now = firstSentence(m.content);
+      }
+      current = stance;
+    }
+    return { agent, initial, current, thesis: first?.meta?.opinion?.excerpts?.tese, now, changes };
+  });
+}
+
+/** Hipótese e evidências que o Radar mandou no contexto da convocação automática, linha a linha. */
+export function convocation(text: string | undefined): { hypothesis?: string; evidence: string[] } {
+  const lines = (text ?? "").split("\n");
+  const hypothesis = lines.find((l) => l.startsWith("Hipótese a investigar:"))?.slice("Hipótese a investigar:".length).trim();
+  const at = lines.findIndex((l) => l.trim() === "Evidências:");
+  const evidence: string[] = [];
+  if (at >= 0) for (const l of lines.slice(at + 1)) { if (!l.startsWith("- ")) break; evidence.push(l.slice(2).trim()); }
+  return { hypothesis, evidence };
+}
+
+export interface Chapter { key: string; label: string; index: number }
+
+/** Onde cada etapa começa na sequência publicada (para o replay pular direto). */
+export function chapters(messages: TeamMessage[]): Chapter[] {
+  const at = (p: (m: TeamMessage) => boolean) => messages.findIndex(p);
+  const list: Chapter[] = [
+    { key: "abertura", label: "Abertura", index: at((m) => m.step_key === "conselho:enquadramento") },
+    { key: "analise", label: "Análises independentes", index: at((m) => isInitial(m.step_key ?? "")) },
+    { key: "divergencias", label: "Divergências", index: at((m) => (m.meta?.deliberation?.plan?.divergences?.length ?? 0) > 0) },
+    { key: "discussao", label: "Discussão", index: at((m) => isTurn(m.step_key ?? "")) },
+    { key: "revisao", label: "Revisões de posição", index: at((m) => !!m.meta?.deliberation?.revised) },
+    { key: "auditoria", label: "Auditoria", index: at((m) => !!m.step_key && (m.step_key.startsWith("conselho:devolucao") || m.step_key === "conselho:auditoria")) },
+    { key: "conclusao", label: "Veredito", index: at((m) => m.step_key === "conselho:sintese") },
+  ];
+  return list.filter((c) => c.index >= 0).sort((a, b) => a.index - b.index);
+}
+
+/** A sala no quadro `n` do replay: só o que estava publicado até ali, com a reunião "em curso" até o último quadro. */
+export function replayInput(input: RoomInput, n: number): RoomInput {
+  const messages = input.messages.slice(0, n + 1);
+  if (n >= input.messages.length - 1) return { ...input, live: {} };
+  const keys = new Set(messages.map((m) => m.step_key));
+  return { run: { ...input.run, status: "running" }, steps: input.steps.filter((s) => keys.has(s.step_key)), live: {}, messages };
+}

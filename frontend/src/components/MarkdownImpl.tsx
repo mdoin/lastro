@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import type { ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -17,21 +18,26 @@ export function externalHost(href: string | undefined): string | null {
   }
 }
 
+function Anchor({ href, children }: { href?: string; children?: ReactNode }) {
+  const host = externalHost(href);
+  if (!host) return <a href={href}>{children}</a>; // âncoras internas (ex.: notas de rodapé) abrem na mesma aba
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer nofollow" title={href}>
+      {children}
+      <span className="md-link-host"> ({host})</span>
+    </a>
+  );
+}
+
 const components: Components = {
-  a: ({ href, children }) => {
-    const host = externalHost(href);
-    if (!host) return <a href={href}>{children}</a>; // âncoras internas (ex.: notas de rodapé) abrem na mesma aba
-    return (
-      <a href={href} target="_blank" rel="noopener noreferrer nofollow" title={href}>
-        {children}
-        <span className="md-link-host"> ({host})</span>
-      </a>
-    );
-  },
+  a: ({ href, children }) => <Anchor href={href}>{children}</Anchor>,
   table: ({ children }) => <table>{children}</table>,
 };
 
-export default function MarkdownImpl({ text }: { text: string }) {
+export default function MarkdownImpl({ text, mention }: { text: string; mention?: (id: string) => ReactNode }) {
+  const parts: Components = mention
+    ? { ...components, a: (props) => (props.href?.startsWith("#agente:") ? <>{mention(props.href.slice(8))}</> : <Anchor href={props.href}>{props.children}</Anchor>) }
+    : components;
   return (
     <div className="md">
       <ReactMarkdown
@@ -39,7 +45,7 @@ export default function MarkdownImpl({ text }: { text: string }) {
         skipHtml
         disallowedElements={["img"]}
         unwrapDisallowed
-        components={components}
+        components={parts}
       >
         {text}
       </ReactMarkdown>

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
 import type { RunStep, TeamMessage, TeamRun } from "../api/types";
-import { feed, lineup, phases, seats, threadBlocks, type LiveStep } from "./council";
+import { chapters, contributionType, convocation, feed, lineup, narrative, phases, quoted, replayInput, seats, spotlight, threadBlocks, tracks, type LiveStep } from "./council";
 import { MASK, maskMoney } from "./privacy";
 
 const run = (status: TeamRun["status"], route: TeamRun["route"] = {}): TeamRun => ({
@@ -119,5 +119,76 @@ describe("máscara do modo apresentação", () => {
     expect(maskMoney("Gastei R$ 1.234,56 e R$38 hoje; meta de R$ 50 mil e 2,5 milhões de pessoas."))
       .toBe(`Gastei ${MASK} e ${MASK} hoje; meta de ${MASK} e 2,5 milhões de pessoas.`);
     expect(maskMoney("Sobram 400 reais. Selic de 10,5% a.a.")).toBe(`Sobram ${MASK}. Selic de 10,5% a.a.`);
+  });
+});
+
+describe("palco, narrativa e replay", () => {
+  const opinion = (agent: string, stance: "favoravel" | "contraria", tese: string) =>
+    msg(`conselho:${agent}`, agent, { meta: { opinion: { stance, sections: [], excerpts: { tese } } } });
+  const caio = opinion("analista", "favoravel", "O preço subiu com volume alto.");
+  const rui = opinion("riscos", "contraria", "A reserva não cobre seis meses.");
+  const lia = opinion("planejador", "favoravel", "Cabe no orçamento.");
+  const contest = msg("conselho:debate:1:riscos", "riscos", { id: "t1", content: "**Posição:** contrária\nVolume alto não prova nada. Veja o resto.",
+    meta: { deliberation: { kind: "contestacao", reaction: "discorda", stance: "contraria", responds_to: { agent: "analista", message_id: "conselho:analista" } } } });
+  const revise = msg("conselho:debate:2:analista", "analista", { id: "t2", content: "Rui tem razão sobre a reserva. Mudo para contrária.",
+    meta: { deliberation: { kind: "resposta", reaction: "reconhece", revised: true, stance: "contraria", responds_to: { agent: "riscos", message_id: "t1" } } } });
+  const synth = msg("conselho:sintese", "mentor", { audit: { verdict: "PASSA", reasons: [], checked_numbers: 0 } });
+  const all = [msg("conselho:enquadramento", "mentor"), lia, rui, caio, pauta, contest, revise, synth];
+  const ended = { run: run("succeeded", { lineup: LINEUP }), steps: [], live: {}, messages: all };
+
+  it("tipo da contribuição vem dos metadados", () => {
+    expect([caio, contest, revise, synth].map((m) => contributionType(m).label)).toEqual(["Análise inicial", "Contestação", "Revisão de posição", "Conclusão"]);
+    const agrees = msg("conselho:debate:1:planejador", "planejador", { meta: { deliberation: { reaction: "concorda" } } });
+    expect(contributionType(agrees)).toMatchObject({ label: "Concordância", fromReaction: true });
+  });
+
+  it("narrativa: nada concluído antes da hora; etapas condicionais só quando aconteceram", () => {
+    const start = narrative({ run: run("running", { lineup: LINEUP }), steps: [], live: {}, messages: [] });
+    expect(start.map((s) => [s.key, s.state])).toEqual([["convocado", "done"], ["analise", "pending"], ["auditoria", "pending"], ["conclusao", "pending"]]);
+    const half = narrative({ run: run("running", { lineup: LINEUP }), steps: [], live: {}, messages: [lia] });
+    expect(half.find((s) => s.key === "analise")).toMatchObject({ state: "active", text: "Os especialistas estão analisando" });
+    const live = narrative({ run: run("running", { lineup: LINEUP }), steps: [], messages: [lia, rui, caio, pauta, contest],
+      live: { "conselho:debate:2:analista": { agent_id: "analista", status: "running" } } });
+    expect(live.map((s) => s.key)).toEqual(["convocado", "analise", "divergencias", "discussao", "auditoria", "conclusao"]);
+    expect(live.find((s) => s.key === "discussao")!.state).toBe("active");
+    expect(live.find((s) => s.key === "conclusao")!.state).toBe("pending");
+    const done = narrative(ended, "Bento");
+    expect(done.map((s) => s.key)).toEqual(["convocado", "analise", "divergencias", "discussao", "revisao", "redacao", "auditoria", "conclusao"]);
+    expect(done.every((s) => s.state === "done")).toBe(true);
+    const failed = narrative({ run: run("failed", { lineup: LINEUP }), steps: [], live: {}, messages: [lia] });
+    expect(failed.find((s) => s.key === "conclusao")!.state).toBe("skipped");
+  });
+
+  it("holofote: fala em curso com o alvo da pauta; senão a última contribuição", () => {
+    const live = spotlight({ run: run("running", { lineup: LINEUP }), steps: [], messages: [pauta],
+      live: { "conselho:debate:1:riscos": { agent_id: "riscos", status: "running", text: "Não concordo. Mais texto" } } });
+    expect(live).toMatchObject({ speaker: "riscos", target: "analista", label: "Contestação", text: "Não concordo.", live: true });
+    expect(spotlight(ended)).toMatchObject({ speaker: "mentor", label: "Conclusão" });
+    expect(spotlight({ ...ended, messages: all.slice(0, 6) })).toMatchObject({ speaker: "riscos", target: "analista", text: "Volume alto não prova nada." });
+  });
+
+  it("argumento contestado e revisão de posição vêm do registro", () => {
+    expect(quoted(contest, all)).toMatchObject({ message: { id: "conselho:analista" }, excerpt: "O preço subiu com volume alto.", contested: true });
+    expect(quoted(revise, all)).toMatchObject({ message: { id: "t1" }, excerpt: "Volume alto não prova nada.", contested: false });
+    const [, analista, planejador] = tracks(all, ["mentor", "riscos", "analista", "planejador", "auditor"]);
+    expect(analista).toMatchObject({ initial: "favoravel", current: "contraria", thesis: "O preço subiu com volume alto.", now: "Rui tem razão sobre a reserva." });
+    expect(analista!.changes).toHaveLength(1);
+    expect(analista!.changes[0]).toMatchObject({ from: "favoravel", to: "contraria", after: "riscos" });
+    expect(planejador).toMatchObject({ initial: "favoravel", current: "favoravel", changes: [] });
+  });
+
+  it("convocação automática: hipótese e evidências do contexto do Radar", () => {
+    const text = "Evento detectado\nHipótese a investigar: queda com volume\nEvidências:\n- BTC -8% em 4 h\n- volume 3x\nFontes: Binance";
+    expect(convocation(text)).toEqual({ hypothesis: "queda com volume", evidence: ["BTC -8% em 4 h", "volume 3x"] });
+    expect(convocation(undefined)).toEqual({ hypothesis: undefined, evidence: [] });
+  });
+
+  it("replay: capítulos na ordem publicada e sala só com o que já existia", () => {
+    expect(chapters(all).map((c) => [c.key, c.index])).toEqual([["abertura", 0], ["analise", 1], ["discussao", 5], ["revisao", 6], ["conclusao", 7]]);
+    const frame = replayInput(ended, 2);
+    expect(frame.messages.map((m) => m.id)).toEqual(["conselho:enquadramento", "conselho:planejador", "conselho:riscos"]);
+    expect(frame.run.status).toBe("running");
+    expect(narrative(frame).find((s) => s.key === "conclusao")!.state).toBe("pending");
+    expect(replayInput(ended, all.length - 1).run.status).toBe("succeeded");
   });
 });

@@ -30,9 +30,11 @@ describe("componentes do Conselho", () => {
       <CouncilRoom input={{ run, steps: [], live: { "conselho:planejador": { agent_id: "planejador", status: "running", tool: "metas" } }, messages: [parecer] }}
         agents={AGENTS} onSelect={noop} masked={false} />,
     );
-    expect(html).toContain('aria-label="Lia, Planejadora: Consultando informações. Abrir detalhes"');
-    expect(html).toContain('aria-label="Rui, Gestor de riscos: Parecer disponível, posição contrária. Abrir detalhes"');
-    expect(html).toContain('aria-label="Bento, Mentor: Aguardando. Abrir detalhes"');
+    expect(html).toContain('aria-label="Lia, Planejadora: Consultando informações; postura: pensativo, consultando dados. Abrir detalhes"');
+    expect(html).toContain('aria-label="Rui, Gestor de riscos: Parecer disponível, posição contrária; postura: preocupado, parecer contrário: vê riscos. Abrir detalhes"');
+    expect(html).toContain('aria-label="Bento, Mentor: Aguardando; postura: neutro, aguardando. Abrir detalhes"');
+    expect(html).toContain("Os especialistas estão analisando");
+    expect(html).not.toContain("O Bento apresentou uma conclusão</span><span class=\"visually-hidden\">: concluída");
     expect(html).toContain("Agora: Lia (consultando informações).");
     expect(html).toContain("contrária");
   });
@@ -70,12 +72,24 @@ describe("componentes do Conselho", () => {
   it("discussão: cada fala diz quem responde a quem, com reação e menção clicável", () => {
     const turn: TeamMessage = { ...parecer, id: "t1", step_key: "conselho:debate:1:riscos", content: "**Posição:** contrária (mantida)\n**Reação:** discordo\n\nA reserva cobre menos de 3 meses.",
       meta: { deliberation: { kind: "contestacao", reaction: "discorda", stance: "contraria", responds_to: { agent: "planejador", message_id: "m0" } } } };
-    const html = renderToStaticMarkup(<CouncilDiscussion messages={[parecer, turn]} live={{}} agents={AGENTS} onOpen={noop} masked={false} />);
+    const lia: TeamMessage = { ...parecer, id: "m0", agent_id: "planejador", step_key: "conselho:planejador",
+      meta: { opinion: { stance: "favoravel", sections: [], excerpts: { tese: "Cabe no orçamento." } } } };
+    const html = renderToStaticMarkup(<CouncilDiscussion messages={[lia, parecer, turn]} live={{}} agents={AGENTS} onOpen={noop} masked={false} />);
     expect(html).toContain('aria-label="Contestação de Rui para Lia"');
     expect(html).toContain("↳ respondendo a");
     expect(html).toContain('aria-label="Lia: abrir parecer"');
     expect(html).toContain("discorda");
     expect(html).not.toContain("**Reação:**");  // as linhas de controle viram selos
     expect(html).toContain("Posições iniciais");
+    expect(html).toContain("Argumento contestado · Lia");
+    expect(html).toContain("“Cabe no orçamento.”");
+    expect(html).toContain('id="fala-t1"');
+  });
+
+  it("menções no texto de uma fala viram botões do registro de agentes; nome desconhecido fica como texto", async () => {
+    const { default: MarkdownImpl } = await import("./MarkdownImpl");
+    const html = renderToStaticMarkup(<MarkdownImpl text="Concordo com [@Rui](#agente:riscos) e @fulano." mention={(id) => <b data-id={id}>@{id}</b>} />);
+    expect(html).toContain('<b data-id="riscos">@riscos</b>');
+    expect(html).toContain("@fulano");
   });
 });
