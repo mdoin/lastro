@@ -37,6 +37,20 @@ export interface LiveStep {
   wait?: string;
 }
 
+/** Passo de pesquisa na internet (sessão isolada do agente): o texto dele é material interno, não fala. */
+export const isResearch = (key: string) => key.includes(">pesquisa#");
+
+const RESEARCH_TOOL: Record<string, string> = {
+  web_search: "pesquisando na internet", web_open: "lendo uma fonte", ler_pagina_oficial: "lendo uma fonte oficial",
+  web_find: "conferindo um dado na fonte", web_extract: "extraindo dados da fonte",
+};
+
+/** O que mostrar enquanto um agente pesquisa, a partir da ferramenta que de fato está rodando. */
+export function researchLabel(key: string, step: LiveStep): string | null {
+  if (!isResearch(key) && step.kind !== "research") return null;
+  return (step.tool && RESEARCH_TOOL[step.tool]) || "consultando fontes";
+}
+
 export interface Seat {
   agent: string;
   state: SeatState;
@@ -63,7 +77,7 @@ export interface Phase {
 const DEFAULT_SPECIALISTS = ["planejador", "analista", "economista", "riscos", "comportamental"];
 const RESERVED = new Set(["enquadramento", "sintese", "auditoria", "posicoes", "pauta", "devolucao"]);
 const ACTIVE_RUN: TeamRun["status"][] = ["queued", "running"];
-const DEBATE = /^conselho:debate:([^:]+):([a-z]+)(:|$)/;
+const DEBATE = /^conselho:debate:([^:]+):([a-z]+)(:|>|$)/;
 
 /** Quem foi convocado: o backend grava a escalação na execução; execuções antigas são deduzidas dos passos. */
 export function lineup(run: TeamRun, steps: RunStep[]): string[] {
@@ -76,7 +90,7 @@ export function lineup(run: TeamRun, steps: RunStep[]): string[] {
 }
 
 export function belongs(key: string, agent: string): boolean {
-  const starts = (k: string) => key === k || key.startsWith(`${k}:`) || key.startsWith(`${k}#`);
+  const starts = (k: string) => key === k || key.startsWith(`${k}:`) || key.startsWith(`${k}#`) || key.startsWith(`${k}>`);
   if (agent === "mentor") return ["conselho:enquadramento", "conselho:sintese", "conselho:pauta"].some(starts);
   if (agent === "auditor") return ["conselho:auditoria", "conselho:devolucao"].some(starts);
   return starts(`conselho:${agent}`) || starts(`conselho:contestacao:${agent}`) || DEBATE.exec(key)?.[2] === agent;
@@ -96,6 +110,7 @@ function plannedTurn(messages: TeamMessage[], key: string): PlannedTurn | undefi
 }
 
 function actOf(key: string, messages: TeamMessage[]): string | undefined {
+  if (isResearch(key)) return "Pesquisando fontes";
   if (key.startsWith("conselho:enquadramento")) return "Enquadramento";
   if (key.startsWith("conselho:pauta")) return "Organizando a pauta";
   if (key.startsWith("conselho:sintese")) return "Veredito";
@@ -144,7 +159,7 @@ export function seats(input: RoomInput): Seat[] {
       const state: SeatState = key.endsWith(":correcao") ? "revising"
         : turn?.kind === "pergunta" ? "questioning"
         : turn && (turn.target || turn.kind === "resposta") ? "responding"
-        : step.tool && !step.text ? "consulting"
+        : isResearch(key) || (step.tool && !step.text) ? "consulting"
         : step.text ? "speaking" : "analyzing";
       return { ...base, state, active: true, act: actOf(key, messages) };
     }

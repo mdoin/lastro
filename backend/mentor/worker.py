@@ -43,6 +43,7 @@ from providers.credentials import ConnectionStore
 from providers.registry import IMPLICIT_ID, Runtime
 
 from .provider_admin import ProviderAdmin
+from .research import ResearchSession
 from .session import session_spec
 
 log = logging.getLogger("lastro.mentor")
@@ -250,12 +251,17 @@ class MentorWorker:
         model = self._model(req or {}, conn_id)
 
         async def attempt() -> TurnOutcome:
+            # Pesquisa: contexto próprio a cada tentativa (cache, limites, evidências); nada vem de outra sessão.
+            research = ResearchSession(self.browser) if mode == "pesquisa_web" else None
             session = await self._open_session(lambda: emit, conn_id, model, role=role, session_id=str(uuid.uuid4()),
-                                               ephemeral=True, effort=effort, mode=mode)
+                                               ephemeral=True, effort=effort, mode=mode, research=research)
             try:
-                return await session.send(context_header() + text, emit)
+                outcome = await session.send(context_header() + text, emit)
             finally:
                 await session.close()
+            if research is not None:  # as fontes que as ferramentas de fato consultaram, para o orquestrador
+                outcome.tools = list(outcome.tools) + research.records()
+            return outcome
         return await self._run_with_limit_retry(emit, attempt, conn_id=conn_id)
 
     async def panel(self, req: dict, emit: Emit) -> None:

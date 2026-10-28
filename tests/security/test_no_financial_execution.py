@@ -30,6 +30,9 @@ IMPORT_ALLOWLIST = {
     "mentor/worker.py": {"socket"},  # só as constantes de SO_PEERCRED do socket Unix já aberto; nenhuma conexão
     "integrations/collector.py": {"httpx"},  # só APIs oficiais do catálogo; serviço próprio, fora do web e do worker
     "crypto/sources.py": {"httpx"},  # só data-api.binance.vision, api.coingecko.com e api.llama.fi; sem redirecionar
+    # só GET em https público, IP conferido e fixado (sem loopback/privado/metadados), só na sessão de pesquisa sem
+    # dados do dono; garantido por tests/integration/test_research.py
+    "mentor/research.py": {"httpx", "socket"},
     "ledger/ocr.py": {"subprocess"},  # só o binário local tesseract, argumentos fixos, stdin, prazo; sem shell nem rede
 }
 

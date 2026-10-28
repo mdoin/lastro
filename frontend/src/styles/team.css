@@ -593,3 +593,24 @@
 }
 
 .team-notice .btn { margin-left: 8px; }
+
+/* ------------------------------------------------------------------ pesquisa: estado real e fontes */
+
+.team-research-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--ink-2);
+}
+.team-research-state svg { width: 14px; height: 14px; }
+
+.team-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-2);
+}
+.team-verified svg { width: 13px; height: 13px; }
+
+.team-sources li .badge { margin-left: 6px; }

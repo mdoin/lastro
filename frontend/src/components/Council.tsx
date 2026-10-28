@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEven
 import type { Agent, OpinionExcerpt, Stance, TeamMessage, TeamRun, Verdict, VerdictKey, VerdictSegment } from "../api/types";
 import {
   chapters, contributionType, convocation, feed, firstSentence, lineup, MODE_LABEL, narrative, quoted, REACTION_LABEL, replayInput,
-  SEAT_LABEL, seats, speech, spotlight, tracks, type FeedItem, type LiveStep, type RoomInput, type Seat,
+  isResearch, SEAT_LABEL, seats, speech, spotlight, tracks, type FeedItem, type LiveStep, type RoomInput, type Seat,
 } from "../lib/council";
 import { EXPRESSION_LABEL, messageExpression, posture } from "../lib/expressions";
 import { maybeMask } from "../lib/privacy";
@@ -269,7 +269,7 @@ export function CouncilDiscussion({ messages, live, agents, onOpen, masked, pres
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [focus]);
-  const talking = Object.entries(live).filter(([k, s]) => k.startsWith("conselho:debate:") && s.text);
+  const talking = Object.entries(live).filter(([k, s]) => k.startsWith("conselho:debate:") && !isResearch(k) && s.text);
   if (!items.length && !talking.length) return null;
   const ctx = { agents, onOpen, masked, messages, related, onFocus: presenting ? setFocus : undefined };
   return (

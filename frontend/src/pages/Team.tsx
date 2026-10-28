@@ -34,7 +34,7 @@ import { Icon } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
 import { Badge, ErrorNotice, Loading, Notice, Segmented } from "../components/ui";
 import { formatDate, formatDateTime } from "../lib/dates";
-import { MODE_LABEL, seats, threadBlocks, type ThreadBlock } from "../lib/council";
+import { MODE_LABEL, researchLabel, seats, threadBlocks, type ThreadBlock } from "../lib/council";
 import { applyMention, filterCandidates, linkMentions, mentionAt, splitMentions, type MentionQuery } from "../lib/mentions";
 import { maybeMask } from "../lib/privacy";
 import { useAsync } from "../lib/useAsync";
@@ -520,14 +520,21 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
             </div>
           );
         })}
-        {working.map(([key, s]) => (
-          <article key={key} className="msg assistant team-typing" aria-label={`${agentName(agents, s.agent_id)} está respondendo`}>
-            <Avatar id={s.agent_id} agents={agents} state={s.text ? "speaking" : "thinking"} />
-            <div className="msg-who">{agentName(agents, s.agent_id)} <span className="msg-meta">{s.text ? "escrevendo…" : s.status === "retrying" ? "tentando de novo…" : "pensando…"}</span></div>
-            {s.wait && <p className="tiny muted" role="status">{s.wait}</p>}
-            {s.text ? <Markdown text={s.text} /> : <span className="typing" role="status"><span /><span /><span /></span>}
-          </article>
-        ))}
+        {working.map(([key, s]) => {
+          // Pesquisa: o rótulo vem da ferramenta que está rodando; o texto da sessão de pesquisa é material interno.
+          const searching = researchLabel(key, s);
+          const name = agentName(agents, s.agent_id);
+          return (
+            <article key={key} className={`msg assistant team-typing${searching ? " is-research" : ""}`}
+              aria-label={searching ? `${name} está ${searching}` : `${name} está respondendo`}>
+              <Avatar id={s.agent_id} agents={agents} state={s.text && !searching ? "speaking" : "thinking"} />
+              <div className="msg-who">{name} <span className="msg-meta">{searching ? `${searching}…` : s.text ? "escrevendo…" : s.status === "retrying" ? "tentando de novo…" : "pensando…"}</span></div>
+              {s.wait && <p className="tiny muted" role="status">{s.wait}</p>}
+              {searching ? <p className="team-research-state small" role="status"><Icon name="search" /> {name} está {searching}…</p>
+                : s.text ? <Markdown text={s.text} /> : <span className="typing" role="status"><span /><span /><span /></span>}
+            </article>
+          );
+        })}
         {activeRuns.some((r) => !roomRuns.has(r.id)) && !working.length && <p className="tiny muted team-queued" role="status">Na fila… a equipe já vai responder.</p>}
         <div ref={endRef} />
       </div>
@@ -663,22 +670,48 @@ function MessageItem({ m, agents, quoted, onReply, onRetry, onRecord, onMention,
   );
 }
 
+const SOURCE_KIND: Record<string, string> = {
+  web: "web", pagina: "página oficial", mercado: "mercado", dados: "seus dados", memoria: "memória", motor: "cálculo",
+  especialista: "especialista", diario: "diário",
+};
+
+/** Data de publicação como veio (ISO, "20261026T230000Z" do GDELT ou texto livre): mostra o que der para ler. */
+function formatPublished(value: string): string {
+  const compact = /^(\d{4})(\d{2})(\d{2})T/.exec(value);
+  const iso = compact ? `${compact[1]}-${compact[2]}-${compact[3]}` : value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatDate(iso) : value.slice(0, 30);
+}
+
 function MessageFoot({ m, name, onRetry, onReply, onRecord }: {
   m: TeamMessage; name: string; onRetry?: () => void; onReply?: () => void; onRecord?: () => void;
 }) {
+  const web = m.sources.filter((s) => s.kind === "web");
+  const lastFetch = web.map((s) => s.fetched_at ?? "").sort().at(-1);
   return (
       <div className="team-msg-foot">
         {m.audit && <AuditBadge audit={m.audit} />}
+        {web.length > 0 && (
+          <span className="team-verified tiny" title="Fontes consultadas pelas ferramentas de pesquisa nesta resposta">
+            <Icon name="search" /> Consultou {web.length} fonte{web.length > 1 ? "s" : ""} na internet
+            {lastFetch && <> · {formatDateTime(lastFetch)}</>}
+          </span>
+        )}
         {m.sources.length > 0 && (
           <details className="team-sources">
-            <summary>{m.sources.length} fonte{m.sources.length > 1 ? "s" : ""}</summary>
+            <summary>Ver fontes ({m.sources.length})</summary>
             <ul>
               {m.sources.map((s, i) => (
                 <li key={i}>
-                  <span className="tag plain">{s.kind}</span> {s.url ? <a href={s.url.startsWith("http") ? s.url : undefined} target="_blank" rel="noreferrer noopener">{s.label}</a> : s.label}
+                  <span className="tag plain">{SOURCE_KIND[s.kind] ?? s.kind}</span>{" "}
+                  {s.url?.startsWith("https://") || s.url?.startsWith("http://")
+                    ? <a href={s.url} target="_blank" rel="noreferrer noopener nofollow">{s.label}</a> : s.label}
+                  {s.official && <Badge tone="good">fonte oficial</Badge>}
+                  {s.kind === "web" && s.source && <span className="tiny muted"> · {s.source}</span>}
+                  {s.published_at && <span className="tiny muted"> · publicado {formatPublished(s.published_at)}</span>}
                   {s.reference_date && <span className="tiny muted"> · ref. {formatDate(s.reference_date)}</span>}
-                  {s.fetched_at && <span className="tiny muted"> · coletado {formatDateTime(s.fetched_at)}</span>}
-                  {s.validity && s.validity !== "valido" && <Badge tone="warning">{s.validity}</Badge>}
+                  {s.fetched_at && <span className="tiny muted"> · {s.kind === "web" ? "consultado" : "coletado"} {formatDateTime(s.fetched_at)}</span>}
+                  {s.validity === "resultado de busca" && <Badge tone="neutral">só resultado de busca</Badge>}
+                  {(s.validity === "desatualizado" || s.validity === "indisponivel") && <Badge tone="warning">{s.validity}</Badge>}
                 </li>
               ))}
             </ul>

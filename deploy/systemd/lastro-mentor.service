@@ -24,6 +24,9 @@ Environment=MPA_AGENT_API_TOKEN_FILE=/etc/meu-patrimonio/mentor-token
 # Navegador de pesquisa (só fontes oficiais; sandbox do Chrome via perfil AppArmor lastro-chrome).
 Environment=LASTRO_BROWSER_EXECUTABLE=/opt/lastro-browsers/chrome-headless-shell-linux64/chrome-headless-shell
 Environment=LASTRO_BROWSER_SANDBOX=1
+# Pesquisa na internet (docs/PESQUISA.md): buscadores e chaves opcionais ficam em /etc/meu-patrimonio/pesquisa.env
+# (LASTRO_SEARXNG_URL=…, LASTRO_BRAVE_API_KEY_FILE=…); sem o arquivo, valem Wikipédia e GDELT.
+EnvironmentFile=-/etc/meu-patrimonio/pesquisa.env
 WorkingDirectory=/opt/meu-patrimonio/backend
 ExecStart=/opt/meu-patrimonio/.venv/bin/python -m mentor.worker
 RuntimeDirectory=lastro-mentor

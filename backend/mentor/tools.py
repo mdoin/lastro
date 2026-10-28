@@ -17,6 +17,8 @@ from financial_engine.calculator import OPERATIONS, CalculationError, calculate
 from providers.toolspec import ToolSpec, tool
 from team.agents import AGENTS, Capabilities
 
+from .research import TOOL_NAMES as WEB_TOOL_NAMES
+
 SERVER_NAME = "patrimonio"
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 
@@ -233,6 +235,20 @@ async def solicitar_especialista(_args: dict) -> dict:
     return _text("Pedido registrado. Termine sua resposta com o que você já sabe; o parecer chegará num próximo passo.")
 
 
+@tool("pesquisar_web",
+      "Pede uma pesquisa na internet quando a resposta depende de fatos atuais (eleição, decisão do Copom, notícia, "
+      "resultado de empresa, mudança de lei, indicador recém-divulgado) ou que você não consegue confirmar. Ela roda "
+      "numa sessão isolada, SEM os dados da pessoa: escreva só o tema público (nunca valores, nomes ou dados dela). Os "
+      "achados, com fontes e datas, chegam num próximo passo. Não diga que pesquisou antes de receber o resultado.",
+      {"type": "object", "properties": {
+          "pergunta": {"type": "string", "maxLength": 600},
+          "motivo": {"type": "string", "maxLength": 300},
+          "fontes": {"type": "array", "maxItems": 3, "items": {"type": "string", "maxLength": 80}}},
+       "required": ["pergunta"], "additionalProperties": False})
+async def pesquisar_web(_args: dict) -> dict:
+    return _text("Pesquisa pedida. Termine com o que você já sabe; os achados chegam num próximo passo.")
+
+
 @tool("anotar_memoria",
       "Guarda uma nota curta para você lembrar em conversas futuras (ex.: 'a pessoa está revisando a reserva'). Vale só "
       "neste contexto (sua conversa individual ou este grupo). Não guarde valores como fatos confirmados.",
@@ -281,13 +297,17 @@ DATA_TOOLS = [situacao_atual, diagnostico, projecao, metas, premissas, decisoes,
 TOOLS = DATA_TOOLS + [sem_novidade]
 TEAM_TOOLS = {"facts": [memoria_financeira], "market": [dados_mercado], "calc": [calcular],
               "delegate": [solicitar_especialista], "memory": [anotar_memoria, propor_fato], "journal": [diario_radar],
-              "diary": [propor_registro_decisao], "ledger": [movimentacoes, caixa_documentos]}
+              "diary": [propor_registro_decisao], "ledger": [movimentacoes, caixa_documentos],
+              "research": [pesquisar_web]}
 # Ferramentas que não fazem nada no worker: o orquestrador lê o pedido (entrada) e decide o que fazer com ele.
-RECORDED_TOOLS = {"solicitar_especialista", "anotar_memoria", "propor_fato", "propor_registro_decisao"}
+RECORDED_TOOLS = {"solicitar_especialista", "anotar_memoria", "propor_fato", "propor_registro_decisao", "pesquisar_web"}
 BROWSER_TOOL_NAME = "ler_pagina_oficial"
 ALL_TOOLS = TOOLS + [t for group in TEAM_TOOLS.values() for t in group]
 # Nomes como o Claude Code os enxerga (servidor MCP em processo), usados pela barreira can_use_tool.
-TOOL_NAMES = [f"mcp__{SERVER_NAME}__{t.name}" for t in ALL_TOOLS] + [f"mcp__{SERVER_NAME}__{BROWSER_TOOL_NAME}"]
+TOOL_NAMES = ([f"mcp__{SERVER_NAME}__{t.name}" for t in ALL_TOOLS] + [f"mcp__{SERVER_NAME}__{BROWSER_TOOL_NAME}"]
+              + [f"mcp__{SERVER_NAME}__{n}" for n in WEB_TOOL_NAMES])
+# Sessão de pesquisa: internet aberta (com as barreiras de research.py) e NENHUMA ferramenta de dados do dono.
+RESEARCH_CAPS = Capabilities(data=False, browser="research", web=True)
 
 ROLE_CAPABILITIES = {
     "coordenador": Capabilities(browser="owner"),
@@ -330,9 +350,13 @@ def browser_tool(browser, frame_sink=None, *, owner_context: bool = False):
     return ler_pagina_oficial
 
 
-def tools_for(caps: Capabilities, browser=None, frame_sink=None) -> list[ToolSpec]:
+def tools_for(caps: Capabilities, browser=None, frame_sink=None, research=None) -> list[ToolSpec]:
     """As ferramentas que um papel recebe. É a concessão: o runtime recusa qualquer outra."""
+    if caps.web and caps.data:
+        raise ValueError("pesquisa aberta e dados do dono nunca na mesma sessão")
     tools = (list(DATA_TOOLS) if caps.data else []) + _team_tools(caps)
+    if caps.web and research is not None:
+        tools += research.tools()
     if caps.quiet:
         tools.append(sem_novidade)
     if caps.browser and browser is not None:

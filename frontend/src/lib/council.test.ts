@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
 import type { RunStep, TeamMessage, TeamRun } from "../api/types";
-import { chapters, contributionType, convocation, feed, lineup, narrative, phases, quoted, replayInput, seats, spotlight, threadBlocks, tracks, type LiveStep } from "./council";
+import { chapters, contributionType, convocation, feed, lineup, narrative, phases, quoted, replayInput, seats, spotlight, threadBlocks, tracks, type LiveStep, belongs, isResearch, researchLabel } from "./council";
 import { MASK, maskMoney } from "./privacy";
 
 const run = (status: TeamRun["status"], route: TeamRun["route"] = {}): TeamRun => ({
@@ -190,5 +190,17 @@ describe("palco, narrativa e replay", () => {
     expect(frame.run.status).toBe("running");
     expect(narrative(frame).find((s) => s.key === "conclusao")!.state).toBe("pending");
     expect(replayInput(ended, all.length - 1).run.status).toBe("succeeded");
+  });
+});
+
+describe("pesquisa na sala", () => {
+  it("passo de pesquisa pertence ao agente, vira 'consultando' e nunca vira fala", () => {
+    const key = "conselho:debate:1:riscos>pesquisa#0";
+    expect(isResearch(key)).toBe(true);
+    expect(belongs(key, "riscos")).toBe(true);
+    expect(belongs("conselho:economista>pesquisa#0", "economista")).toBe(true);
+    expect(researchLabel(key, { agent_id: "riscos", tool: "web_search" })).toBe("pesquisando na internet");
+    expect(researchLabel("resposta:economista>pesquisa#1", { agent_id: "economista", kind: "research" })).toBe("consultando fontes");
+    expect(researchLabel("resposta:economista", { agent_id: "economista", text: "oi" })).toBeNull();
   });
 });

@@ -564,13 +564,16 @@ export interface TeamConversation {
 }
 
 export interface Source {
-  kind: "dados" | "memoria" | "motor" | "pagina" | "mercado" | "especialista";
+  kind: "dados" | "memoria" | "motor" | "pagina" | "mercado" | "especialista" | "web" | "diario";
   label: string;
   url?: string;
   source?: string;
   reference_date?: string;
   fetched_at?: string;
-  validity?: "valido" | "desatualizado" | "indisponivel";
+  /** Web: data de publicação declarada pela página ou pelo buscador (pode faltar). */
+  published_at?: string;
+  official?: boolean;
+  validity?: "valido" | "desatualizado" | "indisponivel" | "lida" | "resultado de busca";
 }
 
 export interface TeamAudit {

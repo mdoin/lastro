@@ -21,7 +21,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlsplit
 
-ALLOWED_SUFFIXES = ("gov.br", "tesourodireto.com.br", "b3.com.br", "fgc.org.br", "anbima.com.br")
+ALLOWED_SUFFIXES = ("gov.br", "jus.br", "leg.br", "tesourodireto.com.br", "b3.com.br", "fgc.org.br", "anbima.com.br")
 # Sessões que também enxergam os dados do dono (o chat do mentor) só abrem estes hosts exatos e sem query string:
 # assim um texto injetado não consegue fazer o modelo "carregar" valores do dono num subdomínio ou parâmetro.
 OWNER_CONTEXT_HOSTS = ("www.gov.br", "www.bcb.gov.br", "www.ibge.gov.br", "www.tesourodireto.com.br",

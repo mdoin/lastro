@@ -28,6 +28,8 @@ class Capabilities:
     journal: bool = False             # Diário de Oportunidades do Radar (leitura; contém decisões do dono)
     diary: bool = False               # propor rascunho ao Diário de Decisões (só a pessoa confirma)
     ledger: bool = False              # livro de movimentações e caixa de documentos (leitura)
+    research: bool = False            # pedir pesquisa na internet (roda numa sessão isolada, sem dados do dono)
+    web: bool = False                 # ferramentas de pesquisa (só a sessão de pesquisa; nunca junto de `data`)
 
 
 @dataclass(frozen=True)
@@ -67,7 +69,8 @@ class AgentSpec:
                                                 ("Diário de Oportunidades", self.caps.journal),
                                                 ("rascunhos do Diário de Decisões", self.caps.diary),
                                                 ("movimentações e documentos", self.caps.ledger),
-                                                ("leitura de fontes oficiais", bool(self.caps.browser))) if on)}
+                                                ("leitura de fontes oficiais", bool(self.caps.browser)),
+                                                ("pesquisa na internet", self.caps.research)) if on)}
 
 
 SPECIALISTS = ("planejador", "analista", "economista", "riscos", "comportamental", "cripto", "mila")
@@ -78,7 +81,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         prompt="mentor.md", icon="layers", color="var(--agent-coordenador)", max_turns=25, effort="high",
         aliases=("mentor", "coordenador", "lastro"),
         caps=Capabilities(data=True, browser="owner", facts=True, market=True, calc=True, delegate=True, memory=True,
-                          journal=True, diary=True, ledger=True),
+                          journal=True, diary=True, ledger=True, research=True),
         can_delegate_to=SPECIALISTS,
         summary="Entende o que você precisa, chama os especialistas certos e junta tudo numa resposta clara.",
         examples=("O que faço com o dinheiro disponível este mês?", "Me ajuda a organizar minhas prioridades.")),
@@ -86,7 +89,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         id="planejador", persona="organizada, prática e cuidadosa: gosta de passos claros e combinados simples, sem drama", name="Lia", handle="lia", title="Planejadora · orçamento, reserva e metas",
         kind="specialist", prompt="planejador.md", icon="wallet", color="var(--agent-diagnostico)",
         aliases=("planejador", "planejamento", "planejadora", "orcamento"),
-        caps=Capabilities(data=True, facts=True, calc=True, delegate=True, memory=True, journal=True, ledger=True),
+        caps=Capabilities(data=True, facts=True, calc=True, delegate=True, memory=True, journal=True, ledger=True, research=True),
         can_delegate_to=("analista", "economista", "riscos", "comportamental", "mila"),
         summary="Orçamento, reserva, dívidas, metas e capacidade de poupança, antes de qualquer produto.",
         examples=("Quanto devo ter de reserva?", "Quito o cartão ou começo a investir?")),
@@ -94,7 +97,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         id="analista", persona="curioso, entusiasmado e analítico: se anima com uma boa pergunta e explica comparando alternativas", name="Caio", handle="caio", title="Analista · pesquisa e avaliação de investimentos",
         kind="specialist", prompt="analista.md", icon="bars", color="var(--agent-simulacao)",
         aliases=("analista", "investimentos", "analista-de-investimentos", "analise"),
-        caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
+        caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True, research=True),
         can_delegate_to=("planejador", "economista", "riscos", "comportamental", "cripto"),
         summary="Renda fixa, ações, ETFs, FIIs e fundos: retorno líquido, custos, liquidez e adequação ao prazo.",
         examples=("Quais categorias fazem sentido para 10 anos?", "Compare CDB e Tesouro Selic para minha reserva.")),
@@ -105,7 +108,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         # Pode ler a web (allowlist oficial), por isso NÃO vê os dados do dono: texto injetado numa página
         # nunca está na mesma sessão que conhece o patrimônio da pessoa.
         caps=Capabilities(data=False, browser="research", facts=False, market=True, calc=True, delegate=True,
-                          memory=True),
+                          memory=True, research=True),
         can_delegate_to=("analista", "riscos"),
         summary="Selic, CDI, IPCA, câmbio e ciclos: dados oficiais com data de referência e cenários, nunca certezas.",
         examples=("Como está o cenário de juros?", "O que a inflação acumulada significa para mim?")),
@@ -113,7 +116,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         id="riscos", persona="cético, protetor e às vezes irônico (com leveza, nunca com a pessoa): sempre quer saber o que pode dar errado", name="Rui", handle="rui", title="Gestor de riscos · perdas, liquidez e concentração",
         kind="specialist", prompt="riscos.md", icon="alert", color="var(--agent-riscos)",
         aliases=("riscos", "risco", "gestor", "gestor-de-riscos"),
-        caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
+        caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True, research=True),
         can_delegate_to=("planejador", "analista", "economista", "cripto"),
         summary="O contraponto crítico: o que pode dar errado, quanto se perderia e que premissas precisam valer.",
         examples=("Minha carteira está concentrada?", "Quanto eu perderia num cenário ruim?")),
@@ -121,7 +124,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         id="comportamental", persona="empática, perspicaz e bem-humorada: percebe o que está por trás da pergunta e acolhe sem julgar", name="Nina", handle="nina", title="Conselheira · comportamento e decisões",
         kind="specialist", prompt="comportamental.md", icon="spark", color="var(--agent-educacao)",
         aliases=("conselheiro", "comportamental", "comportamento", "conselheira"),
-        caps=Capabilities(data=True, facts=True, calc=False, delegate=True, memory=True),
+        caps=Capabilities(data=True, facts=True, calc=False, delegate=True, memory=True, research=True),
         can_delegate_to=("planejador", "riscos"),
         summary="Ajuda a perceber FOMO, aversão à perda e impulsos; disciplina sem culpa. Não faz diagnóstico.",
         examples=("Estou com vontade de vender tudo, é impulso?", "Como manter os aportes todo mês?")),
@@ -129,7 +132,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         id="cripto", persona="técnico, direto e sem euforia: gosta do assunto e desconfia de modismos", name="Téo", handle="teo", title="Analista de ativos digitais · cripto e custódia",
         kind="specialist", prompt="cripto.md", icon="coins", color="var(--agent-cripto)",
         aliases=("cripto", "ativos-digitais", "criptoativos", "bitcoin"),
-        caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True),
+        caps=Capabilities(data=True, facts=True, market=True, calc=True, delegate=True, memory=True, journal=True, research=True),
         can_delegate_to=("analista", "economista", "riscos"),
         summary="Cripto, stablecoins e tokens: custódia, liquidez, risco operacional e de contraparte, sem euforia.",
         examples=("Faz sentido ter bitcoin na minha carteira?", "Stablecoin é igual a dólar guardado?")),
@@ -151,13 +154,13 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
     AgentSpec(
         id="auditor", persona="objetiva, rigorosa e meticulosa: frases curtas e precisas, cordial sem rodeios", name="Cora", handle="cora", title="Auditora · verificação independente", kind="auditor",
         prompt="auditor.md", chat_prompt="auditor_conversa.md", icon="shieldCheck", color="var(--agent-auditor)", max_turns=6,
-        caps=Capabilities(data=True, facts=True, market=True, calc=True, journal=True),
+        caps=Capabilities(data=True, facts=True, market=True, calc=True, journal=True, research=True),
         summary="Confere números, fontes, datas, riscos e promessas antes de a resposta chegar a você."),
 )}
 
 
 # Modos de trabalho: complementos de instrução por situação (mentor/prompts/modos/<modo>.md).
-MODES = ("direto", "grupo", "conversa", "delegado", "integracao", "conselho_enquadramento", "conselho_parecer",
+MODES = ("direto", "grupo", "conversa", "pesquisa_web", "delegado", "integracao", "conselho_enquadramento", "conselho_parecer",
          "conselho_sintese", "conselho_contestacao", "correcao", "radar_parecer", "radar_sintese",
          "extracao_documento", "conselho_pauta", "conselho_debate")
 

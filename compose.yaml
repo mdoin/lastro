@@ -71,6 +71,9 @@ services:
       LASTRO_PROVIDERS_FILE: /home/mentor/providers.json
       LASTRO_CODEX_HOME: /home/mentor/codex
       LASTRO_MENTOR_CONCURRENCY: ${LASTRO_MENTOR_CONCURRENCY:-3}
+      LASTRO_SEARXNG_URL: ${LASTRO_SEARXNG_URL:-}
+      LASTRO_BRAVE_API_KEY: ${LASTRO_BRAVE_API_KEY:-}
+      LASTRO_SEARCH_PROVIDERS: ${LASTRO_SEARCH_PROVIDERS:-searxng,brave,gdelt,wikipedia}
       MPA_AGENT_API_URL: http://127.0.0.1:8765
       MPA_AGENT_API_TOKEN: ${LASTRO_AGENT_API_TOKEN:?rode scripts/init-env.sh para gerar o .env}
       DISABLE_AUTOUPDATER: "1"
