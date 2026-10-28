@@ -46,4 +46,4 @@
 | 2026-10-27 | Nenhuma alternativa pré-marcada na confirmação | Pré-selecionar a recomendada | Recomendação do Conselho nunca vira decisão sem escolha explícita |
 | 2026-10-27 | **AGPL-3.0-or-later** para o código, DCO nas contribuições, política de marca separada | Apache-2.0 | Self-hosted com dados financeiros: impede serviço fechado derivado sem publicar o código e mantém as melhorias no projeto (docs/LICENSING.md) |
 | 2026-10-27 | Publicar o próprio repositório `mdoin/lastro`, com o histórico como está | Repositório novo a partir de commit limpo; reescrever histórico | Escolha da autora; sem segredos no histórico, só e-mail pessoal (1 commit) e domínio/IP da instância, aceitos como públicos |
-| 2026-10-27 | `certifi` 2026.10.18+ fora da janela de 2 semanas (`exclude-newer-package`) | Esperar a janela | PYSEC-2026-4320 apontado pelo pip-audit no CI: correção de segurança tem prioridade |
+| 2026-10-27 | `certifi` 2026.10.19 fora da janela de 2 semanas (`exclude-newer-package`) | Esperar a janela | PYSEC-2026-4320 apontado pelo pip-audit no CI: correção de segurança tem prioridade |
