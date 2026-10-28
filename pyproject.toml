@@ -30,6 +30,8 @@ package = false
 # Cadeia de suprimentos: só aceita versões publicadas há pelo menos ~2 semanas.
 # Atualize esta data conscientemente, após revisar changelogs.
 exclude-newer = "2026-10-12T00:00:00Z"
+# Exceções da janela por correção de segurança (DECISIONS.md): só o pacote afetado, só até a versão corrigida.
+exclude-newer-package = { certifi = "2026-10-20T00:00:00Z" }  # PYSEC-2026-4320, corrigido em 2026.10.18
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
