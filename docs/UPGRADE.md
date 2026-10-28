@@ -29,6 +29,6 @@ Ver [CHANGELOG.md](../CHANGELOG.md). Notas que exigem ação do operador aparece
 
 ## Instalação systemd (instância de referência)
 
-`scripts/deploy.sh` instala os extras `claude-code` e `browser`, aplica as migrações (com a mesma cópia automática) e
+`scripts/deploy.sh` instala os extras `claude-code`, `browser` e `documents`, aplica as migrações (com a mesma cópia automática) e
 reinicia as unidades. Na v0.3, a unidade `lastro-mentor` ganhou `LASTRO_IMPLICIT_CLAUDE_CODE=1`: sem conexões salvas,
 o worker continua usando o Claude Code já logado no servidor.

@@ -29,7 +29,7 @@ tar -C "$SRC" --exclude=__pycache__ --exclude='.env*' --exclude='*.db' --exclude
     --exclude='*.ofx' --exclude='*.csv' --exclude='*.xlsx' --exclude='*.pdf' --exclude='*.pem' --exclude='*.key' \
     -cf - "${SHIP[@]}" | tar -xf - -C "$DEST" --no-same-owner
 cd "$DEST"
-UV_CACHE_DIR=/var/cache/uv-meu-patrimonio UV_PYTHON=/usr/bin/python3.12 /usr/local/bin/uv sync --frozen --no-dev --extra claude-code --extra browser --quiet
+UV_CACHE_DIR=/var/cache/uv-meu-patrimonio UV_PYTHON=/usr/bin/python3.12 /usr/local/bin/uv sync --frozen --no-dev --extra claude-code --extra browser --extra documents --quiet
 chown -R root:root "$DEST"
 chmod -R go-w "$DEST"
 
