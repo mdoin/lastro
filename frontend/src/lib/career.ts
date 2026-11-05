@@ -24,7 +24,7 @@ export const COLUMNS: { key: Column; label: string; hint: string }[] = [
 ];
 
 export const STATUS: Record<ApplicationStatus, { label: string; tone: Tone }> = {
-  curriculo: { label: "Na fila de envio", tone: "neutral" },
+  curriculo: { label: "Currículo pronto", tone: "neutral" },
   precisa_de_voce: { label: "Aguardando você", tone: "warning" },
   incerta: { label: "Envio não confirmado", tone: "serious" },
   falhou: { label: "Falhou", tone: "critical" },

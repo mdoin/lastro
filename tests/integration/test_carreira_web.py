@@ -224,3 +224,19 @@ def test_resumo_vagas_candidaturas_curriculos_e_acoes(web, tmp_path):
 
     feed = client.get("/api/carreira/atividade").json()
     assert "Vendedor" not in {e["title"] for e in feed if e["tipo"] == "descoberta"}  # vaga fora não polui o feed
+
+
+def test_migracao_19_marca_tentativas_esgotadas_como_falha(tmp_path):
+    conn = db.connect(tmp_path / "c.db")
+    for number, path in db.MIGRATIONS[:18]:
+        conn.executescript(path.read_text(encoding="utf-8"))
+        if number > 1:
+            conn.execute("INSERT INTO schema_version (version, applied_at) VALUES (?, 'x')", (number,))
+    hunter.store(conn, [job("Dev A"), job("Dev B")])
+    a, b = [r[0] for r in conn.execute("SELECT id FROM carreira_vagas ORDER BY rowid")]
+    cand(conn, a)
+    cand(conn, b)
+    for _ in range(2):
+        conn.execute("INSERT INTO carreira_envios (vaga_id, status, motivo, created_at) VALUES (?, 'falhou', 'x', 'x')", (a,))
+    assert db.migrate(conn) == db.LATEST_VERSION
+    assert dict(conn.execute("SELECT vaga_id, status FROM carreira_candidaturas").fetchall()) == {a: "falhou", b: "curriculo"}

@@ -26,12 +26,12 @@ function readView(): View {
 }
 
 /** O que falta fazer, a partir do estado real (envio e etapa separados). */
-export function nextStep(a: Pick<Application, "candidatura_status" | "etapa" | "coluna">): string {
+export function nextStep(a: Pick<Application, "candidatura_status" | "etapa" | "coluna" | "aderencia">): string {
   switch (a.candidatura_status) {
     case "precisa_de_voce": return "Resolver o que o agente pediu";
     case "incerta": return "Verificar se o envio aconteceu";
     case "falhou": return "Enviar manualmente ou retirar";
-    case "curriculo": return "Aguardando o Aplicador";
+    case "curriculo": return a.aderencia != null && a.aderencia < 60 ? "Abaixo de 60%: envio manual, se quiser" : "Aguardando o Aplicador";
     default: break;
   }
   if (a.etapa === "entrevista") return "Preparar a entrevista";
