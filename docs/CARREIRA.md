@@ -16,7 +16,8 @@ As fases 3 e 4 guardam senhas e navegam em sites quaisquer com login: rodam num 
 acesso aos dados financeiros, e só vão ao ar depois de uma nova auditoria de segurança.
 
 ## Fase 1: caçador (`backend/carreira/`, serviço `lastro-carreira`)
-- **Fontes, sem login:** Gupy (dados da própria página de busca), RemoteOK e Remotive (APIs públicas). Termos de
+- **Fontes, sem login:** Gupy, Catho e Programathor (páginas de busca), LinkedIn (busca pública, sem conta),
+  RemoteOK e Remotive (APIs públicas). Indeed e Glassdoor recusam acesso automatizado (403) e ficaram de fora. Termos de
   busca em `match.py`. Um ciclo a cada 6 h (`CARREIRA_INTERVAL`).
 - **Regras** (`match.py`, determinísticas, sem modelo):
   - remoto: Brasil ou internacional que aceite quem mora no Brasil;

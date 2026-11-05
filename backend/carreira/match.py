@@ -14,6 +14,10 @@ MIN_SALARY_BRL = 5000
 GUPY_TERMS = ("python", "inteligência artificial", "desenvolvedor júnior", "engenheiro de software júnior",
               "dados júnior", "estágio desenvolvimento", "llm", "analista de ti", "analista de sistemas")
 REMOTIVE_TERMS = ("python", "ai engineer", "llm")
+LINKEDIN_SEARCHES = (("python", "Brasil", True), ("inteligência artificial", "Brasil", True),
+                     ("desenvolvedor", "Londrina, Paraná", False), ("analista de ti", "Londrina, Paraná", False))
+CATHO_TERMS = ("python", "desenvolvedor junior", "inteligencia artificial", "analista de ti")
+PROGRAMATHOR_TERMS = ("python",)
 
 
 def _rx(pattern: str) -> re.Pattern:
@@ -27,12 +31,14 @@ ROLE = _rx(r"python|\bia\b|\bai\b|\bllm|machine learning|\bml\b|intelig[eê]ncia
 IT_ROLE = _rx(r"\bti\b|t\.i\.?|analista de sistemas|suporte|infraestrutura|redes|help ?desk|service desk|devops|"
               r"sysadmin|cloud|\bqa\b|qualidade de software|\btestes?\b|tecnologia da informa[çc][ãa]o")
 NOT_ROLE = _rx(r"sales|vendas|comercial|civil|mec[aâ]nic|el[eé]tric|qu[ií]mic|seguran[çc]a do trabalho|marketing|"
-               r"designer|data entry|digita[çc]")
+               r"designer|data entry|digita[çc]|neg[óo]cios")
 SENIOR = _rx(r"s[eê]nior|\bsr\b|staff|principal|\blead\b|l[ií]der|\bhead\b|director|diretor|manager|gerente|"
              r"coordenador|especialista|\biii\b|\biv\b")
 PLENO = _rx(r"pleno|\bpl\b|mid[- ]level|\bii\b")
 JUNIOR = _rx(r"j[uú]nior|\bjr\b|est[aá]gi|\bintern(ship)?\b|trainee|entry[- ]level|graduate|aprendiz")
 REMOTE_OK = _rx(r"^\s*remot[eo]\s*$|worldwide|anywhere|global|latam|latin america|south america|americas|brazil|brasil")
+# Sites brasileiros: o local de uma vaga remota é a cidade da empresa, não onde a pessoa precisa morar.
+BR_SOURCES = ("gupy", "catho", "programathor")
 HYBRID_CITIES = _rx(r"londrina|camb[eé]")
 ONSITE_CITIES = _rx(r"londrina")
 SKILLS = {name: _rx(p) for name, p in {
@@ -55,7 +61,7 @@ def evaluate(job: Job) -> tuple[str, int, list[str]]:
     place, workplace = job["location"], job["workplace"]
     firm = False  # local confirmado sem depender de salário/porte
     if workplace == "remoto":
-        if place and job["source"] != "gupy" and not REMOTE_OK.search(place):
+        if place and job["source"] not in BR_SOURCES and not REMOTE_OK.search(place):
             return "fora", 0, [f"remoto restrito a {place}"]
         firm = True
         reasons.append("remoto" + (f" ({place})" if place else ""))

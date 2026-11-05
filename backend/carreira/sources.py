@@ -106,3 +106,83 @@ def parse_remotive(payload: dict) -> list[Job]:
 
 async def remotive(client: httpx.AsyncClient, term: str) -> list[Job]:
     return parse_remotive(json.loads(await _get(client, f"https://remotive.com/api/remote-jobs?search={quote(term)}")))
+
+
+def _first(pattern: str, chunk: str) -> str:
+    found = re.search(pattern, chunk, re.S)
+    return text(found.group(1)) if found else ""
+
+
+def parse_linkedin(page: str, workplace: str) -> list[Job]:
+    """Busca pública do LinkedIn (jobs-guest), sem login. `workplace` vem do filtro usado na busca."""
+    jobs = []
+    for chunk in page.split("<li")[1:]:
+        job_id = _first(r'urn:li:jobPosting:(\d+)', chunk)
+        if not job_id:
+            continue
+        jobs.append(Job(
+            id=f"linkedin:{job_id}", source="linkedin", url=f"https://www.linkedin.com/jobs/view/{job_id}/",
+            title=_first(r'base-search-card__title[^>]*>(.*?)</h3>', chunk),
+            company=_first(r'base-search-card__subtitle[^>]*>(.*?)</h4>', chunk),
+            location=_first(r'job-search-card__location[^>]*>(.*?)</span>', chunk), workplace=workplace,
+            salary_min=None, currency=None, description="", published_at=_first(r'datetime="([^"]+)"', chunk) or None))
+    return jobs
+
+
+async def linkedin(client: httpx.AsyncClient, term: str, location: str, remote: bool) -> list[Job]:
+    query = f"keywords={quote(term)}&location={quote(location)}&f_E=1%2C2" + ("&f_WT=2" if remote else "")
+    page = await _get(client, f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?{query}")
+    return parse_linkedin(page, "remoto" if remote else "desconhecido")
+
+
+REMOTE_TITLE = re.compile(r"work from home|trabalhe de casa|home office|remot[oa]", re.I)
+
+
+def parse_brl(value: str) -> float | None:
+    found = re.search(r"R\$\s*([\d.]+)(?:,\d{2})?", value)
+    return float(found.group(1).replace(".", "")) if found else None
+
+
+def parse_catho(page: str) -> list[Job]:
+    jobs = []
+    for chunk in re.findall(r'<li data-offer-item="\d+".*?</article>', page, re.S):
+        title = _first(r'class="title_offer">\s*<a[^>]*>(.*?)</a>', chunk)
+        salary = parse_brl(_first(r'i_salary"></span>\s*<strong>(.*?)</strong>', chunk))
+        jobs.append(Job(
+            id=f"catho:{_first(r'data-offer-item=\"(\d+)\"', chunk)}", source="catho",
+            url="https://www.catho.com.br" + _first(r'class="title_offer">\s*<a href="(/vagas/[^"]+)"', chunk),
+            title=title, company=_first(r'<span class="text-12">(.*?)</span>', chunk),
+            location=_first(r'</strong>\s*-\s*([^<]+)', chunk),
+            workplace="remoto" if REMOTE_TITLE.search(title) else "desconhecido",
+            salary_min=salary, currency="BRL" if salary else None, description="", published_at=None))
+    return [j for j in jobs if j["title"] and j["id"] != "catho:"]
+
+
+async def catho(client: httpx.AsyncClient, term: str) -> list[Job]:
+    return parse_catho(await _get(client, f"https://www.catho.com.br/vagas/{quote(term.replace(' ', '-'))}/"))
+
+
+def parse_programathor(page: str) -> list[Job]:
+    jobs = []
+    for chunk in page.split('<a href="/jobs/')[1:]:
+        slug = chunk.split('"', 1)[0]
+        if not re.match(r"\d+-", slug):
+            continue
+        spans = [text(s) for s in re.findall(r"</i>(.*?)</span>", chunk.split("</a>", 1)[0], re.S)]
+        company, place, size, level = (spans + ["", "", "", ""])[:4]
+        title = _first(r"<h3[^>]*>(.*?)</h3>", chunk)
+        if title.startswith("Vencida"):
+            continue
+        if level and level.lower() not in title.lower():
+            title = f"{title} ({level})"  # o nível vem à parte; as regras de senioridade leem o título
+        remote = place.lower() == "remoto"
+        jobs.append(Job(
+            id=f"programathor:{slug.split('-', 1)[0]}", source="programathor",
+            url=f"https://programathor.com.br/jobs/{slug}", title=title, company=company,
+            location="" if remote else place, workplace="remoto" if remote else "desconhecido", salary_min=None,
+            currency=None, description=size, published_at=None))
+    return jobs
+
+
+async def programathor(client: httpx.AsyncClient, term: str) -> list[Job]:
+    return parse_programathor(await _get(client, f"https://programathor.com.br/jobs-{quote(term)}"))

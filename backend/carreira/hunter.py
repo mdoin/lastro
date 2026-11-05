@@ -34,6 +34,10 @@ async def fetch_all(client: httpx.AsyncClient) -> tuple[list[sources.Job], list[
     calls = [(f"gupy:{t}", sources.gupy(client, t)) for t in match.GUPY_TERMS]
     calls += [(f"remotive:{t}", sources.remotive(client, t)) for t in match.REMOTIVE_TERMS]
     calls.append(("remoteok", sources.remoteok(client)))
+    calls += [(f"linkedin:{t}@{where}", sources.linkedin(client, t, where, remote))
+              for t, where, remote in match.LINKEDIN_SEARCHES]
+    calls += [(f"catho:{t}", sources.catho(client, t)) for t in match.CATHO_TERMS]
+    calls += [(f"programathor:{t}", sources.programathor(client, t)) for t in match.PROGRAMATHOR_TERMS]
     jobs, errors = {}, []
     for name, call in calls:
         try:

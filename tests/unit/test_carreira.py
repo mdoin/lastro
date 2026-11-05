@@ -30,6 +30,9 @@ def job(title, workplace="remoto", location="", source="gupy", salary=None, curr
     (job("Senior Python Developer"), "fora"),
     (job("Tech Lead de Dados"), "fora"),
     (job("Executivo de Vendas"), "fora"),
+    (job("Estágio em Desenvolvimento de Negócios"), "fora"),
+    (job("Work From Home Junior Developer (Python)", location="Barueri", source="catho"), "compativel"),
+    (job("Python Junior Developer", location="Arlington, VA", source="linkedin"), "fora"),
     (job("Analista de TI Júnior"), "talvez"),
     (job("Analista de Suporte", salary=6000, currency="BRL"), "compativel"),
     (job("Analista de Infraestrutura", salary=4000, currency="BRL"), "fora"),
@@ -69,7 +72,7 @@ def handler(sent):
             return httpx.Response(200, json=[{"legal": "x"}, {"id": 9, "url": "https://remoteok.com/9",
                                                                "position": "AI Engineer Junior", "company": "Co",
                                                                "location": "Worldwide", "description": "python llm"}])
-        if host == "remotive.com":
+        if host in ("remotive.com", "www.linkedin.com", "www.catho.com.br", "programathor.com.br"):
             return httpx.Response(503)
         if host == "evo.example":
             sent.append((request.url.path, request.headers["apikey"], json.loads(request.content)))
@@ -109,3 +112,26 @@ def test_evolution_exige_https(monkeypatch):
         monkeypatch.setenv(f"CARREIRA_{k}", v)
     with pytest.raises(ValueError):
         hunter.evolution_config()
+
+
+LINKEDIN_PAGE = """<li><div data-entity-urn="urn:li:jobPosting:42"><h3 class="base-search-card__title"> Dev Python Jr </h3>
+<h4 class="base-search-card__subtitle"><a href="x">ACME</a></h4><span class="job-search-card__location"> Londrina, PR </span>
+<time datetime="2026-11-01"></time></div></li>"""
+CATHO_PAGE = """<li data-offer-item="39000261" class="mb-5"><article class="offer"><h2 class="title_offer">
+<a href="/vagas/dev/39000261" title="Dev">Desenvolvedor Python (Home Office)</a></h2><p><span class="text-12">F&#xC1;BRICA</span></p>
+<p><span class="icon i_job_location"></span><strong>1 vaga</strong> - Brasilia</p>
+<p><span class="icon i_salary"></span> <strong>R$ 4.617</strong></p></article></li>"""
+PROGRAMATHOR_PAGE = """<a href="/jobs/33847-ai-engineer"><h3 class="x">AI Engineer</h3><div><span><i class='fa'></i>Askable</span>
+<span><i class='fa'></i>Remoto</span><span><i class='fa'></i>Grande empresa</span><span><i class='fa'></i>Júnior</span></div></a>
+<a href="/jobs/1-velha"><h3>Vencida Dev</h3></a>"""
+
+
+def test_parsers_linkedin_catho_programathor():
+    [li] = sources.parse_linkedin(LINKEDIN_PAGE, "desconhecido")
+    assert (li["id"], li["title"], li["company"], li["location"]) == ("linkedin:42", "Dev Python Jr", "ACME", "Londrina, PR")
+    assert li["url"] == "https://www.linkedin.com/jobs/view/42/"
+    [ca] = sources.parse_catho(CATHO_PAGE)
+    assert (ca["id"], ca["company"], ca["location"], ca["workplace"]) == ("catho:39000261", "FÁBRICA", "Brasilia", "remoto")
+    assert ca["salary_min"] == 4617 and ca["url"] == "https://www.catho.com.br/vagas/dev/39000261"
+    [pa] = sources.parse_programathor(PROGRAMATHOR_PAGE)
+    assert (pa["id"], pa["title"], pa["workplace"]) == ("programathor:33847", "AI Engineer (Júnior)", "remoto")
