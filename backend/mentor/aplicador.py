@@ -17,6 +17,7 @@ import html
 import json
 import os
 import re
+import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -404,6 +405,9 @@ class Controle:
             except TimeoutError:
                 await app.close()
                 return {"ativo": False, "erro": "O agente está usando o navegador agora; tente em alguns minutos."}
+            except Exception as exc:  # noqa: BLE001 — Chrome não abriu: avisa em vez de derrubar a conexão
+                await app.close()
+                return {"ativo": False, "erro": f"O navegador não abriu ({type(exc).__name__})."}
             self.app = app
             self._watch = asyncio.create_task(self._idle())
         self.last = time.monotonic()

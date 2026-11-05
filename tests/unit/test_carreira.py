@@ -472,3 +472,26 @@ def test_atualizar_perfil_pelo_whatsapp(monkeypatch, tmp_path):
     [req] = mentor.requests
     assert req["role"] == "aplicador" and req["mode"] == "carreira_perfil" and req["aplicacao"]["curriculo_md"] == "# Maitê Doin"
     assert "Perfil atualizado" in sent[0] and "Intermidia" in sent[0]
+
+
+@pytest.mark.skipif(not __import__("os").path.exists(SHELL), reason="sem o Chrome do navegador de pesquisa")
+def test_controle_manual_abre_mostra_e_fecha(monkeypatch, tmp_path):
+    from mentor import aplicador
+
+    monkeypatch.setattr(aplicador, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(aplicador, "CHROME", SHELL)
+
+    class Browser:
+        executable, sandbox, ignore_https_errors = SHELL, False, False
+
+    controle = aplicador.Controle()
+
+    async def run():
+        first = await controle.handle(Browser(), {"acao": "iniciar"})
+        typed = await controle.handle(Browser(), {"acao": "digitar", "texto": "oi"})
+        return first, typed, await controle.handle(Browser(), {"acao": "encerrar"})
+
+    first, typed, closed = asyncio.run(run())
+    assert first["ativo"] and len(first["imagem"]) > 100 and first["largura"] == 1280
+    assert typed["ativo"] and "erro" not in typed
+    assert closed == {"ativo": False} and not aplicador.LOCK.locked()
