@@ -174,6 +174,13 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         caps=Capabilities(data=False, browser="aplicador"),
         summary="Sessão interna da Carreira que se candidata a uma vaga pelo navegador, com o currículo sob medida."),
     AgentSpec(
+        id="talent", name="Talent", handle="talent", title="Recrutamento e estratégia de carreira (interna)",
+        kind="internal", prompt="talent.md", icon="shieldCheck", max_turns=1, effort="low",
+        # Carreira (docs/CARREIRA.md, Talent): sem ferramentas nem navegador; avalia vagas e revisa currículos a partir
+        # do texto que carreira/talent.py monta e confere. Não vê cofre, respostas de formulário nem dados financeiros.
+        caps=Capabilities(data=False),
+        summary="Sessão interna da Carreira que avalia vagas pela rubrica do dono e revisa currículos antes do envio."),
+    AgentSpec(
         id="auditor", name="Cora", handle="cora", title="Auditora · verificação independente", kind="auditor",
         prompt="auditor.md", chat_prompt="auditor_conversa.md", icon="shieldCheck", color="var(--agent-auditor)", max_turns=6,
         caps=Capabilities(data=True, facts=True, market=True, calc=True, journal=True, research=True),
@@ -185,7 +192,7 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
 MODES = ("direto", "grupo", "conversa", "pesquisa_web", "delegado", "integracao", "conselho_enquadramento", "conselho_parecer",
          "conselho_sintese", "conselho_contestacao", "correcao", "radar_parecer", "radar_sintese",
          "extracao_documento", "conselho_pauta", "conselho_debate", "laboratorio_individual", "laboratorio_juiz",
-         "carreira_perfil")
+         "carreira_perfil", "talent_avaliacao", "talent_revisao")
 
 
 def get(agent_id: str) -> AgentSpec:
