@@ -18,6 +18,7 @@ IMAGE = os.environ.get("LASTRO_PC_IMAGE", "lastro-computador:1")
 GATEWAY_IMAGE = os.environ.get("LASTRO_PC_GATEWAY_IMAGE", "lastro-saida:1")
 MAX_ON = int(os.environ.get("LASTRO_PC_MAX", "3"))
 IDLE_SECONDS = int(os.environ.get("LASTRO_PC_IDLE", "900"))
+SLOT_WAIT = 180  # segundos esperando um computador vagar antes de desistir
 GATEWAY, OUT_NET = "lastro-saida", "lastro-pc-saida"
 PORTS = {"tela": 5900, "chrome": 9222}
 NAME = re.compile(r"[a-z]{2,20}")
@@ -78,15 +79,23 @@ class Controller:
             self.ip_at = self.clock()
         return self.ip
 
-    async def turn_on(self, agent: str) -> None:
+    async def turn_on(self, agent: str, wait: float = SLOT_WAIT) -> None:
+        deadline = self.clock() + wait
+        while not await self._start(agent):  # todos em uso: espera a vez (Conselho com vários pesquisando)
+            if self.clock() >= deadline:
+                raise RuntimeError(f"Já há {MAX_ON} computadores em uso; tente daqui a pouco.")
+            await asyncio.sleep(2)
+        await self.wait_ready(agent)
+
+    async def _start(self, agent: str) -> bool:
         async with self.lock:
             if agent in self.used:
                 self.used[agent] = self.clock()
-                return
+                return True
             if len(self.used) >= MAX_ON:
                 idle = [a for a in self.used if not self.pipes.get(a)]
                 if not idle:
-                    raise RuntimeError(f"Já há {MAX_ON} computadores em uso; tente daqui a pouco.")
+                    return False
                 await self.turn_off(min(idle, key=self.used.get))
             await self.gateway()
             net = container(agent)
@@ -100,7 +109,7 @@ class Controller:
             if code != 0:
                 raise RuntimeError(f"o computador não ligou: {out.strip()[:200]}")
             self.used[agent] = self.clock()
-        await self.wait_ready(agent)
+            return True
 
     async def wait_ready(self, agent: str) -> None:
         for _ in range(30):

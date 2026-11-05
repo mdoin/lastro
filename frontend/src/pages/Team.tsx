@@ -29,6 +29,7 @@ import { getRadarLink } from "../api/radar";
 import type { Agent, RunStep, TeamConversation, TeamEvent, TeamMessage, TeamRun } from "../api/types";
 import { AgentAvatar, type AvatarState } from "../components/AgentAvatar";
 import { CaptureNotice } from "../components/CaptureNotice";
+import { ComputerScreen, useComputersAvailable } from "../components/ComputerScreen";
 import { AgentPanel, CouncilMeeting, STANCE_LABEL, VerdictView } from "../components/Council";
 import { Icon } from "../components/Icon";
 import { Markdown } from "../components/Markdown";
@@ -275,6 +276,8 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
   const [replyTo, setReplyTo] = useState<TeamMessage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
+  const pcs = useComputersAvailable(); // computador do agente na própria conversa (docs/COMPUTADORES.md)
+  const [pcOpen, setPcOpen] = useState(false);
   const [panel, setPanel] = useState<{ run: string; agent: string } | null>(null);
   const [params, setParams] = useSearchParams();
   // Modo apresentação: só muda a tela (esconde navegação e controles, mascara valores). Nada é gravado.
@@ -463,6 +466,12 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
             <Icon name="settings" />
           </button>
         )}
+        {pcs && c.channel === "direct" && !presenting && (
+          <button type="button" className="icon-btn" aria-pressed={pcOpen} onClick={() => setPcOpen((v) => !v)}
+            aria-label={pcOpen ? "Esconder o computador do agente" : "Ver o computador do agente"} title="Computador do agente">
+            <Icon name="globe" />
+          </button>
+        )}
         <button type="button" className="icon-btn" aria-pressed={presenting} onClick={() => setPresentation(!presenting)}
           aria-label={presenting ? "Sair do modo apresentação" : "Modo apresentação"} title={presenting ? "Sair do modo apresentação" : "Modo apresentação"}>
           <Icon name={presenting ? "x" : "monitor"} />
@@ -481,6 +490,12 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
       )}
 
       <RadarLink conversationId={c.id} />
+
+      {pcOpen && pcs && c.channel === "direct" && (
+        <div className="team-computer">
+          <ComputerScreen id={c.agent_id ?? "mentor"} nome={agentName(agents, c.agent_id ?? "mentor")} compact />
+        </div>
+      )}
 
       {settings && c.channel === "group" && (
         <GroupSettings conv={c} agents={agents} onChange={(next) => { conv.setData(next); onChanged(); }} />
@@ -532,7 +547,10 @@ function ChatView({ id, agents, onDirect, onChanged, onDeleted }: {
               {s.wait && <p className="tiny muted" role="status">{s.wait}</p>}
               {searching ? <p className="team-research-state small" role="status"><Icon name="search" /> {name} está {searching}…</p>
                 : s.text ? <Markdown text={s.text} /> : <span className="typing" role="status"><span /><span /><span /></span>}
-              {searching && s.frame && (
+              {searching && pcs && !(pcOpen && c.channel === "direct" && c.agent_id === s.agent_id) && (
+                <div className="team-computer"><ComputerScreen id={s.agent_id} nome={name} compact /></div>
+              )}
+              {searching && !pcs && s.frame && (
                 <figure className="team-browser">
                   <img src={`data:image/jpeg;base64,${s.frame.image}`} alt={`Tela do navegador de ${name}`} />
                   <figcaption className="tiny muted">{s.frame.url.replace(/^https?:\/\//, "").split("/")[0]}</figcaption>

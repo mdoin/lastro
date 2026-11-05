@@ -35,7 +35,11 @@ Código: `deploy/computador/` (imagens e controlador), `backend/mentor/computado
 - Quando o dono assumiu o controle, as ações do agente voltam `aguardando` até ele devolver.
 
 ## Interface
-`/computadores` lista os computadores (desligado, ligado, usando agora). Ao abrir um deles:
+**Na conversa:** enquanto um agente pesquisa, a tela ao vivo do computador dele aparece no próprio chat (no lugar dos
+quadros do navegador), com **Assumir/Devolver**. Na conversa direta com um agente, o botão de globo no cabeçalho abre
+o computador dele a qualquer momento. Sair da conversa com o controle assumido devolve o controle ao agente.
+
+**Página:** `/computadores` lista os computadores (desligado, ligado, usando agora). Ao abrir um deles:
 - a tela liga o computador e mostra ao vivo, só para ver;
 - **Assumir** libera mouse e teclado para o dono, e o agente espera. **Devolver** (ou fechar) devolve;
 - o rodapé mostra o **IP de saída**.

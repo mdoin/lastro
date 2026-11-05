@@ -72,3 +72,16 @@ class FakeDockerGatewayDown(FakeDocker):
     async def __call__(self, *args, timeout=60):
         self.calls.append(args)
         return (1, "") if args[:2] == ("inspect", "-f") else (0, "")
+
+
+def test_todos_em_uso_espera_a_vez_e_desiste_no_prazo():
+    ctl = make([0.0])
+    for agent in ("lia", "caio", "vera"):
+        asyncio.run(ctl.turn_on(agent))
+        ctl.pipes[agent] = 1
+    try:
+        asyncio.run(ctl.turn_on("rui", wait=0))
+        raise AssertionError("deveria recusar")
+    except RuntimeError as exc:
+        assert "em uso" in str(exc)
+    assert "rui" not in ctl.used
