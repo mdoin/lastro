@@ -16,8 +16,8 @@ ExecStart=/opt/meu-patrimonio/.venv/bin/python -m carreira.hunter --loop
 Restart=on-failure
 RestartSec=60
 
-# Sem "IPAddressAllow=any": com ele o systemd ignora a lista de bloqueio. O loopback é só para a Evolution local.
-IPAddressAllow=127.0.0.1/32
+# Sem "IPAddressAllow=any": com ele o systemd ignora a lista de bloqueio. No loopback, só a Evolution local e o resolvedor de nomes (systemd-resolved).
+IPAddressAllow=127.0.0.1/32 127.0.0.53/32
 IPAddressDeny=10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 169.254.0.0/16 100.64.0.0/10 fc00::/7 fe80::/10 127.0.0.0/8 ::1/128
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 ReadWritePaths=/var/lib/patrimonio
