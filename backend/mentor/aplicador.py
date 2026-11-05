@@ -270,8 +270,14 @@ class Aplicador:
             finally:
                 await pdf_page.close()
                 self._pdf_page = None
-            await self._el(page, n).set_input_files(
-                {"name": f"{self.nome_arquivo}.pdf", "mimeType": "application/pdf", "buffer": pdf})
+            payload = {"name": f"{self.nome_arquivo}.pdf", "mimeType": "application/pdf", "buffer": pdf}
+            el = self._el(page, n)
+            if await el.evaluate("e => e.tagName === 'INPUT' && e.type === 'file'"):
+                await el.set_input_files(payload)
+            else:  # botão ("Enviar currículo", "Substituir arquivo") que abre o seletor de arquivos do sistema
+                async with page.expect_file_chooser(timeout=10000) as chooser:
+                    await el.click()
+                await (await chooser.value).set_files(payload)
         return await self._act(attach)
 
     async def close(self) -> None:
@@ -417,7 +423,8 @@ class Aplicador:
                                            int(args.get("n_senha", 0))))
 
         @tool("aplicador_anexar_curriculo", "Anexa o currículo sob medida desta vaga (PDF gerado agora) no campo de "
-              "arquivo `n`. " + state,
+              "arquivo `n` ou pelo botão `n` que abre a escolha de arquivo (\"Enviar currículo\", \"Substituir\"). "
+              "Depois, confira na página que o arquivo novo aparece. " + state,
               {"type": "object", "properties": {"n": number}, "required": ["n"], "additionalProperties": False},
               open_world=True)
         async def aplicador_anexar_curriculo(args: dict) -> dict:

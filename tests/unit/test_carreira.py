@@ -403,8 +403,10 @@ def test_aplicador_senha_so_no_dominio_e_upload_do_cv(tmp_path):
 
     form = """<form method=post><input id=u name=email><input id=p type=password name=senha>
               <label for=f>Currículo</label><input id=f type=file><input name=nome required placeholder=Nome form=outro><button>Entrar</button></form>
+              <input id=h type=file style="display:none"><button type=button onclick="document.getElementById('h').click()">Substituir currículo</button>
               <script>document.getElementById('f').onchange = e => document.title = e.target.files[0].name + ':' +
-              e.target.files[0].type;</script>"""
+              e.target.files[0].type; document.getElementById('h').onchange = e => document.title = 'botão:' +
+              e.target.files[0].name;</script>"""
 
     class Browser:
         executable, sandbox, ignore_https_errors = SHELL, False, False
@@ -432,6 +434,8 @@ def test_aplicador_senha_so_no_dominio_e_upload_do_cv(tmp_path):
             typed = "".join(posted)
             ids = {e["rotulo"] or e["tipo"]: e["n"] for e in ok["elementos"]}  # a página recarregou: lista nova
             attached = await app.attach_cv(ids["Currículo"])
+            by_button = await app.attach_cv({e["rotulo"]: e["n"] for e in attached["elementos"]}["Substituir currículo"])
+            assert by_button["titulo"] == "botão:Maite-CV.pdf"  # botão que abre o seletor de arquivos também serve
             return refused, ok, typed, attached, await app.login("linkedin", 0, ids["senha"])
         finally:
             await app.close()
