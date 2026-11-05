@@ -320,16 +320,43 @@ class Aplicador:
         return {"ativo": True, "imagem": base64.b64encode(shot).decode(), "url": page.url,
                 "titulo": (await page.title())[:200], **{"largura": VIEWPORT["width"], "altura": VIEWPORT["height"]}}
 
+    def _xy(self, req: dict, kx: str = "x", ky: str = "y") -> tuple[int, int]:
+        return (max(0, min(int(req.get(kx, 0)), VIEWPORT["width"])),
+                max(0, min(int(req.get(ky, 0)), VIEWPORT["height"])))
+
     async def manual(self, action: str, req: dict) -> dict:
-        """Ação de uma pessoa na tela: clique por coordenada, texto, tecla, endereço, voltar, rolar."""
+        """Ação de uma pessoa na tela do navegador: mouse, teclado e navegação.
+        Interação direta (clicar, duplo, arrastar, inserir, teclar, rolar) assenta rápido; navegação espera a página."""
         page = await self._ensure()
+        settle = 700  # navegação precisa assentar; interação é quase imediata
         if action == "clicar":
-            await page.mouse.click(max(0, min(int(req.get("x", 0)), VIEWPORT["width"])),
-                                   max(0, min(int(req.get("y", 0)), VIEWPORT["height"])))
-        elif action == "digitar":
-            await page.keyboard.type(str(req.get("texto", ""))[:2000], delay=20)
-        elif action == "tecla" and req.get("tecla") in MANUAL_KEYS:
+            await page.mouse.click(*self._xy(req))
+            settle = 150
+        elif action == "duplo":
+            await page.mouse.dblclick(*self._xy(req))
+            settle = 150
+        elif action == "arrastar":  # seleção de texto / arrastar
+            x, y = self._xy(req)
+            await page.mouse.move(x, y)
+            await page.mouse.down()
+            await page.mouse.move(*self._xy(req, "x2", "y2"), steps=8)
+            await page.mouse.up()
+            settle = 150
+        elif action == "inserir":  # texto digitado (acentos, IME, teclado do celular): um evento de entrada, sem teclas
+            await page.keyboard.insert_text(str(req.get("texto", ""))[:2000])
+            settle = 60
+        elif action == "teclar":  # teclas de controle e atalhos (Enter, Backspace, setas, Ctrl+A/C/V...)
+            combo = _key_combo(req)
+            if combo is None:
+                return {"ativo": True, "erro": "Tecla não suportada."}
+            await page.keyboard.press(combo)
+            settle = 120
+        elif action == "digitar":  # fallback: a caixa "digitar" da interface
+            await page.keyboard.insert_text(str(req.get("texto", ""))[:2000])
+            settle = 60
+        elif action == "tecla" and req.get("tecla") in MANUAL_KEYS:  # fallback: botões de tecla da interface
             await page.keyboard.press(req["tecla"])
+            settle = 120
         elif action == "abrir":
             url = str(req.get("url", "")).strip()
             url = url if "://" in url else f"https://{url}"
@@ -340,7 +367,8 @@ class Aplicador:
             await page.go_back(wait_until="domcontentloaded", timeout=15000)
         elif action == "rolar":
             await page.mouse.wheel(0, max(-3000, min(int(req.get("dy", 600)), 3000)))
-        await page.wait_for_timeout(700)
+            settle = 150
+        await page.wait_for_timeout(settle)
         return await self.frame()
 
     def tools(self) -> list:
@@ -411,6 +439,19 @@ class Aplicador:
 
 
 MANUAL_KEYS = ("Enter", "Backspace", "Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space")
+# Teclas nomeadas que a tela interativa pode enviar (além de um caractere único). Nunca nomes arbitrários.
+NAMED_KEYS = frozenset(("Enter", "Backspace", "Tab", "Escape", "Delete", "Insert", "Space",
+                        "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"))
+
+
+def _key_combo(req: dict) -> str | None:
+    """Monta um atalho do Playwright a partir de {key, ctrl, alt, shift, meta}; rejeita tecla fora da lista."""
+    key = str(req.get("key", ""))
+    if key not in NAMED_KEYS and not (len(key) == 1 and key.isprintable()):
+        return None
+    mods = [m for m, on in (("Control", req.get("ctrl")), ("Alt", req.get("alt")),
+                            ("Shift", req.get("shift")), ("Meta", req.get("meta"))) if on]
+    return "+".join([*mods, key])
 MANUAL_IDLE_SECONDS = 600
 
 

@@ -11,6 +11,20 @@ from app import db
 from carreira import hunter, match, sources
 
 
+@pytest.fixture(autouse=True)
+def _fresh_browser_lock():
+    """Cada teste roda num event loop próprio (asyncio.run); o LOCK/CONTROLE globais do aplicador prenderiam
+    futuros ao loop anterior já fechado. Em produção o loop é único; aqui, um por teste."""
+    try:
+        from mentor import aplicador
+    except Exception:  # noqa: BLE001 — sem o extra browser, os testes de navegador são pulados de qualquer modo
+        yield
+        return
+    aplicador.LOCK = asyncio.Lock()
+    aplicador.CONTROLE = aplicador.Controle()
+    yield
+
+
 def job(title, workplace="remoto", location="", source="gupy", salary=None, currency=None, description=""):
     return sources.Job(id=f"{source}:{title}", source=source, url="https://x.example/vaga", title=title, company="ACME",
                        location=location, workplace=workplace, salary_min=salary, currency=currency,
@@ -437,7 +451,9 @@ def test_rotas_do_navegador_repassam_e_nao_registram_o_texto():
     assert client.post("/api/carreira/navegador", json={"acao": "rodar_js"}).status_code == 422
     assert client.post("/api/carreira/navegador", json={"acao": "tecla", "tecla": "F12"}).status_code == 422
     assert client.get("/api/carreira/navegador").json()["url"] == "https://br.indeed.com/"
-    assert calls[0] == {"op": "navegador", "acao": "digitar", "x": 0, "y": 0, "dy": 600, "texto": "minhaSenha123", "url": ""}
+    assert calls[0] == {"op": "navegador", "acao": "digitar", "x": 0, "y": 0, "x2": 0, "y2": 0, "dy": 600,
+                        "texto": "minhaSenha123", "ctrl": False, "alt": False, "shift": False, "meta": False,
+                        "key": "", "url": ""}
     assert "minhaSenha123" not in json.dumps(logged) and logged == [("dono", "carreira.navegador.abrir", "indeed.com.br")]
 
 
@@ -551,3 +567,73 @@ def test_lista_de_elementos_velha_e_recusada():
     certa, velha = asyncio.run(run())
     assert certa["status"] != "lista_velha"  # a lista atual passa (sem navegador, para no _ensure depois)
     assert velha["status"] == "lista_velha" and velha["lista"] == 5
+
+
+def test_key_combo_rejeita_tecla_arbitraria():
+    from mentor.aplicador import _key_combo
+
+    assert _key_combo({"key": "a", "ctrl": True}) == "Control+a"
+    assert _key_combo({"key": "ArrowLeft", "shift": True}) == "Shift+ArrowLeft"
+    assert _key_combo({"key": "Enter"}) == "Enter"
+    assert _key_combo({"key": "F1"}) is None          # nome fora da lista
+    assert _key_combo({"key": "rm -rf"}) is None       # não é 1 caractere nem nome conhecido
+    assert _key_combo({"key": ""}) is None
+
+
+def test_rotas_de_interacao_nao_registram_texto_nem_tecla():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app import carreira_web
+
+    calls, logged = [], []
+
+    class Mentor:
+        async def call(self, request, timeout=15):
+            calls.append(request)
+            return {"type": "done", "ativo": True}
+
+    app = FastAPI()
+    carreira_web.register(app, mentor=Mentor(), current_user=lambda: "dono", log_access=lambda *a: logged.append(a))
+    client = TestClient(app)
+    assert client.post("/api/carreira/navegador", json={"acao": "inserir", "texto": "minhaSenha!"}).status_code == 200
+    assert client.post("/api/carreira/navegador", json={"acao": "teclar", "key": "a", "ctrl": True}).status_code == 200
+    assert client.post("/api/carreira/navegador", json={"acao": "duplo", "x": 10, "y": 20}).status_code == 200
+    assert client.post("/api/carreira/navegador", json={"acao": "arrastar", "x": 1, "y": 2, "x2": 3, "y2": 4}).status_code == 200
+    assert client.post("/api/carreira/navegador", json={"acao": "voar"}).status_code == 422
+    assert calls[0] == {"op": "navegador", "acao": "inserir", "x": 0, "y": 0, "x2": 0, "y2": 0, "dy": 600,
+                        "texto": "minhaSenha!", "ctrl": False, "alt": False, "shift": False, "meta": False,
+                        "key": "", "url": ""}
+    assert calls[1]["ctrl"] is True and calls[1]["key"] == "a"
+    assert logged == []  # digitar, teclar e mouse nunca entram no log de auditoria
+
+
+@pytest.mark.skipif(not __import__("os").path.exists(SHELL), reason="sem o Chrome do navegador de pesquisa")
+def test_interacao_direta_clique_acento_backspace_e_ctrl_a(tmp_path):
+    from mentor.aplicador import Aplicador
+
+    class Browser:
+        executable, sandbox, ignore_https_errors = SHELL, False, False
+
+    form = ("<!doctype html><meta charset=utf-8><input id=f autofocus "
+            "style='position:absolute;top:0;left:0;width:1280px;height:300px;font-size:40px'>")
+    app = Aplicador(Browser(), curriculo_md="x", vault={}, base_dir=tmp_path, restrict_google=False)
+
+    async def run():
+        try:
+            await app._ensure()
+            await app.context.route("https://**/*", lambda r: r.fulfill(status=200, content_type="text/html", body=form))
+            await app.goto("https://exemplo.gupy.io/")
+            await app.manual("clicar", {"x": 100, "y": 60})                   # foca o campo pela coordenada
+            await app.manual("inserir", {"texto": "café"})                    # acento preservado, sem duplicar
+            val1 = await app.page.eval_on_selector("#f", "e => e.value")
+            await app.manual("teclar", {"key": "Backspace"})                  # apaga 1
+            val2 = await app.page.eval_on_selector("#f", "e => e.value")
+            await app.manual("teclar", {"key": "a", "ctrl": True})            # seleciona tudo
+            await app.manual("inserir", {"texto": "x"})                       # substitui a seleção
+            val3 = await app.page.eval_on_selector("#f", "e => e.value")
+            return val1, val2, val3
+        finally:
+            await app.close()                                                 # fecha no MESMO loop que abriu
+
+    assert asyncio.run(run()) == ("café", "caf", "x")

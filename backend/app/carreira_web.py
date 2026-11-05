@@ -15,12 +15,20 @@ KEYS = Literal["Enter", "Backspace", "Tab", "Escape", "ArrowUp", "ArrowDown", "A
 
 
 class Acao(BaseModel):
-    acao: Literal["iniciar", "tela", "clicar", "digitar", "tecla", "abrir", "voltar", "rolar", "encerrar"]
+    acao: Literal["iniciar", "tela", "clicar", "duplo", "arrastar", "inserir", "teclar", "digitar", "tecla",
+                  "abrir", "voltar", "rolar", "encerrar"]
     x: int = Field(0, ge=0, le=4000)
     y: int = Field(0, ge=0, le=4000)
+    x2: int = Field(0, ge=0, le=4000)
+    y2: int = Field(0, ge=0, le=4000)
     dy: int = Field(600, ge=-3000, le=3000)
     texto: str = Field("", max_length=2000)
     tecla: KEYS | None = None
+    key: str = Field("", max_length=16)  # tecla da interação direta: 1 caractere ou nome (Enter, ArrowLeft...)
+    ctrl: bool = False
+    alt: bool = False
+    shift: bool = False
+    meta: bool = False
     url: str = Field("", max_length=2000)
 
 
