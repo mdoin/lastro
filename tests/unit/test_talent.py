@@ -155,6 +155,16 @@ def test_evidencia_que_nao_esta_no_perfil_vira_ausente():
     assert score < candidatura.MIN_ADERENCIA  # sem evidência, não há compatibilidade
 
 
+def test_requisito_de_local_nao_conta_como_tecnico():
+    # caso real: vaga sem descrição, só ".NET" (ausente) e "trabalho remoto" (atendido)
+    extr = talent.parse_avaliacao(json.dumps({"requisitos": [
+        {"texto": ".NET", "tipo": "obrigatorio", "categoria": "tecnico", "situacao": "ausente", "evidencia": ""},
+        {"texto": "Trabalho remoto no Brasil", "tipo": "obrigatorio", "categoria": "outro", "situacao": "atendido",
+         "evidencia": "Junior Software Engineer"}], "senioridade": "junior"}), PERFIL)
+    score, criterios = talent.pontuar(dict(vaga("[TESTE] Junior .NET Developer")), extr)
+    assert criterios[0]["pontos"] == 0 and score < candidatura.MIN_ADERENCIA
+
+
 def test_orientacao_generica_e_descartada_e_rota_de_modelo_do_agente(tmp_path):
     extr = talent.parse_avaliacao(avaliacao(orientacoes=["Melhorar o currículo", "Destacar FastAPI e PostgreSQL no "
                                                          "resumo, pois a vaga prioriza backend Python."]), PERFIL)

@@ -112,7 +112,7 @@ não probabilidade de contratação.
 
 | Critério | Peso | Como pontua |
 |---|---|---|
-| Requisitos técnicos obrigatórios | 40 | atendido 1, parcial 0,5, ausente 0; sem lista explícita: neutro (0,5) |
+| Requisitos técnicos obrigatórios | 40 | técnicos e de experiência: atendido 1, parcial 0,5, ausente 0; sem lista explícita: neutro (0,5). Local, disponibilidade e equipamento não contam |
 | Requisitos desejáveis | 10 | idem |
 | Senioridade e experiência | 15 | até 1 ano ou não informado: total; 2 anos: 2/3; 3+: 1/3 |
 | Formação e idiomas | 10 | cobertura das exigências; sem exigência: total |

@@ -161,7 +161,9 @@ def pontuar(vaga, extr: dict) -> tuple[int, list[dict]]:
         part = sum(r["situacao"] == "parcial" for r in items)
         return item(chave, c, f"{ok} atendido(s), {part} parcial(is), {len(items) - ok - part} ausente(s) de {len(items)}")
 
-    tecnicos = [r for r in reqs if r["tipo"] == "obrigatorio" and r["categoria"] in ("tecnico", "experiencia", "outro")]
+    # "outro" (local, disponibilidade, equipamento) fica fora: local já tem critério e, numa vaga sem descrição real
+    # (2026-11-05, ".NET" + "remoto no Brasil"), contá-lo como técnico deu 70 a uma vaga sem a tecnologia central.
+    tecnicos = [r for r in reqs if r["tipo"] == "obrigatorio" and r["categoria"] in ("tecnico", "experiencia")]
     anos = extr["anos_experiencia"]
     frac_anos, motivo_anos = (1, "pede até 1 ano ou não informa") if anos is None or anos <= 1 else (
         (0.67, "pede 2 anos") if anos == 2 else (0.33, f"pede {anos} anos"))
