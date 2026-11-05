@@ -139,7 +139,8 @@ class Aplicador:
             str(self.base_dir / "chrome"), executable_path=executable, headless=True,
             chromium_sandbox=self.browser.sandbox, user_agent=TAB_UA, locale="pt-BR", accept_downloads=False,
             ignore_https_errors=self.browser.ignore_https_errors, viewport=VIEWPORT,
-            args=["--disable-extensions", "--no-first-run", "--disable-sync", "--js-flags=--max-old-space-size=512",
+            ignore_default_args=["--enable-automation"],
+            args=["--disable-extensions", "--no-first-run", "--disable-blink-features=AutomationControlled", "--disable-sync", "--js-flags=--max-old-space-size=512",
                   "--force-webrtc-ip-handling-policy", "--webrtc-ip-handling-policy=disable_non_proxied_udp"])
         self.context.set_default_timeout(15000)
         await self.context.add_init_script(NO_WEBRTC)
