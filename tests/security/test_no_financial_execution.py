@@ -43,6 +43,7 @@ IMPORT_ALLOWLIST = {
     # que não tem ferramenta de dados do dono (tools_for recusa a combinação); senhas só no domínio cadastrado
     "mentor/aplicador.py": {"playwright"},
     "ledger/ocr.py": {"subprocess"},  # só o binário local tesseract, argumentos fixos, stdin, prazo; sem shell nem rede
+    "carreira/documento.py": {"subprocess"},  # só o binário local pdftoppm sobre o PDF gerado, argumentos fixos, prazo; sem shell nem rede
 }
 
 

@@ -22,6 +22,7 @@ Desenho (ideias estudadas no OpenBot, implementação própria):
 """
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -276,6 +277,8 @@ class MentorWorker:
                     await aplicador.close()
             if research is not None:  # as fontes que as ferramentas de fato consultaram, para o orquestrador
                 outcome.tools = list(outcome.tools) + research.records()
+            if aplicador is not None:  # o que foi de fato anexado (o serviço registra no envio)
+                outcome.tools = list(outcome.tools) + [{"anexo": fmt} for fmt in aplicador.anexos]
             return outcome
         deadline = APLICADOR_DEADLINE_SECONDS if role == "aplicador" else None
         return await self._run_with_limit_retry(emit, attempt, deadline=deadline, conn_id=conn_id)
@@ -286,8 +289,9 @@ class MentorWorker:
         if self.browser is None:
             raise ProviderError("not_configured", "O navegador do worker não está configurado.")
         job = req.get("aplicacao") or {}
+        arquivos = {fmt: base64.b64decode(job[f"{fmt}_b64"]) for fmt in ("pdf", "docx") if job.get(f"{fmt}_b64")}
         return Aplicador(self.browser, curriculo_md=str(job.get("curriculo_md", ""))[:20000],
-                         nome_arquivo=str(job.get("nome_arquivo") or "curriculo"), frame_sink=frames)
+                         nome_arquivo=str(job.get("nome_arquivo") or "curriculo"), frame_sink=frames, arquivos=arquivos)
 
     async def panel(self, req: dict, emit: Emit) -> None:
         question = str(req["question"])[:8000]
@@ -362,6 +366,14 @@ class MentorWorker:
 
         await emit({"type": "done", **await CONTROLE.handle(self.browser, req)})
 
+    async def pdf(self, req: dict, emit: Emit) -> None:
+        """Currículo da Carreira: o HTML montado pelo serviço vira PDF no Chrome do worker (sem JS e sem rede)."""
+        if self.browser is None:
+            await emit({"type": "error", "kind": "not_configured", "message": "O navegador do worker não está configurado."})
+            return
+        data = await asyncio.wait_for(self.browser.pdf(str(req["html"])[:200_000]), timeout=60)
+        await emit({"type": "done", "pdf": base64.b64encode(data).decode()})
+
     async def providers(self, req: dict, emit: Emit) -> None:
         await emit({"type": "done", **await self.admin.handle(req)})
 
@@ -419,7 +431,8 @@ class MentorWorker:
                 raise ValueError("requisição grande demais")
             req = json.loads(line)
             op = {"turn": self.turn, "ephemeral": self.ephemeral, "panel": self.panel, "interrupt": self.interrupt,
-                  "status": self.status, "providers": self.providers, "navegador": self.navegador}.get(req.get("op"))
+                  "status": self.status, "providers": self.providers, "navegador": self.navegador,
+                  "pdf": self.pdf}.get(req.get("op"))
             if op is None:
                 raise ValueError("operação desconhecida")
             await op(req, emit)
