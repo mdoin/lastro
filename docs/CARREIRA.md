@@ -268,3 +268,50 @@ resultados. Só mostra o que foi gravado; vazio aparece como vazio.
 - **Limites conhecidos:** requisitos e benefícios não são extraídos à parte (estão na descrição); tipo de contratação
   só quando o texto diz (CLT/PJ; estágio pelo título); o Carteiro não grava execuções (só eventos); as regras do
   caçador (`match.py`) seguem fixas no código — os filtros configuráveis são os da tela.
+
+## Currículos: base estruturada, perfis e documentos (migração 020)
+- **Fonte de verdade:** `carreira_base`, um JSON versionado e imutável (cada edição é uma versão nova). A primeira
+  versão vem de `/var/lib/patrimonio/carreira/base.json` (0600, fora do repositório), importada pelo serviço ao
+  iniciar quando a tabela está vazia. Cada fato (realização, projeto, competência, formação, curso, idioma) tem
+  `status` e `fonte`: só `confirmado` entra num documento; `pendente` espera o dono; `inferido` nunca vira fato;
+  `descartado` fica no histórico. Projeto corporativo só aparece como projeto com `divulgacao: autorizada`; até lá o
+  conteúdo dele fica nas realizações da experiência, sem nome interno. Competência sem evidência fica `pendente`.
+  `perguntas` guardam o que falta para quantificar resultados; a resposta é registrada e o dono edita a realização.
+- **Perfis de apresentação** (`carreira/curriculo.py`, `PERFIS`): `backend` (Software Engineer / Backend), `ia`
+  (AI Engineer / IA aplicada) e `junior` (Estágio / Júnior), com pesos por tag, ordem das categorias de competência e
+  das seções (Júnior abre com a formação). Mesmo vocabulário do Talent (`perfil_curriculo`).
+- **Por vaga:** o Talent avalia e indica o perfil → o Alfaiate (`prompts/alfaiate.md`) devolve só ids de fatos
+  confirmados, o resumo e a carta → `alfaiate.parse_selecao` descarta id desconhecido e resumo/carta com tecnologia,
+  número ou senioridade sem fonte (`curriculo.checar_resumo`) → `curriculo.montar` monta o documento (determinístico)
+  → `documento.produzir` imprime, valida e, se a segunda página sobra quase vazia, tira o item menos relevante
+  (projeto, realização, categoria, destaque; nunca diminui a fonte) → `documento.gravar` guarda PDF, DOCX, Markdown,
+  seleção, análise, relatório e sha256 em `carreira_curriculos` (perfil, idioma, base_id). A revisão do Talent lê o
+  `conteudo_md`; a correção pedida por ele é uma seleção nova. Sem `carreira_base`, vale o modo antigo (Markdown livre).
+- **Layout** (`documento.CSS`): A4, uma coluna, fundo branco, texto grafite, Arial (no servidor, Liberation Sans:
+  mesmas métricas, incorporada como TrueType com mapa Unicode), nome 22 pt, títulos 11,5 pt, corpo 10 pt com
+  entrelinha 1,35, margens 13/15/12/15 mm, sem ícones, tabelas, colunas, imagens nem espaçamento entre letras. Palavra
+  com hífen não quebra no hífen. O PDF sai do Chrome do worker (operação `pdf`: sem JavaScript, sem rede, PDF marcado)
+  e ganha autor/assunto pelo pypdf. O DOCX é OOXML mínimo (biblioteca padrão) com estilos Título, Subtítulo,
+  Cabeçalho 1/2 e Lista, data fixa no zip (mesmo documento, mesmo arquivo).
+- **Validação de cada versão** (`documento.validar_pdf`/`validar_docx`): abre; nome, contatos e seções; todo trecho
+  esperado no texto extraído (pypdf) e no DOCX; ordem de leitura; sem caractere corrompido nem campo de modelo;
+  fontes incorporadas, sem Type3 e com ToUnicode; links mailto/LinkedIn/GitHub clicáveis; título e autor; título de
+  seção isolado no fim da página; no máximo 2 páginas; e inspeção visual (pdftoppm em cinza): nada na faixa de 8 mm
+  da borda, nenhuma página em branco e ocupação de cada página. Fato não confirmado ou tradução faltando reprova.
+  Versão reprovada não é gravada. Passar na extração não garante compatibilidade com todo ATS.
+- **Envio:** o Aplicador recebe o PDF/DOCX exatos da versão (`aplicacao.pdf_b64/docx_b64`) e anexa esse arquivo
+  (`formato` docx só quando o site exige Word). O worker devolve o que foi de fato anexado e o envio grava em
+  `carreira_envios.anexo` (`pdf`, `docx`, ou `plataforma: …` quando a plataforma usou o próprio currículo, como na
+  candidatura fácil). `curriculo_id` do envio aponta para a versão imutável: nova versão nunca substitui a enviada.
+  Candidatura que estava na fila com currículo do modo antigo (sem PDF) é refeita pela base antes de ir.
+- **Liberação:** com a base estruturada, o Aplicador só envia depois que o dono clica em "Liberar envio" na tela
+  Currículos (`carreira_estado.curriculo_liberado`), depois de conferir os três PDFs. Até lá o Alfaiate e o Talent
+  seguem preparando e revisando.
+- **Interface** (`/carreira/curriculos`): perfis com a página 1 do PDF exato, validação e downloads; liberação; versões
+  por vaga com perfil e onde foram enviadas. `/carreira/curriculos/base`: o que espera validação (perguntas, fatos
+  pendentes/inferidos, projetos corporativos), confirmar/pendente/descartar/editar cada fato e o histórico de versões.
+  `/carreira/curriculos/:id`: páginas do PDF (PNG gerado do PDF guardado; o app proíbe frames), relatório de
+  validação, escolhas do Alfaiate, lacunas, envios e comparação com qualquer outra versão.
+- **Rotas:** `GET /api/carreira/base`, `POST /api/carreira/base/itens/{id}`, `POST /api/carreira/base/perguntas/{id}`,
+  `POST /api/carreira/base/gerar`, `POST /api/carreira/base/liberar`, `GET /api/carreira/curriculos[/{id}]`,
+  `GET /api/carreira/curriculos/{id}/documento?formato=pdf|docx|html|md` e `/pagina/{n}.png` (`app/curriculos_web.py`).
