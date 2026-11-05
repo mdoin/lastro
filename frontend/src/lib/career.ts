@@ -67,6 +67,9 @@ export const AGENT_STATE: Record<AgentState, { label: string; tone: Tone; live?:
   preparando_curriculo: { label: "Preparando currículo", tone: "gold", live: true },
   preenchendo: { label: "Preenchendo candidatura", tone: "gold", live: true },
   atualizando_perfil: { label: "Atualizando perfil", tone: "gold", live: true },
+  avaliando_vaga: { label: "Talent avaliando vaga", tone: "gold", live: true },
+  revisando_curriculo: { label: "Talent revisando currículo", tone: "gold", live: true },
+  analisando_resultados: { label: "Talent analisando resultados", tone: "gold", live: true },
   travado: { label: "Sem resposta além do prazo", tone: "critical" },
   aguardando_intervencao: { label: "Aguardando intervenção", tone: "warning" },
   erro: { label: "Erro na última execução", tone: "critical" },
@@ -75,6 +78,7 @@ export const AGENT_STATE: Record<AgentState, { label: string; tone: Tone; live?:
 
 export const RUN_KIND: Record<AgentRun["tipo"], string> = {
   busca: "Busca de vagas", curriculo: "Currículo sob medida", candidatura: "Candidatura", perfil: "Perfil na plataforma",
+  avaliacao: "Avaliação da vaga (Talent)", revisao: "Revisão do currículo (Talent)", analise: "Análise de resultados (Talent)",
 };
 export const RUN_STATE: Record<AgentRun["estado"], { label: string; tone: Tone }> = {
   executando: { label: "Em execução", tone: "gold" },
@@ -84,7 +88,8 @@ export const RUN_STATE: Record<AgentRun["estado"], { label: string; tone: Tone }
 };
 
 export const ORIGIN: Record<string, string> = {
-  cacador: "Caçador", alfaiate: "Alfaiate", aplicador: "Aplicador", carteiro: "Carteiro", dono: "Você", sistema: "Lastro",
+  cacador: "Caçador", alfaiate: "Alfaiate", aplicador: "Aplicador", carteiro: "Carteiro", talent: "Talent", dono: "Você",
+  sistema: "Lastro",
 };
 
 const RESPONSE: Record<string, string> = {
@@ -100,6 +105,12 @@ export function eventText(e: { tipo: string; detalhe: Record<string, unknown> })
       d.veredito ? ` · ${VERDICT[d.veredito as Verdict]?.label ?? d.veredito}` : ""}`;
     case "avaliada": return `Avaliada pelo Alfaiate: aderência ${d.aderencia}%`;
     case "curriculo_preparado": return "Currículo sob medida preparado";
+    case "avaliada_talent": return d.elegivel ? `Talent: elegível, compatibilidade ${d.pontuacao}` : `Talent: não elegível — ${d.motivo}`;
+    case "revisao_aprovado": return "Talent aprovou o currículo para envio";
+    case "revisao_correcoes": return `Talent pediu correções ao Alfaiate (rodada ${d.rodada})`;
+    case "revisao_bloqueado": return "Talent bloqueou: inconsistência factual";
+    case "revisao_bloqueada": return `Currículo bloqueado pelo Talent: ${d.motivo}`;
+    case "curriculo_corrigido": return "Alfaiate corrigiu o currículo";
     case "candidatura_iniciada": return "Candidatura iniciada pelo Aplicador";
     case "candidatura_enviada": return "Candidatura enviada, com confirmação da plataforma";
     case "resultado_desconhecido": return "Resultado do envio desconhecido — precisa de verificação";
@@ -118,7 +129,9 @@ export function eventText(e: { tipo: string; detalhe: Record<string, unknown> })
 
 export function eventTone(tipo: string): Tone {
   if (["candidatura_falhou", "resultado_desconhecido"].includes(tipo)) return "serious";
-  if (["intervencao_solicitada", "duplicata_bloqueada"].includes(tipo)) return "warning";
+  if (["intervencao_solicitada", "duplicata_bloqueada", "revisao_correcoes"].includes(tipo)) return "warning";
+  if (["revisao_bloqueado", "revisao_bloqueada"].includes(tipo)) return "serious";
+  if (tipo === "revisao_aprovado") return "good";
   if (["candidatura_enviada", "envio_confirmado"].includes(tipo)) return "good";
   if (["resposta", "etapa_atualizada"].includes(tipo)) return "gold";
   return "neutral";

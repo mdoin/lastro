@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
-from carreira import alfaiate, candidatura, match, registro
+from carreira import alfaiate, candidatura, match, registro, talent
 
 from . import db
 
@@ -23,7 +23,8 @@ TZ = ZoneInfo("America/Sao_Paulo")  # "hoje" do painel é o dia do dono
 KEYS = Literal["Enter", "Backspace", "Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]
 ETAPAS = ("em_analise", "teste", "entrevista", "proposta", "recusada")
 AGENT_STATE = {"busca": "buscando", "curriculo": "preparando_curriculo", "candidatura": "preenchendo",
-               "perfil": "atualizando_perfil"}
+               "perfil": "atualizando_perfil", "avaliacao": "avaliando_vaga", "revisao": "revisando_curriculo",
+               "analise": "analisando_resultados"}
 ESTAGIO = match._rx(r"est[aá]gi|\bintern(ship)?\b|aprendiz")
 CONTRATO = {"CLT": match._rx(r"\bclt\b|efetivo"), "PJ": match._rx(r"\bpj\b|pessoa jur[ií]dica|contractor")}
 
@@ -44,6 +45,10 @@ class Acao(BaseModel):
     shift: bool = False
     meta: bool = False
     url: str = Field("", max_length=2000)
+
+
+class PropostaDecisao(BaseModel):
+    decisao: Literal["aprovada", "recusada"]
 
 
 class CandidaturaAcao(BaseModel):
@@ -183,7 +188,9 @@ def agente(conn) -> dict:
 def proximas(conn) -> list[dict]:
     rows = conn.execute(
         "SELECT v.rowid AS n, v.title, v.company, c.status, c.etapa, c.updated_at,"
-        " (SELECT motivo FROM carreira_envios e WHERE e.vaga_id = v.id ORDER BY e.id DESC LIMIT 1) AS motivo,"
+        " COALESCE((SELECT motivo FROM carreira_envios e WHERE e.vaga_id = v.id ORDER BY e.id DESC LIMIT 1),"
+        "  (SELECT 'Talent: ' || json_extract(detalhe_json, '$.motivo') FROM carreira_eventos x WHERE x.vaga_id = v.id"
+        "   AND x.tipo = 'revisao_bloqueada' ORDER BY x.id DESC LIMIT 1)) AS motivo,"
         " (SELECT url_final FROM carreira_envios e WHERE e.vaga_id = v.id ORDER BY e.id DESC LIMIT 1) AS url_final,"
         " (SELECT json_extract(detalhe_json, '$.prazo') FROM carreira_eventos x WHERE x.vaga_id = v.id"
         "  AND x.tipo = 'resposta' ORDER BY x.id DESC LIMIT 1) AS prazo"
@@ -212,6 +219,50 @@ def atividade(conn, limit: int) -> list[dict]:
 VAGA_COLS = ("v.rowid AS n, v.id, v.title, v.company, v.location, v.workplace, v.salary_min, v.currency, v.source,"
              " v.url, v.first_seen, v.published_at, v.verdict, v.score, v.reasons_json, c.aderencia,"
              " c.status AS c_status, c.etapa")
+
+
+def talent_painel(conn) -> dict:
+    """Área do Talent: perfil (do arquivo do dono), estratégia, avaliações, revisões e resultados, como foram gravados."""
+    perfil = alfaiate.profile()
+    vaga = "v.rowid AS n, v.title, v.company, v.source"
+    avaliacoes = conn.execute(f"SELECT a.*, {vaga} FROM talent_avaliacoes a JOIN carreira_vagas v ON v.id = a.vaga_id "
+                              "ORDER BY a.id DESC LIMIT 60").fetchall()
+    revisoes = conn.execute(f"SELECT r.*, {vaga} FROM talent_revisoes r JOIN carreira_vagas v ON v.id = r.vaga_id "
+                            "ORDER BY r.id DESC LIMIT 60").fetchall()
+    analise = conn.execute("SELECT * FROM talent_analises ORDER BY id DESC LIMIT 1").fetchone()
+    ind = talent.indicadores(conn)
+    atuais = [a for a in avaliacoes if a["id"] == max(b["id"] for b in avaliacoes if b["vaga_id"] == a["vaga_id"])]
+    perfis: dict[str, int] = {}
+    for a in atuais:
+        if a["elegivel"]:
+            perfis[a["perfil_curriculo"]] = perfis.get(a["perfil_curriculo"], 0) + 1
+    j = json.loads
+    return {
+        "perfil": {"secoes": talent.secoes(perfil) if perfil else {}, "arquivo": perfil is not None,
+                   "pontos_fortes": [t for t in ind["requisitos"] if t["atendido"]][:8],
+                   "lacunas": [t for t in ind["requisitos"] if t["ausente"]][:8]},
+        "estrategia": {
+            "rubrica": talent.RUBRICA, "pesos": [{"criterio": talent.CRITERIO_NOME[k], "peso": v}
+                                                 for k, v in talent.PESOS.items()],
+            "limiar": candidatura.MIN_ADERENCIA, "max_rodadas": talent.MAX_RODADAS, "min_amostra": talent.MIN_AMOSTRA,
+            "criterios": [line.strip("- ").strip() for line in (match.__doc__ or "").splitlines() if line.startswith("- ")],
+            "perfis": sorted(({"perfil": k, "vagas": v} for k, v in perfis.items()), key=lambda d: -d["vagas"]),
+            "analise": {"created_at": analise["created_at"], "recomendacoes": j(analise["recomendacoes_json"])}
+            if analise else None},
+        "avaliacoes": [{"id": a["id"], "n": a["n"], "title": a["title"], "company": a["company"], "elegivel": bool(a["elegivel"]),
+                        "pontuacao": a["pontuacao"], "rubrica": a["rubrica"], "filtros": j(a["filtros_json"]),
+                        "criterios": j(a["criterios_json"]), "requisitos": j(a["requisitos_json"]),
+                        "posicionamento": a["posicionamento"], "perfil_curriculo": a["perfil_curriculo"],
+                        "destaques": j(a["destaques_json"]), "orientacoes": j(a["orientacoes_json"]),
+                        "justificativa": a["justificativa"], "created_at": a["created_at"]} for a in avaliacoes],
+        "revisoes": [{"id": r["id"], "n": r["n"], "title": r["title"], "company": r["company"],
+                      "curriculo_id": r["curriculo_id"], "rodada": r["rodada"], "resultado": r["resultado"],
+                      "checagens": j(r["checagens_json"]), "problemas": j(r["problemas_json"]), "resumo": r["resumo"],
+                      "created_at": r["created_at"]} for r in revisoes],
+        "resultados": ind,
+        "propostas": [dict(p) for p in conn.execute("SELECT * FROM talent_propostas ORDER BY status = 'pendente' DESC, "
+                                                    "id DESC LIMIT 50")],
+    }
 
 
 def register(app: FastAPI, conn, *, mentor, current_user, log_access) -> None:
@@ -430,3 +481,18 @@ def register(app: FastAPI, conn, *, mentor, current_user, log_access) -> None:
         page = markdown_html(row["conteudo_md"]).replace(
             "<style>", f"<title>{name}</title><style>@page{{size:A4;margin:14mm 15mm}}", 1)
         return Response(page, media_type="text/html; charset=utf-8")
+
+    @app.get("/api/carreira/talent")
+    async def talent_area(user: str = Depends(current_user)):
+        return talent_painel(conn)
+
+    @app.post("/api/carreira/talent/propostas/{pid}")
+    async def talent_proposta(pid: int, body: PropostaDecisao, user: str = Depends(current_user)):
+        """Decisão do dono numa proposta do Talent. Registra a decisão; o perfil e o currículo-base continuam sendo
+        editados só pelo dono."""
+        cur = conn.execute("UPDATE talent_propostas SET status = ?, decidida_em = ? WHERE id = ? AND status = 'pendente'",
+                           (body.decisao, db.utcnow(), pid))
+        if not cur.rowcount:
+            raise HTTPException(status_code=409, detail="Proposta inexistente ou já decidida.")
+        log_access(user, f"carreira.talent.proposta.{body.decisao}", str(pid))
+        return dict(conn.execute("SELECT * FROM talent_propostas WHERE id = ?", (pid,)).fetchone())

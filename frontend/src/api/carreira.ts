@@ -42,12 +42,12 @@ export interface CareerEvent {
 export interface FeedEvent extends CareerEvent { n: number; title: string; company: string; candidatura: boolean }
 
 export interface AgentRun {
-  id: number; tipo: "busca" | "curriculo" | "candidatura" | "perfil"; estado: "executando" | "concluida" | "falhou" | "interrompida";
+  id: number; tipo: "busca" | "curriculo" | "candidatura" | "perfil" | "avaliacao" | "revisao" | "analise"; estado: "executando" | "concluida" | "falhou" | "interrompida";
   resultado: string; erro: string; started_at: string; updated_at: string; finished_at: string | null;
   n: number | null; title: string | null; company: string | null; travada: boolean;
 }
 export type AgentState = "ocioso" | "buscando" | "preparando_curriculo" | "preenchendo" | "atualizando_perfil" | "travado"
-  | "aguardando_intervencao" | "erro" | "concluido";
+  | "aguardando_intervencao" | "erro" | "concluido" | "avaliando_vaga" | "revisando_curriculo" | "analisando_resultados";
 export interface AgentInfo {
   estado: AgentState; atual: AgentRun | null; ultima: AgentRun | null; proximo_ciclo: string | null;
   proxima_fila: string | null; recentes: AgentRun[]; erros: AgentRun[];
@@ -135,6 +135,51 @@ export const getApplications = () => api.get<Application[]>("/api/carreira/candi
 export const getApplication = (n: number) => api.get<ApplicationDetail>(`/api/carreira/candidaturas/${n}`);
 export const applicationAction = (n: number, body: ApplicationAction) =>
   api.post<ApplicationDetail>(`/api/carreira/candidaturas/${n}/acao`, body);
+// Talent: recrutamento e estratégia (backend/carreira/talent.py). Tudo o que aparece foi gravado pelo agente.
+export interface TalentRequirement {
+  texto: string; tipo: "obrigatorio" | "desejavel"; categoria: string; situacao: "atendido" | "parcial" | "ausente";
+  evidencia: string; evidencia_recusada?: boolean;
+}
+export interface TalentEvaluation {
+  id: number; n: number; title: string; company: string; elegivel: boolean; pontuacao: number; rubrica: string;
+  filtros: { filtro: string; ok: boolean; motivo: string }[];
+  criterios: { criterio: string; peso: number; pontos: number; motivo: string }[];
+  requisitos: TalentRequirement[]; posicionamento: string; perfil_curriculo: string;
+  destaques: { item: string; motivo: string }[]; orientacoes: string[]; justificativa: string; created_at: string;
+}
+export interface TalentReview {
+  id: number; n: number; title: string; company: string; curriculo_id: number; rodada: number;
+  resultado: "aprovado" | "correcoes" | "bloqueado"; resumo: string; created_at: string;
+  checagens: { criterio: string; ok: boolean; detalhe: string }[];
+  problemas: { criterio: string; gravidade: "bloqueante" | "importante" | "menor"; trecho: string; correcao: string }[];
+}
+export interface TalentTerm { termo: string; vagas: number; atendido: number; parcial: number; ausente: number; evidencia: string }
+export interface TalentGroup { grupo: string; enviadas: number; respostas: number; entrevistas: number; amostra_suficiente: boolean }
+export interface TalentResults {
+  candidaturas: number; enviadas: number; respostas: number; entrevistas: number; rejeicoes: number;
+  taxa_resposta: number | null; taxa_entrevista: number | null; amostra_suficiente: boolean; min_amostra: number;
+  por_plataforma: TalentGroup[]; por_perfil: TalentGroup[]; por_base: TalentGroup[]; avaliadas: number; elegiveis: number;
+  requisitos: TalentTerm[]; motivos_inelegivel: { motivo: string; vagas: number }[]; revisoes: Record<string, number>;
+  problemas_revisao: { criterio: string; vezes: number }[];
+  rejeicoes_conhecidas: { empresa: string; resumo: string; received_at: string | null }[];
+}
+export interface TalentRecommendation { texto: string; base: string; forca: "descritiva" | "indicativa" }
+export interface TalentProposal {
+  id: number; alvo: "perfil" | "curriculo_base"; proposta: string; origem: string;
+  status: "pendente" | "aprovada" | "recusada"; created_at: string; decidida_em: string | null;
+}
+export interface TalentArea {
+  perfil: { secoes: Record<string, string[]>; arquivo: boolean; pontos_fortes: TalentTerm[]; lacunas: TalentTerm[] };
+  estrategia: {
+    rubrica: string; pesos: { criterio: string; peso: number }[]; limiar: number; max_rodadas: number; min_amostra: number;
+    criterios: string[]; perfis: { perfil: string; vagas: number }[];
+    analise: { created_at: string; recomendacoes: TalentRecommendation[] } | null;
+  };
+  avaliacoes: TalentEvaluation[]; revisoes: TalentReview[]; resultados: TalentResults; propostas: TalentProposal[];
+}
+export const getTalent = () => api.get<TalentArea>("/api/carreira/talent");
+export const decideProposal = (id: number, decisao: "aprovada" | "recusada") =>
+  api.post<TalentProposal>(`/api/carreira/talent/propostas/${id}`, { decisao });
 export const getResumes = () => api.get<ResumeItem[]>("/api/carreira/curriculos");
 export const getResume = (id: number) => api.get<Resume>(`/api/carreira/curriculos/${id}`);
 export const resumeDocumentUrl = (id: number, formato: "html" | "md" = "html") =>

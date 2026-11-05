@@ -38,6 +38,7 @@ const CAREER_NAV: NavItem[] = [
   { to: "/carreira/vagas", label: "Oportunidades", short: "Vagas", icon: "search", group: "Carreira" },
   { to: "/carreira/candidaturas", label: "Candidaturas", short: "Candidaturas", icon: "layers", group: "Carreira" },
   { to: "/carreira/curriculos", label: "Currículos", short: "Currículos", icon: "book", group: "Carreira" },
+  { to: "/carreira/talent", label: "Talent", short: "Talent", icon: "shieldCheck", group: "Agente" },
   { to: "/carreira/agente", label: "Agente de carreira", short: "Agente", icon: "pulse", group: "Agente" },
   { to: "/carreira/navegador", label: "Navegador do agente", short: "Navegador", icon: "globe", group: "Agente" },
 ];
