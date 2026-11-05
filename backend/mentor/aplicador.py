@@ -49,7 +49,9 @@ FORM_JS = """(max) => {
               '[role=radio],[role=option],[role=combobox],[contenteditable=true]';
   const out = []; let n = 0;
   for (const e of document.querySelectorAll(sel)) {
-    const r = e.getBoundingClientRect(); const st = getComputedStyle(e);
+    // opção estilizada (Gupy): o input tem 1 px e opacidade 0 dentro de um <label> visível; mede o rótulo
+    const box = (['checkbox', 'radio'].includes(e.type) && e.labels && e.labels[0]) || e;
+    const r = box.getBoundingClientRect(); const st = getComputedStyle(box);
     const file = e.type === 'file';
     if (!file && (r.width < 2 || r.height < 2 || st.visibility === 'hidden' || st.display === 'none')) continue;
     n += 1; e.setAttribute('data-lastro-id', String(n));
@@ -58,6 +60,7 @@ FORM_JS = """(max) => {
     const item = {n, tag: e.tagName.toLowerCase(), tipo: e.type || e.getAttribute('role') || '', rotulo: label};
     if (e.required || e.getAttribute('aria-required') === 'true') item.obrigatorio = true;
     if (['checkbox', 'radio'].includes(e.type)) item.marcado = e.checked;
+    if (e.type === 'radio' && e.name) item.grupo = e.name.slice(0, 60);
     else if (e.tagName === 'SELECT') item.opcoes = [...e.options].map(o => o.text.trim()).slice(0, 30);
     else if (e.value && e.type !== 'password' && e.tagName !== 'BUTTON') item.valor = String(e.value).slice(0, 80);
     if (e.href) item.href = String(e.href).slice(0, 160);

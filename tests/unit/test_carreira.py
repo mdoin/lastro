@@ -406,6 +406,7 @@ def test_aplicador_senha_so_no_dominio_e_upload_do_cv(tmp_path):
 
     form = """<form method=post><input id=u name=email><input id=p type=password name=senha>
               <label for=f>Currículo</label><input id=f type=file><input name=nome required placeholder=Nome form=outro><button>Entrar</button></form>
+              <label><input type=radio name=indicado style="width:1px;height:1px;opacity:0;position:absolute"><span>Sim</span></label>
               <input id=h type=file style="display:none"><button type=button onclick="document.getElementById('h').click()">Substituir currículo</button>
               <script>document.getElementById('f').onchange = e => document.title = e.target.files[0].name + ':' +
               e.target.files[0].type; document.getElementById('h').onchange = e => document.title = 'botão:' +
@@ -441,6 +442,9 @@ def test_aplicador_senha_so_no_dominio_e_upload_do_cv(tmp_path):
             assert by_button["titulo"] == "botão:Maite-CV.pdf"  # botão que abre o seletor de arquivos também serve
             assert (await app.read())["status"] == "ok"  # reler a página (estava quebrado: TypeError)
             assert (await app.click(999))["status"] == "lista_velha"  # elemento que a página trocou: responde na hora
+            [sim] = [e for e in (await app.read())["elementos"] if e["rotulo"] == "Sim"]  # radio de 1 px (Gupy) aparece
+            assert sim["grupo"] == "indicado" and sim["marcado"] is False
+            assert [e for e in (await app.click(sim["n"]))["elementos"] if e["rotulo"] == "Sim"][0]["marcado"] is True
             return refused, ok, typed, attached, await app.login("linkedin", 0, ids["senha"])
         finally:
             await app.close()
