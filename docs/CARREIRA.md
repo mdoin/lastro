@@ -78,6 +78,84 @@ saem no primeiro aviso possível.
   candidatura conhecida) e o status da candidatura avança. Alertas (Indeed, LinkedIn...) viram vagas do caçador.
 - Primeira execução: últimos 7 dias; depois, só o que chegou desde o cursor (UID). Até 20 e-mails por ciclo.
 
+## Talent: recrutamento e estratégia (`backend/carreira/talent.py`, agente interno `talent`, migração 022)
+Especialista em recrutamento que fica entre o Caçador e o Aplicador. Não é um chat: participa da fila e grava cada
+decisão. Fluxo de cada vaga, numa volta da fila:
+
+1. **Caçador** encontra e aplica as regras do dono (`match.py`): só "compatível" segue.
+2. **Talent avalia** (`talent_avaliacao`, esforço baixo): extrai requisitos da vaga e liga cada um a um trecho
+   literal do perfil. Trecho que não está no perfil derruba o requisito para "ausente". O código aplica os
+   **filtros obrigatórios** (regras do dono e a mesma regra de senioridade lida na descrição) e calcula a
+   **rubrica**; o agente não dá nota. Elegível = todos os filtros ok e compatibilidade ≥ 60. Não elegível fica
+   registrado com o motivo e não vai ao Alfaiate.
+3. **Alfaiate** recebe a orientação do Talent (perfil de currículo, posicionamento, o que destacar e por quê,
+   instruções específicas e requisitos que o perfil não comprova). A aderência da candidatura passa a ser a
+   compatibilidade da rubrica.
+4. **Talent revisa** cada versão do currículo antes do envio. Primeiro checagens sem IA: tecnologia ou número
+   que não está no perfil nem no currículo-base, títulos de seção convencionais, tabela/imagem/HTML, tamanho e
+   contato. Se o código já achou fato sem comprovação, a correção sai sem chamar o modelo. Senão, o agente revisa
+   precisão factual, relevância, clareza, realizações, competências, estrutura e ATS. Resultado: aprovado,
+   correções (devolvidas ao Alfaiate com instruções executáveis) ou bloqueado por inconsistência factual.
+   Fato sem comprovação nunca é aprovado; problemas "menores" não seguram o envio.
+   **Limites:** até 3 revisões por vaga; a mesma afirmação sem comprovação repetida após a correção bloqueia na
+   hora ("sem progresso"); 2 respostas inválidas do Talent ou do Alfaiate na mesma vaga bloqueiam. Bloqueada, a
+   candidatura vira `falhou`, aparece em "Próximas ações" com o motivo e o dono recebe o aviso no WhatsApp.
+5. **Aplicador** só recebe currículo cuja versão atual foi aprovada pelo Talent (`candidatura.pending`).
+6. **Carteiro** registra as respostas; a cada 7 dias o Talent **analisa os resultados** sem IA.
+
+### Rubrica (versão `2026-11-05.1`)
+Filtros obrigatórios vêm antes e não são compensados por pontuação. A pontuação é compatibilidade segundo a rubrica,
+não probabilidade de contratação.
+
+| Critério | Peso | Como pontua |
+|---|---|---|
+| Requisitos técnicos obrigatórios | 40 | atendido 1, parcial 0,5, ausente 0; sem lista explícita: neutro (0,5) |
+| Requisitos desejáveis | 10 | idem |
+| Senioridade e experiência | 15 | até 1 ano ou não informado: total; 2 anos: 2/3; 3+: 1/3 |
+| Formação e idiomas | 10 | cobertura das exigências; sem exigência: total |
+| Local e modalidade | 10 | remoto: total; híbrido/presencial permitido: metade (depende de salário ou porte) |
+| Tipo de contratação | 5 | CLT, estágio ou não informado: total; PJ: metade (o dono prefere CLT e aceita PJ) |
+| Remuneração | 5 | publicada: total; não publicada: neutro |
+| Área preferida | 5 | título com Python, IA, dados, automação etc.: total |
+
+Cada avaliação guarda filtros, critérios com pontos e motivo, requisitos (atendidos, parciais, ausentes) com a
+evidência, posicionamento, perfil de currículo (`backend`, `ia`, `junior`), destaques, orientações, justificativa,
+versão da rubrica e data.
+
+### Permissões (aplicadas em código)
+- A sessão `talent` não tem ferramenta nenhuma (`Capabilities(data=False)`): sem navegador, sem dados financeiros,
+  sem pesquisa, sem memória. Ela só recebe texto e devolve JSON, conferido por `talent.py`.
+- As ferramentas do Talent são as funções de `talent.py` (consultar perfil, vagas, currículos e resultados;
+  avaliar; revisar e pedir correção; registrar análises e propostas). Ele não lê o cofre (que pertence ao usuário
+  `mentor`) nem `respostas.md`, não chama o Aplicador e não envia candidatura.
+- Perfil e currículo-base não são alterados: o Talent registra **propostas** (`talent_propostas`), com a origem
+  (trecho do perfil e contagem nas vagas). O dono aprova ou recusa uma vez na tela; aprovar só registra a decisão.
+
+### Memória (`talent_avaliacoes`, `talent_revisoes`, `talent_analises`, `talent_propostas`)
+Imutável (triggers impedem UPDATE/DELETE; proposta só muda na decisão do dono, uma vez). Responde: qual currículo
+foi usado (`carreira_envios.curriculo_id`, sempre uma versão aprovada), por que a vaga foi compatível (filtros,
+critérios, requisitos), por que um projeto foi destacado (`destaques`), que melhorias foram feitas (problemas da
+revisão + `alteracoes` da versão corrigida), que vagas dão mais resultado (indicadores por plataforma, perfil de
+currículo e versão da base) e qual a estratégia atual (rubrica, perfis em uso e última análise). Nada disso é fato
+profissional: os fatos continuam só no perfil.
+
+### Análise de resultados (semanal, sem IA)
+Candidaturas, respostas, entrevistas, rejeições confirmadas, taxas, distribuição por plataforma e perfil de
+currículo, requisitos recorrentes, motivos de descarte e rejeições conhecidas. Com menos de 10 envios (no total ou
+no grupo), só observação descritiva; comparação entre grupos aparece como "associação, não causa". Os critérios do
+dono nunca são alterados pela análise.
+
+### Custo
+Vaga que não passa nos filtros do Caçador não chega ao Talent. A avaliação usa esforço baixo e evita que o Alfaiate
+(a chamada mais cara) escreva currículo para vaga pouco compatível. A revisão evita chamada quando o código já achou
+o problema. Talent usa a conexão e o modelo escolhidos para ele em Configurações → Modelo de cada agente
+(`store.ai_route`), como os demais agentes; sem escolha, vale a conexão padrão.
+
+### Interface
+Carreira → Talent (`/carreira/talent`): perfil (seções do perfil base, pontos fortes, lacunas, informações pendentes
+e propostas), estratégia (critérios do dono, rubrica, perfis em uso, recomendações), avaliações, revisões e
+resultados. Só mostra o que foi gravado; vazio aparece como vazio.
+
 ## Fila contínua (`hunter.fila_forever`)
 - A busca roda a cada 6 h; a fila roda a cada 30 min (`CARREIRA_FILA_INTERVAL`), das 8 h às 21 h, sem depender da
   busca nem de conversa: currículo das compatíveis sem candidatura (Alfaiate, 3 por volta, maior pontuação primeiro) e
