@@ -23,8 +23,7 @@ ETAPAS = ("em_analise", "teste", "entrevista", "proposta", "recusada")
 AGENT_STATE = {"busca": "buscando", "curriculo": "preparando_curriculo", "candidatura": "preenchendo",
                "perfil": "atualizando_perfil"}
 ESTAGIO = match._rx(r"est[aá]gi|\bintern(ship)?\b|aprendiz")
-CONTRATO = {"CLT": match._rx(r"\bclt\b|efetivo"), "PJ": match._rx(r"\bpj\b|pessoa jur[ií]dica|contractor"),
-            "Estágio": ESTAGIO}
+CONTRATO = {"CLT": match._rx(r"\bclt\b|efetivo"), "PJ": match._rx(r"\bpj\b|pessoa jur[ií]dica|contractor")}
 
 
 class Acao(BaseModel):
@@ -70,9 +69,12 @@ def senioridade(title: str) -> str:
     return "indefinida"
 
 
-def contrato(text: str) -> str | None:
-    """Só o que o texto da vaga diz; sem menção, fica vazio (não se inventa)."""
-    return next((name for name, rx in CONTRATO.items() if rx.search(text)), None)
+def contrato(title: str, description: str) -> str | None:
+    """Só o que o texto da vaga diz; sem menção, fica vazio (não se inventa). Estágio só pelo título: descrições de
+    vaga júnior costumam citar "estágio" como experiência anterior."""
+    if ESTAGIO.search(title):
+        return "Estágio"
+    return next((name for name, rx in CONTRATO.items() if rx.search(f"{title} {description}")), None)
 
 
 def _event(row) -> dict:
@@ -87,7 +89,7 @@ def _vaga(row) -> dict:
             "source": row["source"], "url": row["url"], "first_seen": row["first_seen"], "published_at": row["published_at"],
             "verdict": row["verdict"], "score": row["score"], "reasons": json.loads(row["reasons_json"]),
             "senioridade": senioridade(row["title"]),
-            "contrato": contrato(row["title"] + " " + (row["description"] if "description" in keys else "")),
+            "contrato": contrato(row["title"], row["description"] if "description" in keys else ""),
             "aderencia": row["aderencia"] if "aderencia" in keys else None,
             "candidatura_status": row["c_status"] if "c_status" in keys else None,
             "etapa": row["etapa"] if "etapa" in keys else None}

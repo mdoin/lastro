@@ -4,6 +4,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { logout } from "../api/endpoints";
 import type { AppStatus } from "../api/types";
 import { useApp } from "../lib/appContext";
+import { moduleOf, type Module } from "../lib/career";
 import { formatTime } from "../lib/dates";
 import { BrandMark, Icon, type IconName } from "./Icon";
 import { ThemeSwitch } from "./ThemeSwitch";
@@ -13,10 +14,10 @@ interface NavItem {
   label: string;
   short: string;
   icon: IconName;
-  group: "Painel" | "Mentor" | "Radar" | "Sistema";
+  group: string;
 }
 
-const NAV: NavItem[] = [
+const FINANCE_NAV: NavItem[] = [
   { to: "/", label: "Visão geral", short: "Início", icon: "home", group: "Painel" },
   { to: "/vida-financeira", label: "Minha vida financeira", short: "Finanças", icon: "wallet", group: "Painel" },
   { to: "/futuro", label: "Meu futuro", short: "Futuro", icon: "trend", group: "Painel" },
@@ -30,14 +31,64 @@ const NAV: NavItem[] = [
   { to: "/radar", label: "Radar", short: "Radar", icon: "pulse", group: "Radar" },
   { to: "/oportunidades", label: "Diário de oportunidades", short: "Oportunidades", icon: "bars", group: "Radar" },
   { to: "/radar-cripto", label: "Radar cripto", short: "Cripto", icon: "coins", group: "Radar" },
+];
+
+const CAREER_NAV: NavItem[] = [
+  { to: "/carreira", label: "Visão geral", short: "Início", icon: "home", group: "Carreira" },
+  { to: "/carreira/vagas", label: "Oportunidades", short: "Vagas", icon: "search", group: "Carreira" },
+  { to: "/carreira/candidaturas", label: "Candidaturas", short: "Candidaturas", icon: "layers", group: "Carreira" },
+  { to: "/carreira/curriculos", label: "Currículos", short: "Currículos", icon: "book", group: "Carreira" },
+  { to: "/carreira/agente", label: "Agente de carreira", short: "Agente", icon: "pulse", group: "Agente" },
+  { to: "/carreira/navegador", label: "Navegador do agente", short: "Navegador", icon: "globe", group: "Agente" },
+];
+
+// Infraestrutura compartilhada: aparece igual nos dois módulos.
+const SHARED_NAV: NavItem[] = [
   { to: "/computadores", label: "Computadores", short: "Computadores", icon: "monitor", group: "Sistema" },
-  { to: "/navegador", label: "Navegador do agente", short: "Navegador", icon: "globe", group: "Sistema" },
   { to: "/notificacoes", label: "Notificações", short: "Avisos", icon: "inbox", group: "Sistema" },
   { to: "/configuracoes", label: "Configurações e auditoria", short: "Ajustes", icon: "settings", group: "Sistema" },
 ];
 
-const GROUPS: NavItem["group"][] = ["Painel", "Mentor", "Radar", "Sistema"];
-const PRIMARY_MOBILE = ["/", "/vida-financeira", "/futuro", "/mentor"];
+const MODULES: { key: Module; label: string; home: string; nav: NavItem[]; primary: string[] }[] = [
+  { key: "financas", label: "Finanças", home: "/", nav: FINANCE_NAV, primary: ["/", "/vida-financeira", "/futuro", "/mentor"] },
+  { key: "carreira", label: "Carreira", home: "/carreira", nav: CAREER_NAV,
+    primary: ["/carreira", "/carreira/vagas", "/carreira/candidaturas", "/carreira/agente"] },
+];
+const HOMES = MODULES.map((m) => m.home);
+
+function stored(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function store(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* navegação privada: só não lembra */
+  }
+}
+
+/** Seletor de módulo: volta para a última tela aberta em cada um. */
+function ModuleSwitch({ current }: { current: Module }) {
+  return (
+    <nav className="module-switch" aria-label="Módulo">
+      {MODULES.map((m) => (
+        <Link
+          key={m.key}
+          to={stored(`lastro.ultimo.${m.key}`) ?? m.home}
+          aria-current={m.key === current ? "true" : undefined}
+          className={m.key === current ? "active" : ""}
+        >
+          {m.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
 
 /** Estado do mentor em uma linha: ponto de status + rótulo + detalhe. */
 function mentorState(status: AppStatus | null): { tone: string; label: string; detail: string } {
@@ -59,8 +110,22 @@ export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const ms = mentorState(status);
+  const [mod, setMod] = useState<Module>(() =>
+    moduleOf(location.pathname, stored("lastro.modulo") === "carreira" ? "carreira" : "financas"));
+  const current = MODULES.find((m) => m.key === mod) ?? MODULES[0]!;
+  const NAV = [...current.nav, ...SHARED_NAV];
+  const GROUPS = [...new Set(NAV.map((n) => n.group))];
+  const PRIMARY_MOBILE = current.primary;
 
   useEffect(() => setMoreOpen(false), [location.pathname]);
+
+  useEffect(() => {
+    const next = moduleOf(location.pathname, mod);
+    setMod(next);
+    store("lastro.modulo", next);
+    if (moduleOf(location.pathname, next === "carreira" ? "financas" : "carreira") === next)  // tela do próprio módulo
+      store(`lastro.ultimo.${next}`, location.pathname + location.search);
+  }, [location.pathname, location.search, mod]);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -86,18 +151,19 @@ export function Layout() {
         Pular para o conteúdo
       </a>
       <aside className="sidebar" aria-label="Navegação principal">
-        <Link to="/" className="brand" aria-label="Lastro — visão geral">
+        <Link to={current.home} className="brand" aria-label={`Lastro — ${current.label}, visão geral`}>
           <BrandMark className="brand-mark" />
           <span className="brand-word">Lastro</span>
         </Link>
-        <nav>
+        <ModuleSwitch current={mod} />
+        <nav aria-label={`Seções de ${current.label}`}>
           {GROUPS.map((g) => (
             <div key={g} role="group" aria-label={g} style={{ display: "grid", gap: 2 }}>
               <div className="nav-group" aria-hidden="true">
                 {g}
               </div>
               {NAV.filter((n) => n.group === g).map((n) => (
-                <NavLink key={n.to} to={n.to} end={n.to === "/"}>
+                <NavLink key={n.to} to={n.to} end={HOMES.includes(n.to)}>
                   <Icon name={n.icon} className="nav-icon" />
                   {n.label}
                   {n.to === "/notificacoes" && notificationsUnread > 0 && (
@@ -130,10 +196,10 @@ export function Layout() {
       </aside>
 
       <header className="topbar">
-        <Link to="/" className="brand" aria-label="Lastro — visão geral">
+        <Link to={current.home} className="brand" aria-label={`Lastro — ${current.label}, visão geral`}>
           <BrandMark className="brand-mark" />
-          <span className="brand-word">Lastro</span>
         </Link>
+        <ModuleSwitch current={mod} />
         <Link to="/mentor" className="status-pill" aria-label={`${ms.label}. ${ms.detail}`}>
           <span className={`status-dot ${ms.tone}`} aria-hidden="true" />
           Mentor
@@ -169,7 +235,7 @@ export function Layout() {
 
       <nav className="bottom-nav" aria-label="Navegação principal">
         {NAV.filter((n) => PRIMARY_MOBILE.includes(n.to)).map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.to === "/"} aria-label={n.label}>
+          <NavLink key={n.to} to={n.to} end={HOMES.includes(n.to)} aria-label={n.label}>
             <Icon name={n.icon} className="nav-icon" />
             <span>{n.short}</span>
           </NavLink>

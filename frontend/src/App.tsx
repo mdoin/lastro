@@ -27,6 +27,14 @@ const ConvictionsPage = lazy(() => import("./pages/Convictions").then((m) => ({ 
 const LabPage = lazy(() => import("./pages/Lab").then((m) => ({ default: m.LabPage })));
 const NotificationsPage = lazy(() => import("./pages/Notifications").then((m) => ({ default: m.NotificationsPage })));
 const InboxPage = lazy(() => import("./pages/Inbox").then((m) => ({ default: m.InboxPage })));
+const CareerOverviewPage = lazy(() => import("./pages/CareerOverview").then((m) => ({ default: m.CareerOverviewPage })));
+const CareerJobsPage = lazy(() => import("./pages/CareerJobs").then((m) => ({ default: m.CareerJobsPage })));
+const CareerJobPage = lazy(() => import("./pages/CareerJobs").then((m) => ({ default: m.CareerJobPage })));
+const CareerApplicationsPage = lazy(() => import("./pages/CareerApplications").then((m) => ({ default: m.CareerApplicationsPage })));
+const CareerApplicationPage = lazy(() => import("./pages/CareerApplications").then((m) => ({ default: m.CareerApplicationPage })));
+const CareerResumesPage = lazy(() => import("./pages/CareerResumes").then((m) => ({ default: m.CareerResumesPage })));
+const CareerResumePage = lazy(() => import("./pages/CareerResumes").then((m) => ({ default: m.CareerResumePage })));
+const CareerAgentPage = lazy(() => import("./pages/CareerAgent").then((m) => ({ default: m.CareerAgentPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 
 // Galeria dos mascotes: só no `npm run dev` (import.meta.env.DEV vira false no build e o módulo some do pacote).
@@ -107,12 +115,18 @@ export function App() {
       "/oportunidades": "Diário de oportunidades",
       "/diario": "Diário de decisões",
       "/conviccoes": "Convicções",
+      "/carreira": "Carreira",
+      "/carreira/vagas": "Oportunidades",
+      "/carreira/candidaturas": "Candidaturas",
+      "/carreira/curriculos": "Currículos",
+      "/carreira/agente": "Agente de carreira",
+      "/carreira/navegador": "Navegador do agente",
       "/configuracoes": "Configurações",
       "/login": "Entrar",
       "/instalar": "Configuração inicial",
     };
-    const base = "/" + (location.pathname.split("/")[1] ?? "");
-    const t = titles[base];
+    const [, first = "", second = ""] = location.pathname.split("/");
+    const t = titles[`/${first}/${second}`] ?? titles[`/${first}`];
     document.title = t ? `${t} · Lastro` : "Lastro";
   }, [location.pathname]);
 
@@ -130,7 +144,16 @@ export function App() {
         <Route path="radar-cripto" element={page(<CryptoRadarPage />)} />
         <Route path="notificacoes" element={page(<NotificationsPage />)} />
         <Route path="computadores" element={page(<ComputadoresPage />)} />
-        <Route path="navegador" element={page(<AgentBrowserPage />)} />
+        <Route path="navegador" element={<Navigate to="/carreira/navegador" replace />} />
+        <Route path="carreira" element={page(<CareerOverviewPage />)} />
+        <Route path="carreira/vagas" element={page(<CareerJobsPage />)} />
+        <Route path="carreira/vagas/:n" element={page(<CareerJobPage />)} />
+        <Route path="carreira/candidaturas" element={page(<CareerApplicationsPage />)} />
+        <Route path="carreira/candidaturas/:n" element={page(<CareerApplicationPage />)} />
+        <Route path="carreira/curriculos" element={page(<CareerResumesPage />)} />
+        <Route path="carreira/curriculos/:id" element={page(<CareerResumePage />)} />
+        <Route path="carreira/agente" element={page(<CareerAgentPage />)} />
+        <Route path="carreira/navegador" element={page(<AgentBrowserPage />)} />
         <Route path="conviccoes" element={page(<ConvictionsPage />)} />
         <Route path="laboratorio" element={page(<LabPage />)} />
         <Route path="laboratorio/:experimentId" element={page(<LabPage />)} />

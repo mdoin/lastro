@@ -617,6 +617,49 @@ pre {
   }
 }
 
+/* Seletor de módulo (Finanças | Carreira): topo da barra lateral; no celular, na barra superior. */
+.module-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  min-width: 0;
+}
+
+.module-switch a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 9px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.module-switch a:hover {
+  color: var(--ink);
+}
+
+.module-switch a.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
+}
+
+.topbar .module-switch {
+  margin-right: auto;
+}
+
+.sidebar .module-switch {
+  margin: 18px 2px 0;
+}
+
 /* Estado do mentor (rodapé da barra lateral e topo no celular) */
 .mentor-state {
   display: grid;

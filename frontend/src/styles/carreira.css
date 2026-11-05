@@ -20,3 +20,160 @@
 .agent-browser-capture:focus { outline: none; }
 .agent-browser-fallback { border-top: 1px solid var(--border); padding-top: 8px; }
 .agent-browser-fallback summary { cursor: pointer; color: var(--text-muted, #666); }
+
+/* ===================================================== Módulo Carreira (visão geral, vagas, candidaturas…) */
+
+.skeleton-stack { display: grid; gap: 10px; }
+.skeleton {
+  display: block; border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface-2) 0%, color-mix(in srgb, var(--ink) 7%, var(--surface-2)) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%; animation: career-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes career-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+.career-badges { gap: 6px; }
+.career-error { color: var(--critical-ink); display: flex; gap: 6px; align-items: flex-start; }
+.career-error svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+
+/* Indicadores: grade densa, número grande, rótulo curto. */
+.career-metrics {
+  display: grid; border-radius: var(--radius); overflow: hidden;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  background: var(--surface); border: 1px solid var(--border);
+}
+/* Divisórias por sombra: célula vazia no fim da grade não aparece. */
+.career-metric {
+  display: grid; gap: 2px; align-content: start; padding: 14px 16px; background: var(--surface);
+  color: var(--ink); text-decoration: none; min-width: 0; box-shadow: 1px 0 0 var(--border), 0 1px 0 var(--border);
+}
+a.career-metric:hover { background: var(--surface-2); }
+a.career-metric:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.career-metric-label { font-size: 0.8rem; color: var(--muted); }
+.career-metric-value { font-size: 1.7rem; font-weight: 620; letter-spacing: -0.03em; line-height: 1.15; }
+.career-metric-value.warning { color: var(--warning-ink); }
+.career-metric-sub { font-size: 0.76rem; color: var(--muted); }
+
+.career-split { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); align-items: start; }
+
+.career-facts { display: grid; gap: 8px; margin: 0; }
+.career-facts > div { display: grid; grid-template-columns: minmax(110px, 38%) 1fr; gap: 12px; font-size: 0.9rem; }
+.career-facts dt { color: var(--muted); }
+.career-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+.career-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.career-list > li + li { border-top: 1px solid var(--border); }
+.career-list-link {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px 4px; color: inherit; text-decoration: none; border-radius: 8px;
+}
+.career-list-link:hover { background: var(--surface-2); }
+.career-list-main { display: grid; gap: 2px; min-width: 0; }
+.career-list-title { font-weight: 560; }
+
+/* Atividade e histórico: linha do tempo com ponto colorido pelo tipo do evento. */
+.career-feed, .career-timeline { list-style: none; margin: 0; padding: 0; display: grid; }
+.career-feed a {
+  display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: baseline;
+  padding: 9px 4px; color: inherit; text-decoration: none; border-radius: 8px;
+}
+.career-feed a:hover { background: var(--surface-2); }
+.career-feed li + li { border-top: 1px solid var(--border); }
+.career-feed-main { display: grid; gap: 1px; min-width: 0; }
+.career-timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); display: inline-block; }
+[data-tone="good"] > a > .career-timeline-dot, [data-tone="good"] > .career-timeline-dot { background: var(--good); }
+[data-tone="gold"] > a > .career-timeline-dot, [data-tone="gold"] > .career-timeline-dot { background: var(--gold-mark); }
+[data-tone="warning"] > a > .career-timeline-dot, [data-tone="warning"] > .career-timeline-dot { background: var(--warning); }
+[data-tone="serious"] > a > .career-timeline-dot, [data-tone="serious"] > .career-timeline-dot { background: var(--serious); }
+.career-timeline li { display: grid; grid-template-columns: 10px 1fr; gap: 12px; padding: 0 0 14px; position: relative; }
+.career-timeline li .career-timeline-dot { margin-top: 7px; position: relative; z-index: 1; }
+.career-timeline li:not(:last-child)::before {
+  content: ""; position: absolute; left: 3.5px; top: 17px; bottom: 0; width: 1px; background: var(--border-strong);
+}
+.career-timeline-text { font-weight: 520; }
+@media (max-width: 520px) {
+  .career-feed a { grid-template-columns: 10px 1fr; }
+  .career-feed time { grid-column: 2; }
+}
+
+/* Linha do agente */
+.career-agent-line { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+
+/* Filtros: grade compacta, rótulos visíveis. */
+.career-filters {
+  display: grid; gap: 10px 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
+  padding: 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border);
+}
+.career-filter { display: grid; gap: 4px; font-size: 0.78rem; color: var(--muted); min-width: 0; }
+.career-filter .input, .career-filter .select { width: 100%; max-width: none; }
+.career-filter-wide { grid-column: 1 / -1; }
+.career-filter-clear { align-self: end; justify-self: start; }
+.career-more-filters { grid-column: 1 / -1; }
+.career-more-filters > summary { cursor: pointer; font-size: 0.84rem; font-weight: 560; color: var(--ink-2); padding: 4px 0; }
+.career-filters-grid {
+  display: grid; gap: 10px 12px; margin-top: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
+}
+
+/* Lista de vagas: uma linha densa por vaga; no celular, empilha. */
+.career-jobs { list-style: none; margin: 0; padding: 0; display: grid; }
+.career-jobs > li + li { border-top: 1px solid var(--border); }
+.career-job {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 20px; padding: 12px 8px;
+  color: inherit; text-decoration: none; border-radius: 10px;
+}
+.career-job:hover { background: var(--surface-2); }
+.career-job:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.career-job-main { display: grid; gap: 2px; min-width: 0; }
+.career-job-title { font-weight: 600; letter-spacing: -0.01em; }
+.career-job-company { font-size: 0.9rem; color: var(--ink-2); }
+.career-job-side { display: grid; gap: 6px; justify-items: end; text-align: right; align-content: start; }
+@media (max-width: 640px) {
+  .career-job { grid-template-columns: 1fr; }
+  .career-job-side { justify-items: start; text-align: left; }
+}
+section[aria-busy="true"] .career-jobs { opacity: 0.6; transition: opacity 0.2s ease; }
+
+/* Kanban: colunas com rolagem horizontal no celular (encaixe por coluna). */
+.career-board {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px;
+  overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+}
+.career-column {
+  display: grid; align-content: start; gap: 8px; padding: 12px; border-radius: var(--radius);
+  background: var(--shell); scroll-snap-align: start; min-height: 160px;
+}
+.career-column header { display: flex; justify-content: space-between; align-items: center; }
+.career-column h2 { font-size: 0.9rem; font-weight: 620; margin: 0; }
+.career-column ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.career-card {
+  display: grid; gap: 6px; padding: 12px; border-radius: 12px; background: var(--surface); color: inherit;
+  text-decoration: none; box-shadow: var(--shadow-xs); border: 1px solid var(--border);
+}
+.career-card:hover { border-color: var(--border-strong); }
+.career-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.career-card-title { font-weight: 600; line-height: 1.3; }
+@media (min-width: 1280px) { .career-board { grid-auto-flow: row; grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+
+.career-table td { vertical-align: middle; }
+
+.career-attempts { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.career-attempts > li { display: grid; gap: 4px; }
+.career-attempts > li + li { border-top: 1px solid var(--border); padding-top: 14px; }
+.career-answers { display: grid; gap: 8px; margin: 8px 0 0; }
+.career-answers dt { font-size: 0.82rem; color: var(--muted); }
+.career-answers dd { margin: 0; font-size: 0.9rem; }
+
+.career-description { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9rem; line-height: 1.55; max-height: 32rem; overflow-y: auto; }
+
+/* Currículo como folha A4 e diferenças linha a linha. */
+.career-paper {
+  max-width: 820px; padding: clamp(18px, 4vw, 48px); border-radius: 6px; background: var(--surface);
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.career-diff {
+  margin: 0; padding: 12px 0; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.career-diff > div { display: grid; grid-template-columns: 24px 1fr; padding: 0 12px 0 0; }
+.career-diff > div > span:first-child { text-align: center; color: var(--muted); }
+.career-diff-add { background: color-mix(in srgb, var(--good) 12%, transparent); }
+.career-diff-del { background: color-mix(in srgb, var(--critical) 10%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--critical) 50%, transparent); }
+.career-diff .visually-hidden { position: absolute; }
