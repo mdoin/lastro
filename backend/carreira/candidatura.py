@@ -16,7 +16,7 @@ from pathlib import Path
 from app import db
 from app.mentor_client import MentorClient
 
-from . import alfaiate, sources
+from . import alfaiate, registro, sources
 
 log = logging.getLogger("lastro.carreira")
 MIN_ADERENCIA = 60
@@ -24,7 +24,9 @@ DAILY_LIMIT = 10
 PER_CYCLE = 3
 MAX_ATTEMPTS = 2
 TIMEOUT_SECONDS = 1000
-STATUS = {"enviada": "candidatada", "precisa_de_voce": "precisa_de_voce", "nao_aplicavel": "encerrada"}
+STATUS = {"enviada": "candidatada", "incerta": "incerta", "precisa_de_voce": "precisa_de_voce", "nao_aplicavel": "encerrada"}
+EVENT = {"enviada": "candidatura_enviada", "incerta": "resultado_desconhecido", "precisa_de_voce": "intervencao_solicitada",
+         "nao_aplicavel": "candidatura_nao_aplicavel", "falhou": "candidatura_falhou"}
 
 
 def answers() -> str | None:
@@ -32,12 +34,16 @@ def answers() -> str | None:
     return path.read_text(encoding="utf-8") if path.is_file() else None
 
 
-def parse(output: str) -> dict:
+def parse(output: str, require_evidence: bool = True) -> dict:
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", output.strip())
     data = json.loads(text[text.find("{"):text.rfind("}") + 1])
     status = data.get("status") if data.get("status") in ("enviada", "precisa_de_voce", "nao_aplicavel") else "falhou"
     url = str(data.get("url_final") or "")
+    evidencia = sources.text(data.get("evidencia"))[:300]
+    if status == "enviada" and not evidencia and require_evidence:  # clicar em "enviar" não basta: sem confirmação da plataforma, é incerto
+        status = "incerta"
     return {"status": status, "motivo": sources.text(data.get("motivo"))[:400] or "sem motivo informado",
+            "evidencia": evidencia,
             "url_final": url[:500] if url.startswith("https://") else "",
             "respostas": [{"pergunta": sources.text(r.get("pergunta"))[:200], "resposta": sources.text(r.get("resposta"))[:500]}
                           for r in (data.get("respostas") or [])[:40] if isinstance(r, dict)]}
@@ -45,7 +51,7 @@ def parse(output: str) -> dict:
 
 def pending(conn, limit: int):
     return conn.execute(
-        "SELECT v.rowid AS n, v.*, c.curriculo_md, c.carta, c.aderencia FROM carreira_candidaturas c "
+        "SELECT v.rowid AS n, v.*, c.curriculo_md, c.carta, c.aderencia, c.curriculo_id FROM carreira_candidaturas c "
         "JOIN carreira_vagas v ON v.id = c.vaga_id WHERE c.status = 'curriculo' AND c.aderencia >= ? "
         "AND (SELECT COUNT(*) FROM carreira_envios e WHERE e.vaga_id = v.id) < ? "
         "ORDER BY c.aderencia DESC, c.created_at LIMIT ?", (MIN_ADERENCIA, MAX_ATTEMPTS, limit)).fetchall()
@@ -57,9 +63,7 @@ PLATFORMS = {"gupy": "https://www.gupy.io/", "linkedin": "https://www.linkedin.c
              "vagas": "https://www.vagas.com.br/"}
 
 
-def base_cv() -> str | None:
-    path = Path(os.environ.get("CARREIRA_CURRICULO", "/var/lib/patrimonio/carreira/curriculo.md"))
-    return path.read_text(encoding="utf-8") if path.is_file() else None
+base_cv = registro.curriculo_base_md
 
 
 async def ask(mentor: MentorClient, vaga, perfil: str, respostas: str) -> dict:
@@ -89,13 +93,16 @@ async def run(mentor: MentorClient, text: str, curriculo_md: str, mode: str | No
             failed = event.get("message") or "falha"
     if failed or not output:
         raise RuntimeError(failed or "resposta vazia")
-    return parse(output)
+    return parse(output, require_evidence=mode is None)  # atualizar perfil não é candidatura
 
 
 def notice(vaga, result: dict) -> str:
     head = f"#{vaga['n']} {vaga['title'][:100]} — {vaga['company'][:50]}"
     if result["status"] == "enviada":
         return f"*Candidatura enviada* ✅\n{head}\n{result['motivo']}"
+    if result["status"] == "incerta":
+        return (f"*Candidatura sem confirmação* ⚠️\n{head}\n{result['motivo']}\nConfira no Lastro (Candidaturas) "
+                f"antes de tentar de novo: {result['url_final'] or vaga['url']}")
     if result["status"] == "precisa_de_voce":
         return f"*Preciso de você* na candidatura\n{head}\n{result['motivo']}\n{result['url_final'] or vaga['url']}"
     return f"*Candidatura não feita*\n{head}\n{result['motivo']}"
@@ -110,19 +117,42 @@ async def apply_pending(conn, mentor: MentorClient) -> list[str]:
     used = conn.execute("SELECT COUNT(*) FROM carreira_envios WHERE substr(created_at, 1, 10) = ?", (today,)).fetchone()[0]
     notices = []
     for vaga in pending(conn, min(PER_CYCLE, DAILY_LIMIT - used)):
-        try:
-            result = await asyncio.wait_for(ask(mentor, vaga, perfil, respostas), TIMEOUT_SECONDS)
-        except Exception as exc:  # noqa: BLE001 — conta como tentativa: não insiste para sempre na mesma vaga
-            log.warning("aplicador falhou em %s: %s", vaga["id"], type(exc).__name__)
-            result = {"status": "falhou", "motivo": f"o agente não concluiu ({type(exc).__name__})", "url_final": "",
-                      "respostas": []}
-        now = db.utcnow()
-        conn.execute("INSERT INTO carreira_envios (vaga_id, status, motivo, url_final, respostas_json, created_at) "
-                     "VALUES (?, ?, ?, ?, ?, ?)", (vaga["id"], result["status"], result["motivo"], result["url_final"],
-                                                   json.dumps(result["respostas"], ensure_ascii=False), now))
-        if result["status"] in STATUS:
-            conn.execute("UPDATE carreira_candidaturas SET status = ?, updated_at = ? WHERE vaga_id = ?",
-                         (STATUS[result["status"]], now, vaga["id"]))
-        if result["status"] != "falhou":
-            notices.append(notice(vaga, result))
+        if prior := registro.candidatura_anterior(conn, vaga["id"]):  # mesma vaga por outra fonte: não repete
+            conn.execute("UPDATE carreira_candidaturas SET status = 'encerrada', updated_at = ? WHERE vaga_id = ?",
+                         (db.utcnow(), vaga["id"]))
+            registro.evento(conn, vaga["id"], "duplicata_bloqueada", "sistema", vaga_n=prior["n"], status=prior["status"])
+            continue
+        with registro.execucao(conn, "candidatura", vaga["id"]) as run:
+            registro.evento(conn, vaga["id"], "candidatura_iniciada", "aplicador", execucao_id=run["id"])
+            try:
+                result = await asyncio.wait_for(ask(mentor, vaga, perfil, respostas), TIMEOUT_SECONDS)
+            except (ConnectionRefusedError, FileNotFoundError) as exc:  # o worker nem atendeu: nada foi enviado
+                log.warning("aplicador indisponível em %s: %s", vaga["id"], type(exc).__name__)
+                result = {"status": "falhou", "motivo": f"worker indisponível ({type(exc).__name__})"}
+            except Exception as exc:  # noqa: BLE001 — o agente pode ter enviado antes de cair: resultado desconhecido
+                log.warning("aplicador falhou em %s: %s", vaga["id"], type(exc).__name__)
+                result = {"status": "incerta", "motivo": f"o agente não concluiu ({type(exc).__name__}); pode ter "
+                          "enviado antes de parar"}
+            result = {"url_final": "", "respostas": [], "evidencia": "", **result}
+            now = db.utcnow()
+            envio_id = conn.execute(
+                "INSERT INTO carreira_envios (vaga_id, status, motivo, url_final, respostas_json, evidencia, curriculo_id,"
+                " execucao_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                (vaga["id"], result["status"], result["motivo"], result["url_final"],
+                 json.dumps(result["respostas"], ensure_ascii=False), result["evidencia"], vaga["curriculo_id"],
+                 run["id"], now)).fetchone()[0]
+            status = STATUS.get(result["status"])
+            attempts = conn.execute("SELECT COUNT(*) FROM carreira_envios WHERE vaga_id = ?", (vaga["id"],)).fetchone()[0]
+            if status is None and attempts >= MAX_ATTEMPTS:
+                status = "falhou"  # esgotou as tentativas: sai da fila e aparece como falha
+            if status:
+                conn.execute("UPDATE carreira_candidaturas SET status = ?, updated_at = ? WHERE vaga_id = ?",
+                             (status, now, vaga["id"]))
+            registro.evento(conn, vaga["id"], EVENT[result["status"]], "aplicador", envio_id=envio_id,
+                            motivo=result["motivo"], tentativa=attempts)
+            run["resultado"] = result["status"]
+            if result["status"] == "falhou":
+                run["erro"] = result["motivo"]
+            else:
+                notices.append(notice(vaga, result))
     return notices

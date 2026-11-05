@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -23,7 +23,7 @@ from app import db
 
 from app.mentor_client import MentorClient
 
-from . import alfaiate, candidatura, carteiro, conversa, match, sources
+from . import alfaiate, candidatura, carteiro, conversa, match, registro, sources
 
 log = logging.getLogger("lastro.carreira")
 INTERVAL_SECONDS = 6 * 3600
@@ -55,17 +55,24 @@ def store(conn, jobs: list[sources.Job]) -> int:
     now, new = db.utcnow(), 0
     for job in jobs:
         verdict, score, reasons = match.evaluate(job)
-        new += conn.execute("SELECT 1 FROM carreira_vagas WHERE id = ?", (job["id"],)).fetchone() is None
+        is_new = conn.execute("SELECT 1 FROM carreira_vagas WHERE id = ?", (job["id"],)).fetchone() is None
         conn.execute(
             """INSERT INTO carreira_vagas (id, source, url, title, company, location, workplace, salary_min, currency,
-                   description, published_at, verdict, score, reasons_json, first_seen, last_seen)
+                   description, published_at, verdict, score, reasons_json, first_seen, last_seen, url_canonica, chave)
                VALUES (:id, :source, :url, :title, :company, :location, :workplace, :salary_min, :currency,
-                   :description, :published_at, :verdict, :score, :reasons, :now, :now)
+                   :description, :published_at, :verdict, :score, :reasons, :now, :now, :url_canonica, :chave)
                ON CONFLICT (id) DO UPDATE SET url = excluded.url, title = excluded.title, company = excluded.company,
                    location = excluded.location, workplace = excluded.workplace, salary_min = excluded.salary_min,
                    currency = excluded.currency, description = excluded.description, verdict = excluded.verdict,
-                   score = excluded.score, reasons_json = excluded.reasons_json, last_seen = excluded.last_seen""",
-            {**job, "verdict": verdict, "score": score, "reasons": json.dumps(reasons, ensure_ascii=False), "now": now})
+                   score = excluded.score, reasons_json = excluded.reasons_json, last_seen = excluded.last_seen,
+                   url_canonica = excluded.url_canonica, chave = excluded.chave""",
+            {**job, "verdict": verdict, "score": score, "reasons": json.dumps(reasons, ensure_ascii=False), "now": now,
+             "url_canonica": registro.url_canonica(job["url"]),
+             "chave": registro.chave(job["company"], job["title"], job["location"], job["workplace"])})
+        if is_new:
+            new += 1
+            registro.evento(conn, job["id"], "descoberta", "cacador", fonte=job["source"], veredito=verdict,
+                            pontuacao=score, motivos=reasons)
     return new
 
 
@@ -115,8 +122,13 @@ async def send_whatsapp(client: httpx.AsyncClient, cfg: dict, message: str) -> N
 
 
 async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None, mentor: MentorClient | None = None) -> dict:
-    jobs, errors = await fetch_all(client)
-    summary = {"vistas": len(jobs), "novas": store(conn, jobs), "erros": errors, "aviso": "sem novidade"}
+    with registro.execucao(conn, "busca") as run:
+        jobs, errors = await fetch_all(client)
+        summary = {"vistas": len(jobs), "novas": store(conn, jobs), "erros": errors, "aviso": "sem novidade"}
+        run["resultado"] = f"{summary['vistas']} vistas, {summary['novas']} novas"
+        if errors:  # fonte fora do ar não é falha da busca: fica como aviso no resultado
+            run["resultado"] += f"; {len(errors)} fonte(s) com erro: " + "; ".join(e.split(":")[0] for e in errors[:6])
+    registro.sincronizar_base(conn)
     applied = []
     if mentor is not None:
         summary["curriculos"] = len(await alfaiate.tailor_pending(conn, mentor))
@@ -180,6 +192,8 @@ async def main() -> None:
     args = parser.parse_args()
     conn = db.connect(Path(os.environ.get("LASTRO_DB", "/var/lib/patrimonio/lastro.db")))
     db.migrate(conn)
+    registro.interromper_pendentes(conn)
+    registro.preencher_chaves(conn)
     socket = os.environ.get("LASTRO_MENTOR_SOCKET")
     mentor = MentorClient(Path(socket)) if socket else None  # sem o worker, só caça e avisa
     tasks = [asyncio.create_task(chat_forever(conn, mentor))] if args.loop else []  # noqa: F841 — mantém a referência
@@ -193,7 +207,11 @@ async def main() -> None:
                 log.exception("ciclo falhou")
         if not args.loop:
             return
-        await asyncio.sleep(int(os.environ.get("CARREIRA_INTERVAL", INTERVAL_SECONDS)))
+        interval = int(os.environ.get("CARREIRA_INTERVAL", INTERVAL_SECONDS))
+        next_at = datetime.fromisoformat(db.utcnow()) + timedelta(seconds=interval)
+        conn.execute("INSERT INTO carreira_estado (chave, valor) VALUES ('proximo_ciclo', ?) "
+                     "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor", (next_at.isoformat(),))
+        await asyncio.sleep(interval)
 
 
 if __name__ == "__main__":

@@ -705,8 +705,8 @@ def create_app(settings: Settings) -> FastAPI:
     radar_web.register(app, conn, current_user=current_user, radar=radar, bad_request=bad_request,
                        log_access=log_access, today=today)
 
-    # --- Carreira: controle manual do navegador do aplicador ---
-    carreira_web.register(app, mentor=mentor, current_user=current_user, log_access=log_access)
+    # --- Carreira: vagas, candidaturas, currículos, agente e navegador do aplicador ---
+    carreira_web.register(app, conn, mentor=mentor, current_user=current_user, log_access=log_access)
     computador_web.register(app, current_user=current_user, log_access=log_access,
                             session_ok=lambda cookies: auth.session_is_valid(conn, cookies.get(auth.SESSION_COOKIE)))
 

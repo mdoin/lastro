@@ -12,6 +12,12 @@ from carreira import hunter, match, sources
 
 
 @pytest.fixture(autouse=True)
+def _sem_arquivos_do_dono(monkeypatch, tmp_path):
+    """Nenhum teste lê o currículo real do servidor."""
+    monkeypatch.setenv("CARREIRA_CURRICULO", str(tmp_path / "sem-curriculo.md"))
+
+
+@pytest.fixture(autouse=True)
 def _fresh_browser_lock():
     """Cada teste roda num event loop próprio (asyncio.run); o LOCK/CONTROLE globais do aplicador prenderiam
     futuros ao loop anterior já fechado. Em produção o loop é único; aqui, um por teste."""
@@ -327,7 +333,10 @@ def test_carteiro_filtro_parse_e_avisos(monkeypatch, tmp_path):
     assert len(mentor.requests) == 2 and all("Almoço" not in r["text"] for r in mentor.requests)  # pessoal não sai
     assert "DADO NÃO CONFIÁVEL" in mentor.requests[0]["text"]
     assert len(notices) == 1 and "Entrevista" in notices[0] and "treinar" in notices[0]
-    assert conn.execute("SELECT status FROM carreira_candidaturas").fetchone()[0] == "entrevista"
+    row = conn.execute("SELECT status, etapa FROM carreira_candidaturas").fetchone()
+    assert tuple(row) == ("candidatada", "entrevista")  # etapa da empresa separada do estado do envio
+    assert [r[0] for r in conn.execute("SELECT tipo FROM carreira_eventos WHERE origem = 'carteiro' ORDER BY id")] == [
+        "resposta", "etapa_atualizada"]
     assert conn.execute("SELECT verdict FROM carreira_vagas WHERE source = 'email-indeed'").fetchone()[0] == "compativel"
     assert conn.execute("SELECT valor FROM carreira_estado WHERE chave = 'gmail_cursor'").fetchone()[0] == "7:12"
 
@@ -354,10 +363,15 @@ def test_candidatura_escolhe_melhores_registra_e_avisa(monkeypatch, tmp_path):
     assert asyncio.run(candidatura.apply_pending(conn, mentor)) == []  # nada mais elegível
 
     conn.execute("UPDATE carreira_candidaturas SET status = 'curriculo' WHERE aderencia = 100")
-    broken = FakeMentor("não consegui")
+    broken = FakeMentor(json.dumps({"status": "falhou", "motivo": "O site caiu."}))
     assert asyncio.run(candidatura.apply_pending(conn, broken)) == []  # falhou: sem aviso, conta tentativa
     assert asyncio.run(candidatura.apply_pending(conn, broken)) == [] and len(broken.requests) == 1  # 2 tentativas: para
     assert [r[0] for r in conn.execute("SELECT status FROM carreira_envios ORDER BY id")] == ["precisa_de_voce", "falhou"]
+    assert conn.execute("SELECT status FROM carreira_candidaturas WHERE aderencia = 100").fetchone()[0] == "falhou"
+    tipos = [r[0] for r in conn.execute("SELECT tipo FROM carreira_eventos WHERE origem = 'aplicador' ORDER BY id")]
+    assert tipos == ["candidatura_iniciada", "intervencao_solicitada", "candidatura_iniciada", "candidatura_falhou"]
+    runs = [tuple(r) for r in conn.execute("SELECT tipo, estado FROM carreira_execucoes WHERE tipo = 'candidatura'")]
+    assert runs == [("candidatura", "concluida"), ("candidatura", "falhou")]
 
 
 def test_aplicador_so_recebe_o_proprio_navegador():
@@ -443,7 +457,7 @@ def test_rotas_do_navegador_repassam_e_nao_registram_o_texto():
             return {"type": "done", "ativo": True, "url": "https://br.indeed.com/"}
 
     app = FastAPI()
-    carreira_web.register(app, mentor=Mentor(), current_user=lambda: "dono",
+    carreira_web.register(app, None, mentor=Mentor(), current_user=lambda: "dono",
                           log_access=lambda *a: logged.append(a))
     client = TestClient(app)
     assert client.post("/api/carreira/navegador", json={"acao": "digitar", "texto": "minhaSenha123"}).json()["ativo"]
@@ -594,7 +608,7 @@ def test_rotas_de_interacao_nao_registram_texto_nem_tecla():
             return {"type": "done", "ativo": True}
 
     app = FastAPI()
-    carreira_web.register(app, mentor=Mentor(), current_user=lambda: "dono", log_access=lambda *a: logged.append(a))
+    carreira_web.register(app, None, mentor=Mentor(), current_user=lambda: "dono", log_access=lambda *a: logged.append(a))
     client = TestClient(app)
     assert client.post("/api/carreira/navegador", json={"acao": "inserir", "texto": "minhaSenha!"}).status_code == 200
     assert client.post("/api/carreira/navegador", json={"acao": "teclar", "key": "a", "ctrl": True}).status_code == 200

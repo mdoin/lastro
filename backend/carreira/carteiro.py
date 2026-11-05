@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 from app import db
 from app.mentor_client import MentorClient
 
-from . import sources
+from . import registro, sources
 
 log = logging.getLogger("lastro.carreira")
 POLL_SECONDS = 15 * 60
@@ -37,8 +37,10 @@ NOISE = re.compile(r"(updates|notifications|newsletters|invitations|groups|news)
                    r"noreply-accounts@google|accounts\.google|security", re.I)
 NOTIFY = {"convite_teste": "Teste/desafio", "convite_entrevista": "Entrevista", "recusa": "Retorno negativo",
           "proposta": "PROPOSTA", "andamento": "Andamento"}
-STATUS = {"convite_teste": "teste", "convite_entrevista": "entrevista", "recusa": "recusada", "proposta": "proposta",
-          "confirmacao": "candidatada", "andamento": "em_processo"}
+# Etapa informada pela empresa (carreira_candidaturas.etapa); a confirmação é evidência de envio, não etapa.
+ETAPA = {"convite_teste": "teste", "convite_entrevista": "entrevista", "recusa": "recusada", "proposta": "proposta",
+         "andamento": "em_analise"}
+STATUS = {*ETAPA, "confirmacao"}
 TYPES = {*NOTIFY, "confirmacao", "alerta_vagas", "irrelevante"}
 
 
@@ -188,8 +190,15 @@ async def run_once(conn, mentor: MentorClient, store_jobs) -> list[str]:
         done += 1
         vaga = match_vaga(conn, result["empresa"]) if result["tipo"] in STATUS else None
         if vaga is not None:
-            conn.execute("UPDATE carreira_candidaturas SET status = ?, updated_at = ? WHERE vaga_id = ?",
-                         (STATUS[result["tipo"]], db.utcnow(), vaga["id"]))
+            registro.evento(conn, vaga["id"], "resposta", "carteiro", tipo=result["tipo"], resumo=result["resumo"][:300],
+                            prazo=result["prazo"], email_uid=item["uid"])
+            if result["tipo"] in ETAPA:
+                registro.avancar_etapa(conn, vaga["id"], ETAPA[result["tipo"]], "carteiro", email_uid=item["uid"])
+            elif conn.execute("UPDATE carreira_candidaturas SET status = 'candidatada', updated_at = ? WHERE vaga_id = ? "
+                              "AND status IN ('incerta', 'precisa_de_voce', 'curriculo')",
+                              (db.utcnow(), vaga["id"])).rowcount:
+                registro.evento(conn, vaga["id"], "envio_confirmado", "carteiro", evidencia="e-mail de confirmação",
+                                email_uid=item["uid"])
         if result["tipo"] == "alerta_vagas":
             store_jobs(alert_jobs(result, item["sender"]))
         conn.execute("INSERT INTO carreira_emails (uid, received_at, sender, subject, tipo, empresa, resumo, vaga_id, "
