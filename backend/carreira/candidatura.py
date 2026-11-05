@@ -23,6 +23,8 @@ MIN_ADERENCIA = 60
 DAILY_LIMIT = int(os.environ.get("CARREIRA_LIMITE_DIA", 10))  # tentativas por dia (limite de volume)
 PER_CYCLE = int(os.environ.get("CARREIRA_POR_CICLO", 3))  # tentativas por volta da fila (a cada 30 min)
 MAX_ATTEMPTS = 2
+# Pedido de intervenção (login, CAPTCHA, teste) não é tentativa de envio: o dono resolve e a vaga volta à fila.
+ATTEMPT = "status != 'precisa_de_voce'"
 TIMEOUT_SECONDS = 1000
 STATUS = {"enviada": "candidatada", "incerta": "incerta", "precisa_de_voce": "precisa_de_voce", "nao_aplicavel": "encerrada"}
 EVENT = {"enviada": "candidatura_enviada", "incerta": "resultado_desconhecido", "precisa_de_voce": "intervencao_solicitada",
@@ -53,7 +55,7 @@ def pending(conn, limit: int):
     return conn.execute(
         "SELECT v.rowid AS n, v.*, c.curriculo_md, c.carta, c.aderencia, c.curriculo_id FROM carreira_candidaturas c "
         "JOIN carreira_vagas v ON v.id = c.vaga_id WHERE c.status = 'curriculo' AND c.aderencia >= ? "
-        "AND (SELECT COUNT(*) FROM carreira_envios e WHERE e.vaga_id = v.id) < ? "
+        f"AND (SELECT COUNT(*) FROM carreira_envios e WHERE e.vaga_id = v.id AND e.{ATTEMPT}) < ? "
         "ORDER BY c.aderencia DESC, c.created_at LIMIT ?", (MIN_ADERENCIA, MAX_ATTEMPTS, limit)).fetchall()
 
 
@@ -154,7 +156,8 @@ async def apply_pending(conn, mentor: MentorClient) -> list[str]:
                  json.dumps(result["respostas"], ensure_ascii=False), result["evidencia"], vaga["curriculo_id"],
                  run["id"], now)).fetchone()[0]
             status = STATUS.get(result["status"])
-            attempts = conn.execute("SELECT COUNT(*) FROM carreira_envios WHERE vaga_id = ?", (vaga["id"],)).fetchone()[0]
+            attempts = conn.execute(f"SELECT COUNT(*) FROM carreira_envios WHERE vaga_id = ? AND {ATTEMPT}",
+                                    (vaga["id"],)).fetchone()[0]
             if status is None and attempts >= MAX_ATTEMPTS:
                 status = "falhou"  # esgotou as tentativas: sai da fila e aparece como falha
             if status:

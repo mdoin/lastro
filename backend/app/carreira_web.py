@@ -365,7 +365,8 @@ def register(app: FastAPI, conn, *, mentor, current_user, log_access) -> None:
         elif body.acao == "nao_enviada":
             if cand["status"] not in ("incerta", "precisa_de_voce"):
                 raise HTTPException(status_code=409, detail="Só um envio incerto ou pendente pode ser marcado como não enviado.")
-            attempts = conn.execute("SELECT COUNT(*) FROM carreira_envios WHERE vaga_id = ?", (vid,)).fetchone()[0]
+            attempts = conn.execute(f"SELECT COUNT(*) FROM carreira_envios WHERE vaga_id = ? AND {candidatura.ATTEMPT}",
+                                    (vid,)).fetchone()[0]
             new = "curriculo" if attempts < candidatura.MAX_ATTEMPTS else "falhou"  # volta à fila só se houver tentativa
             conn.execute("UPDATE carreira_candidaturas SET status = ?, updated_at = ? WHERE vaga_id = ?", (new, now, vid))
             registro.evento(conn, vid, "envio_negado", "dono", anterior=cand["status"], novo=new)

@@ -366,13 +366,16 @@ def test_candidatura_escolhe_melhores_registra_e_avisa(monkeypatch, tmp_path):
     conn.execute("UPDATE carreira_candidaturas SET status = 'curriculo' WHERE aderencia = 100")
     broken = FakeMentor(json.dumps({"status": "falhou", "motivo": "O site caiu."}))
     assert asyncio.run(candidatura.apply_pending(conn, broken)) == []  # falhou: sem aviso, conta tentativa
-    assert asyncio.run(candidatura.apply_pending(conn, broken)) == [] and len(broken.requests) == 1  # 2 tentativas: para
-    assert [r[0] for r in conn.execute("SELECT status FROM carreira_envios ORDER BY id")] == ["precisa_de_voce", "falhou"]
+    assert asyncio.run(candidatura.apply_pending(conn, broken)) == []  # o pedido de intervenção não contou: tenta de novo
+    assert asyncio.run(candidatura.apply_pending(conn, broken)) == [] and len(broken.requests) == 2  # 2 tentativas: para
+    assert [r[0] for r in conn.execute("SELECT status FROM carreira_envios ORDER BY id")] == [
+        "precisa_de_voce", "falhou", "falhou"]
     assert conn.execute("SELECT status FROM carreira_candidaturas WHERE aderencia = 100").fetchone()[0] == "falhou"
     tipos = [r[0] for r in conn.execute("SELECT tipo FROM carreira_eventos WHERE origem = 'aplicador' ORDER BY id")]
-    assert tipos == ["candidatura_iniciada", "intervencao_solicitada", "candidatura_iniciada", "candidatura_falhou"]
+    assert tipos == ["candidatura_iniciada", "intervencao_solicitada", "candidatura_iniciada", "candidatura_falhou",
+                     "candidatura_iniciada", "candidatura_falhou"]
     runs = [tuple(r) for r in conn.execute("SELECT tipo, estado FROM carreira_execucoes WHERE tipo = 'candidatura'")]
-    assert runs == [("candidatura", "concluida"), ("candidatura", "falhou")]
+    assert runs == [("candidatura", "concluida"), ("candidatura", "falhou"), ("candidatura", "falhou")]
 
 
 def test_aplicador_so_recebe_o_proprio_navegador():
