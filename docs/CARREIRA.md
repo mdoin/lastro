@@ -119,3 +119,32 @@ saem no primeiro aviso possível.
   errado. Equivale ao `snapshotId` do OpenBot.
 - **Fora do escopo (não implementado):** flags anti-detecção de automação (esconder do site que o navegador é
   controlado). Servem para burlar a verificação de robô dos próprios sites; ficam de fora por decisão de segurança.
+
+## Módulo Carreira na interface (migração 018)
+- **Navegação:** seletor Finanças | Carreira no topo à esquerda (barra lateral; no celular, barra superior). Cada
+  módulo tem a própria navegação; Computadores, Notificações e Configurações aparecem nos dois. Carreira vive em
+  `/carreira/*`: visão geral, oportunidades (`/vagas`), candidaturas (Kanban e tabela), currículos, agente e
+  navegador (`/navegador` redireciona). As telas recarregam a cada 10–60 s enquanto visíveis (sem streaming novo).
+- **Quatro conceitos separados:** estado do envio (`carreira_candidaturas.status`: curriculo, precisa_de_voce,
+  incerta, falhou, candidatada, encerrada, retirada); etapa informada pela empresa (`etapa`: em_analise, teste,
+  entrevista, proposta, recusada); execuções dos agentes (`carreira_execucoes`); histórico imutável
+  (`carreira_eventos`, triggers impedem UPDATE/DELETE). A migração reconstruiu o histórico do que já existia
+  (marcado `reconstruido`).
+- **Envio só com evidência:** o Aplicador devolve `evidencia` (texto de confirmação da plataforma). `enviada` sem
+  evidência, agente que cai no meio ou resposta ilegível viram `incerta` (resultado desconhecido): não é repetida e
+  aparece em "Próximas ações" para o dono confirmar ou negar. Só "worker nem atendeu" (socket ausente/recusado)
+  conta como falha sem envio. Esgotadas as 2 tentativas, o status vira `falhou`. E-mail de confirmação do Carteiro
+  promove `incerta` a `candidatada`.
+- **Duplicatas:** `url_canonica` (sem rastreio; LinkedIn pelo id da vaga, o que junta busca e alerta de e-mail) e
+  `chave` empresa|cargo|local normalizados (sem empresa, sem chave). Duplicata com candidatura não ganha currículo
+  nem envio (evento `duplicata_bloqueada`). Vagas antigas recebem as chaves quando o serviço inicia.
+- **Currículos:** `carreira_curriculos`, imutável. A base é o `curriculo.md` do dono (nova versão a cada mudança,
+  gravada no ciclo); cada versão do Alfaiate guarda a base de origem e as `alteracoes` que ele diz ter feito; cada
+  tentativa de envio guarda o currículo anexado. `/api/carreira/curriculos/{id}/documento` devolve o mesmo HTML A4
+  que vira o PDF anexado (imprimir → PDF) ou o `.md`.
+- **Execuções:** cada busca, currículo e candidatura grava início, fim, resultado e erro. Ao iniciar, o serviço marca
+  como `interrompida` o que ficou "executando"; na tela, execução além do prazo do agente aparece como travada.
+  O próximo ciclo fica em `carreira_estado.proximo_ciclo`.
+- **Limites conhecidos:** requisitos e benefícios não são extraídos à parte (estão na descrição); tipo de contratação
+  só quando o texto diz (CLT/PJ; estágio pelo título); o Carteiro não grava execuções (só eventos); as regras do
+  caçador (`match.py`) seguem fixas no código — os filtros configuráveis são os da tela.
