@@ -93,3 +93,18 @@ saem no primeiro aviso possível.
   (decisão do dono). Teste que mede habilidade (lógica, técnico, inglês, código, case, vídeo), campo obrigatório sem
   resposta conhecida, CAPTCHA, código de verificação ou cadastro novo: o agente para com `precisa_de_voce` e o dono
   recebe o aviso no WhatsApp com o link.
+
+## Navegador do agente (página `/navegador` do Lastro)
+- O dono vê e controla o Chrome do aplicador (mesmo perfil persistente): toque para clicar, campo para digitar, teclas,
+  endereço, voltar e rolar. Serve para entrar nas contas das plataformas, inclusive "Entrar com Google", e resolver
+  CAPTCHA; o que for logado ali fica salvo para as candidaturas.
+- Rotas `/api/carreira/navegador` (atrás do login e do CSRF do app) repassam ao worker (operação `navegador`). O texto
+  digitado pode ser senha: não vai para log nem volta na resposta. Uma sessão manual por vez; fecha após 10 min sem uso.
+- O aplicador usa o Chrome completo (`/usr/bin/google-chrome`, perfil AppArmor `chrome` com userns) para o perfil ser o
+  mesmo da sessão manual. Nas candidaturas, com a conta Google do dono aberta no perfil, Gmail, Drive, Fotos, Agenda
+  e configurações da conta ficam bloqueados para o agente; só a tela de login com Google funciona.
+
+## Atualizar perfil nas plataformas
+- WhatsApp: `atualizar perfil gupy` (linkedin, catho, indeed, programathor, infojobs, vagas). O aplicador roda no modo
+  `carreira_perfil`: entra na conta, deixa as seções iguais ao perfil base sem inventar e anexa o currículo geral
+  (`/var/lib/patrimonio/carreira/curriculo.md`). O resultado chega no WhatsApp com o que mudou.

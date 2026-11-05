@@ -34,7 +34,8 @@ def load_prompt(role: str, mode: str | None = None) -> str:
     if spec and spec.chat_prompt and (mode in CHAT_MODES or mode == "pesquisa_web"):
         file = spec.chat_prompt
     if role in CAREER_ROLES:  # Carreira não é mentoria financeira: só as próprias regras, sem _base nem equipe
-        return (PROMPTS / file).read_text(encoding="utf-8")
+        parts = [PROMPTS / file] + ([PROMPTS / "modos" / f"{mode}.md"] if mode else [])
+        return "\n\n".join(p.read_text(encoding="utf-8") for p in parts)
     # Camadas: regras comuns (_base), quem é você (equipe + identidade), seu papel e a situação (modo).
     identity = PROMPTS / "identidades" / f"{role}.md"
     parts = [PROMPTS / "_base.md", *([identity] if identity.exists() else []), PROMPTS / file] \

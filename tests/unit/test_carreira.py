@@ -413,3 +413,62 @@ def test_aplicador_senha_so_no_dominio_e_upload_do_cv(tmp_path):
     assert "S3gred0" not in json.dumps(ok)
     assert attached["titulo"] == "Maite-CV.pdf:application/pdf"
     assert missing["status"] == "sem_credencial"
+
+
+def test_rotas_do_navegador_repassam_e_nao_registram_o_texto():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app import carreira_web
+
+    calls, logged = [], []
+
+    class Mentor:
+        async def call(self, request, timeout=15):
+            calls.append(request)
+            return {"type": "done", "ativo": True, "url": "https://br.indeed.com/"}
+
+    app = FastAPI()
+    carreira_web.register(app, mentor=Mentor(), current_user=lambda: "dono",
+                          log_access=lambda *a: logged.append(a))
+    client = TestClient(app)
+    assert client.post("/api/carreira/navegador", json={"acao": "digitar", "texto": "minhaSenha123"}).json()["ativo"]
+    assert client.post("/api/carreira/navegador", json={"acao": "abrir", "url": "indeed.com.br"}).status_code == 200
+    assert client.post("/api/carreira/navegador", json={"acao": "rodar_js"}).status_code == 422
+    assert client.post("/api/carreira/navegador", json={"acao": "tecla", "tecla": "F12"}).status_code == 422
+    assert client.get("/api/carreira/navegador").json()["url"] == "https://br.indeed.com/"
+    assert calls[0] == {"op": "navegador", "acao": "digitar", "x": 0, "y": 0, "dy": 600, "texto": "minhaSenha123", "url": ""}
+    assert "minhaSenha123" not in json.dumps(logged) and logged == [("dono", "carreira.navegador.abrir", "indeed.com.br")]
+
+
+def test_controle_sem_sessao_nao_abre_navegador():
+    from mentor.aplicador import Controle
+
+    assert asyncio.run(Controle().handle(None, {"acao": "clicar", "x": 1, "y": 1})) == {"ativo": False}
+    assert "não está configurado" in asyncio.run(Controle().handle(None, {"acao": "iniciar"}))["erro"]
+
+
+def test_atualizar_perfil_pelo_whatsapp(monkeypatch, tmp_path):
+    from carreira import conversa
+
+    conn = setup_conversa(monkeypatch, tmp_path)
+    for name, text in (("respostas.md", "Pretensão: 4000"), ("curriculo.md", "# Maitê Doin")):
+        (tmp_path / name).write_text(text, encoding="utf-8")
+    monkeypatch.setenv("CARREIRA_RESPOSTAS", str(tmp_path / "respostas.md"))
+    monkeypatch.setenv("CARREIRA_CURRICULO", str(tmp_path / "curriculo.md"))
+    mentor = FakeMentor(json.dumps({"status": "enviada", "motivo": "Perfil igual ao currículo.",
+                                    "respostas": [{"pergunta": "Experiência", "resposta": "Intermidia"}]}))
+    sent = []
+
+    async def go():
+        async def send(text):
+            sent.append(text)
+        first = await conversa.handle(conn, mentor, "Atualizar perfil na Gupy", send)
+        await asyncio.gather(*conversa.BACKGROUND)
+        return first, await conversa.handle(conn, mentor, "atualizar perfil orkut", send)
+
+    first, unknown = asyncio.run(go())
+    assert "Vou atualizar" in first and "Plataformas:" in unknown
+    [req] = mentor.requests
+    assert req["role"] == "aplicador" and req["mode"] == "carreira_perfil" and req["aplicacao"]["curriculo_md"] == "# Maitê Doin"
+    assert "Perfil atualizado" in sent[0] and "Intermidia" in sent[0]

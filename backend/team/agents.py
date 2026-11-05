@@ -184,7 +184,8 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
 # Modos de trabalho: complementos de instrução por situação (mentor/prompts/modos/<modo>.md).
 MODES = ("direto", "grupo", "conversa", "pesquisa_web", "delegado", "integracao", "conselho_enquadramento", "conselho_parecer",
          "conselho_sintese", "conselho_contestacao", "correcao", "radar_parecer", "radar_sintese",
-         "extracao_documento", "conselho_pauta", "conselho_debate", "laboratorio_individual", "laboratorio_juiz")
+         "extracao_documento", "conselho_pauta", "conselho_debate", "laboratorio_individual", "laboratorio_juiz",
+         "carreira_perfil")
 
 
 def get(agent_id: str) -> AgentSpec:

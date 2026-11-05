@@ -8,6 +8,7 @@ Comandos: "vagas", "cv N", "treinar N", "parar" e "ajuda". Fora disso, durante u
 Treinador; sem treino ativo, a resposta é a ajuda.
 """
 
+import asyncio
 import json
 import logging
 import re
@@ -19,7 +20,7 @@ import httpx
 from app import db
 from app.mentor_client import MentorClient
 
-from . import alfaiate
+from . import alfaiate, candidatura
 
 log = logging.getLogger("lastro.carreira")
 POLL_SECONDS = 20
@@ -27,6 +28,7 @@ HELP = ("*Lastro · Carreira*\n"
         "• *vagas*: candidaturas prontas, com aderência\n"
         "• *cv N*: currículo e carta da vaga N\n"
         "• *treinar N*: entrevista simulada para a vaga N\n"
+        "• *atualizar perfil gupy* (ou linkedin, catho, indeed...): o agente atualiza seu perfil lá\n"
         "• *parar*: encerra o treino com nota e feedback")
 
 
@@ -104,9 +106,34 @@ async def coach(mentor: MentorClient, vaga, perfil: str, transcript: list[dict],
     return output.strip()[:4000]
 
 
-async def handle(conn, mentor: MentorClient | None, text: str) -> str:
-    """Resposta para uma mensagem do dono."""
+BACKGROUND: set = set()
+
+
+async def _profile_job(mentor: MentorClient, platform: str, send) -> None:
+    try:
+        result = await candidatura.update_profile(mentor, platform)
+        head = {"enviada": "Perfil atualizado ✅", "precisa_de_voce": "Preciso de você"}.get(result["status"],
+                                                                                          "Não consegui atualizar")
+        changes = "\n".join(f"• {r['pergunta']}: {r['resposta'][:120]}" for r in result["respostas"][:12])
+        await send(f"*{head}* — {platform}\n{result['motivo']}" + (f"\n{changes}" if changes else ""))
+    except Exception as exc:  # noqa: BLE001 — o dono fica sabendo em vez de esperar para sempre
+        log.warning("atualizar perfil %s falhou: %s", platform, type(exc).__name__)
+        await send(f"Não consegui atualizar o perfil na {platform} ({type(exc).__name__}).")
+
+
+async def handle(conn, mentor: MentorClient | None, text: str, send=None) -> str:
+    """Resposta para uma mensagem do dono. `send` envia avisos de tarefas que terminam depois."""
     plain = _plain(text)
+    if match := re.fullmatch(r"atualizar perfil (?:na |no |da |do )?(\w+)", plain):
+        platform = match.group(1)
+        if platform not in candidatura.PLATFORMS:
+            return f"Plataformas: {', '.join(candidatura.PLATFORMS)}."
+        if mentor is None or send is None:
+            return "O agente não está disponível agora."
+        task = asyncio.create_task(_profile_job(mentor, platform, send))
+        BACKGROUND.add(task)
+        task.add_done_callback(BACKGROUND.discard)
+        return f"Vou atualizar seu perfil na {platform}. Leva alguns minutos; aviso quando terminar."
     active = conn.execute("SELECT * FROM carreira_treinos WHERE status = 'ativo' ORDER BY id DESC LIMIT 1").fetchone()
     if plain in ("ajuda", "menu", "oi", "ola"):
         return HELP
@@ -158,7 +185,7 @@ async def poll_once(conn, client: httpx.AsyncClient, cfg: dict, mentor: MentorCl
     handled = 0
     for stamp, text in await fetch_owner_messages(client, cfg, cursor(conn)):
         try:
-            reply = await handle(conn, mentor, text)
+            reply = await handle(conn, mentor, text, send)
         except Exception as exc:  # noqa: BLE001 — avisa o dono em vez de sumir com a mensagem
             log.warning("conversa falhou: %s", type(exc).__name__)
             reply = "Não consegui responder agora (o mentor falhou ou demorou). Tente de novo em instantes."

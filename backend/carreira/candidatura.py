@@ -51,11 +51,36 @@ def pending(conn, limit: int):
         "ORDER BY c.aderencia DESC, c.created_at LIMIT ?", (MIN_ADERENCIA, MAX_ATTEMPTS, limit)).fetchall()
 
 
+PLATFORMS = {"gupy": "https://www.gupy.io/", "linkedin": "https://www.linkedin.com/in/me/",
+             "catho": "https://www.catho.com.br/", "indeed": "https://br.indeed.com/",
+             "programathor": "https://programathor.com.br/", "infojobs": "https://www.infojobs.com.br/",
+             "vagas": "https://www.vagas.com.br/"}
+
+
+def base_cv() -> str | None:
+    path = Path(os.environ.get("CARREIRA_CURRICULO", "/var/lib/patrimonio/carreira/curriculo.md"))
+    return path.read_text(encoding="utf-8") if path.is_file() else None
+
+
 async def ask(mentor: MentorClient, vaga, perfil: str, respostas: str) -> dict:
     text = (f"{alfaiate.prompt(perfil, vaga)}\nLINK DA VAGA: {vaga['url']}\n\nRESPOSTAS:\n{respostas}\n\n"
             f"CARTA:\n{vaga['carta']}\n")
+    return await run(mentor, text, vaga["curriculo_md"])
+
+
+async def update_profile(mentor: MentorClient, platform: str) -> dict:
+    """Atualiza o perfil do dono numa plataforma (modo carreira_perfil do aplicador)."""
+    perfil, respostas, cv = alfaiate.profile(), answers(), base_cv()
+    if None in (perfil, respostas, cv):
+        raise RuntimeError("faltam perfil, respostas ou currículo base")
+    text = (f"PLATAFORMA: {platform} ({PLATFORMS[platform]})\n\nPERFIL:\n{perfil}\n\nRESPOSTAS:\n{respostas}\n")
+    return await asyncio.wait_for(run(mentor, text, cv, mode="carreira_perfil"), TIMEOUT_SECONDS)
+
+
+async def run(mentor: MentorClient, text: str, curriculo_md: str, mode: str | None = None) -> dict:
     request = {"op": "ephemeral", "role": "aplicador", "text": text, "effort": "medium",
-               "aplicacao": {"curriculo_md": vaga["curriculo_md"], "nome_arquivo": "Maite-Doin-Curriculo"}}
+               "aplicacao": {"curriculo_md": curriculo_md, "nome_arquivo": "Maite-Doin-Curriculo"},
+               **({"mode": mode} if mode else {})}
     output, failed = "", None
     async for event in mentor.stream(request):
         if event.get("type") == "done":

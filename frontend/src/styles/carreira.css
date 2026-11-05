@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+/* Navegador do agente (Carreira). */
+.agent-browser-bar { display: flex; gap: 8px; align-items: center; }
+.agent-browser-bar .input { flex: 1; min-width: 0; }
+.agent-browser-screen {
+  display: block; width: 100%; height: auto; border: 1px solid var(--border-strong); border-radius: 12px;
+  cursor: pointer; background: var(--surface-2); touch-action: manipulation;
+}
+.agent-browser-screen[data-busy] { opacity: 0.7; }
+.agent-browser-keys { display: flex; flex-wrap: wrap; gap: 8px; }

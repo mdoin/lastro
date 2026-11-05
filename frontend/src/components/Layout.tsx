@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { to: "/radar", label: "Radar", short: "Radar", icon: "pulse", group: "Radar" },
   { to: "/oportunidades", label: "Diário de oportunidades", short: "Oportunidades", icon: "bars", group: "Radar" },
   { to: "/radar-cripto", label: "Radar cripto", short: "Cripto", icon: "coins", group: "Radar" },
+  { to: "/navegador", label: "Navegador do agente", short: "Navegador", icon: "globe", group: "Sistema" },
   { to: "/notificacoes", label: "Notificações", short: "Avisos", icon: "inbox", group: "Sistema" },
   { to: "/configuracoes", label: "Configurações e auditoria", short: "Ajustes", icon: "settings", group: "Sistema" },
 ];

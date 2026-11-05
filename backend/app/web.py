@@ -33,7 +33,7 @@ from radar.engine import Radar
 
 from crypto.service import Monitor as CryptoMonitor
 
-from . import (admin, auth, convictions, crypto_web, db, diary_web, lab_web, ledger_web, providers_web, radar_web, routines,
+from . import (admin, auth, carreira_web, convictions, crypto_web, db, diary_web, lab_web, ledger_web, providers_web, radar_web, routines,
                setup, store, views)
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
@@ -704,6 +704,9 @@ def create_app(settings: Settings) -> FastAPI:
     # --- Radar e Diário de Oportunidades ---
     radar_web.register(app, conn, current_user=current_user, radar=radar, bad_request=bad_request,
                        log_access=log_access, today=today)
+
+    # --- Carreira: controle manual do navegador do aplicador ---
+    carreira_web.register(app, mentor=mentor, current_user=current_user, log_access=log_access)
 
     # --- provedores de IA (conexões no worker) e provedor/modelo por agente ---
     providers_web.register(app, conn, mentor=mentor, current_user=current_user, log_access=log_access)

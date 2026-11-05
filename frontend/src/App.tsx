@@ -13,6 +13,7 @@ import { OverviewPage } from "./pages/Overview";
 const FinancesPage = lazy(() => import("./pages/Finances").then((m) => ({ default: m.FinancesPage })));
 const FuturePage = lazy(() => import("./pages/Future").then((m) => ({ default: m.FuturePage })));
 const GoalsPage = lazy(() => import("./pages/Goals").then((m) => ({ default: m.GoalsPage })));
+const AgentBrowserPage = lazy(() => import("./pages/AgentBrowser").then((m) => ({ default: m.AgentBrowserPage })));
 const TeamPage = lazy(() => import("./pages/Team").then((m) => ({ default: m.TeamPage })));
 const RoutinesPage = lazy(() => import("./pages/Routines").then((m) => ({ default: m.RoutinesPage })));
 const DecisionsPage = lazy(() => import("./pages/Decisions").then((m) => ({ default: m.DecisionsPage })));
@@ -127,6 +128,7 @@ export function App() {
         <Route path="caixa" element={page(<InboxPage />)} />
         <Route path="radar-cripto" element={page(<CryptoRadarPage />)} />
         <Route path="notificacoes" element={page(<NotificationsPage />)} />
+        <Route path="navegador" element={page(<AgentBrowserPage />)} />
         <Route path="conviccoes" element={page(<ConvictionsPage />)} />
         <Route path="laboratorio" element={page(<LabPage />)} />
         <Route path="laboratorio/:experimentId" element={page(<LabPage />)} />

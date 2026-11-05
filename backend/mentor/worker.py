@@ -354,6 +354,12 @@ class MentorWorker:
                     "default_connection": default and {k: default[k] for k in ("id", "type", "label")},
                     **legacy})
 
+    async def navegador(self, req: dict, emit: Emit) -> None:
+        """Controle manual do navegador do aplicador pelo dono (página do Lastro)."""
+        from .aplicador import CONTROLE
+
+        await emit({"type": "done", **await CONTROLE.handle(self.browser, req)})
+
     async def providers(self, req: dict, emit: Emit) -> None:
         await emit({"type": "done", **await self.admin.handle(req)})
 
@@ -411,7 +417,7 @@ class MentorWorker:
                 raise ValueError("requisição grande demais")
             req = json.loads(line)
             op = {"turn": self.turn, "ephemeral": self.ephemeral, "panel": self.panel, "interrupt": self.interrupt,
-                  "status": self.status, "providers": self.providers}.get(req.get("op"))
+                  "status": self.status, "providers": self.providers, "navegador": self.navegador}.get(req.get("op"))
             if op is None:
                 raise ValueError("operação desconhecida")
             await op(req, emit)

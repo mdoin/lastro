@@ -30,6 +30,15 @@ TEXT_CHARS = 5000
 MAX_ELEMENTS = 90
 LOCK = asyncio.Lock()
 BASE_DIR = Path(os.environ.get("LASTRO_APLICADOR_DIR", "/var/lib/mentor/carreira"))
+# O Chrome completo (o mesmo em que o dono entra pelo controle manual): o perfil não muda de versão entre os dois.
+CHROME = os.environ.get("LASTRO_APLICADOR_CHROME", "/usr/bin/google-chrome")
+# Com a conta Google do dono aberta no perfil, o agente só pode usar a tela de login com Google: e-mail, arquivos,
+# fotos e configurações da conta ficam fora de alcance (uma página de vaga não consegue mandá-lo ler o Gmail).
+GOOGLE_BLOCKED = ("mail.google.com", "inbox.google.com", "drive.google.com", "docs.google.com", "photos.google.com",
+                  "myaccount.google.com", "contacts.google.com", "calendar.google.com", "takeout.google.com",
+                  "payments.google.com", "pay.google.com", "passwords.google.com", "keep.google.com",
+                  "chat.google.com", "meet.google.com", "admin.google.com", "gmail.com")
+VIEWPORT = {"width": 1280, "height": 900}
 
 # Como ELEMENTS_JS do navegador de pesquisa, mas com o rótulo (<label>), obrigatoriedade e valor dos campos.
 FORM_JS = """(max) => {
@@ -103,8 +112,9 @@ def markdown_html(md: str) -> str:
 
 class Aplicador:
     def __init__(self, browser, *, curriculo_md: str, nome_arquivo: str = "curriculo", frame_sink=None,
-                 vault: dict | None = None, base_dir: Path | None = None):
+                 vault: dict | None = None, base_dir: Path | None = None, restrict_google: bool = True):
         self.browser, self.curriculo_md, self.frame_sink = browser, curriculo_md, frame_sink
+        self.restrict_google = restrict_google
         self.nome_arquivo = re.sub(r"[^A-Za-z0-9_-]+", "-", nome_arquivo)[:60] or "curriculo"
         self.vault = load_vault() if vault is None else vault
         self.base_dir = base_dir or BASE_DIR
@@ -122,14 +132,18 @@ class Aplicador:
 
         self.base_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.playwright = await async_playwright().start()
+        executable = CHROME if os.path.exists(CHROME) else self.browser.executable
         self.context = await self.playwright.chromium.launch_persistent_context(
-            str(self.base_dir / "chrome"), executable_path=self.browser.executable, headless=True,
+            str(self.base_dir / "chrome"), executable_path=executable, headless=True,
             chromium_sandbox=self.browser.sandbox, user_agent=TAB_UA, locale="pt-BR", accept_downloads=False,
-            ignore_https_errors=self.browser.ignore_https_errors, viewport={"width": 1280, "height": 900},
+            ignore_https_errors=self.browser.ignore_https_errors, viewport=VIEWPORT,
             args=["--disable-extensions", "--no-first-run", "--disable-sync", "--js-flags=--max-old-space-size=512",
                   "--force-webrtc-ip-handling-policy", "--webrtc-ip-handling-policy=disable_non_proxied_udp"])
         self.context.set_default_timeout(15000)
         await self.context.add_init_script(NO_WEBRTC)
+        if self.restrict_google:
+            await self.context.route(lambda url: host_matches(urlsplit(url).hostname or "", list(GOOGLE_BLOCKED)),
+                                     lambda route: route.abort("blockedbyclient"))
         self.page = self.context.pages[0] if self.context.pages else await self.context.new_page()
         self.context.on("page", lambda p: asyncio.ensure_future(self._adopt(p)))
         self.page.on("dialog", lambda d: asyncio.ensure_future(d.accept()))
@@ -267,6 +281,37 @@ class Aplicador:
                 self._locked = False
                 LOCK.release()
 
+    # ---------- controle manual pelo dono (página "Navegador do agente" do Lastro) ----------
+
+    async def frame(self) -> dict:
+        page = await self._ensure()
+        shot = await page.screenshot(type="jpeg", quality=60)
+        return {"ativo": True, "imagem": base64.b64encode(shot).decode(), "url": page.url,
+                "titulo": (await page.title())[:200], **{"largura": VIEWPORT["width"], "altura": VIEWPORT["height"]}}
+
+    async def manual(self, action: str, req: dict) -> dict:
+        """Ação de uma pessoa na tela: clique por coordenada, texto, tecla, endereço, voltar, rolar."""
+        page = await self._ensure()
+        if action == "clicar":
+            await page.mouse.click(max(0, min(int(req.get("x", 0)), VIEWPORT["width"])),
+                                   max(0, min(int(req.get("y", 0)), VIEWPORT["height"])))
+        elif action == "digitar":
+            await page.keyboard.type(str(req.get("texto", ""))[:2000], delay=20)
+        elif action == "tecla" and req.get("tecla") in MANUAL_KEYS:
+            await page.keyboard.press(req["tecla"])
+        elif action == "abrir":
+            url = str(req.get("url", "")).strip()
+            url = url if "://" in url else f"https://{url}"
+            if urlsplit(url).scheme not in ("https", "http"):
+                return {"ativo": True, "erro": "Endereço inválido."}
+            await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        elif action == "voltar":
+            await page.go_back(wait_until="domcontentloaded", timeout=15000)
+        elif action == "rolar":
+            await page.mouse.wheel(0, max(-3000, min(int(req.get("dy", 600)), 3000)))
+        await page.wait_for_timeout(700)
+        return await self.frame()
+
     def tools(self) -> list:
         app = self
 
@@ -329,3 +374,58 @@ class Aplicador:
 
         return [aplicador_abrir, aplicador_clicar, aplicador_digitar, aplicador_login, aplicador_anexar_curriculo,
                 aplicador_rolar, aplicador_ler]
+
+
+MANUAL_KEYS = ("Enter", "Backspace", "Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space")
+MANUAL_IDLE_SECONDS = 600
+
+
+class Controle:
+    """Uma sessão manual por vez no perfil do aplicador; fecha sozinha após MANUAL_IDLE_SECONDS sem uso."""
+
+    def __init__(self):
+        self.app: Aplicador | None = None
+        self.last = 0.0
+        self._watch: asyncio.Task | None = None
+
+    async def handle(self, browser, req: dict) -> dict:
+        action = req.get("acao")
+        if action == "encerrar":
+            await self.stop()
+            return {"ativo": False}
+        if self.app is None:
+            if action != "iniciar":
+                return {"ativo": False}
+            if browser is None:
+                return {"ativo": False, "erro": "O navegador do worker não está configurado."}
+            app = Aplicador(browser, curriculo_md="", vault={}, restrict_google=False)
+            try:
+                await app._ensure()
+            except TimeoutError:
+                await app.close()
+                return {"ativo": False, "erro": "O agente está usando o navegador agora; tente em alguns minutos."}
+            self.app = app
+            self._watch = asyncio.create_task(self._idle())
+        self.last = time.monotonic()
+        try:
+            async with asyncio.timeout(45):
+                return await (self.app.frame() if action in ("iniciar", "tela") else self.app.manual(action, req))
+        except Exception as exc:  # noqa: BLE001 — falha de página vira aviso na tela, não derruba o worker
+            return {"ativo": True, "erro": f"{type(exc).__name__}: {str(exc).splitlines()[0][:160] if str(exc) else ''}"}
+
+    async def _idle(self):
+        while self.app is not None:
+            await asyncio.sleep(30)
+            if time.monotonic() - self.last > MANUAL_IDLE_SECONDS:
+                await self.stop()
+
+    async def stop(self):
+        app, self.app = self.app, None
+        if app is not None:
+            await app.close()
+        if self._watch is not None and self._watch is not asyncio.current_task():
+            self._watch.cancel()
+        self._watch = None
+
+
+CONTROLE = Controle()
