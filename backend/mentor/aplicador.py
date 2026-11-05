@@ -168,6 +168,10 @@ class Aplicador:
             await page.wait_for_load_state("domcontentloaded", timeout=10000)
         except Exception:  # noqa: BLE001
             pass
+        try:  # SPA (Gupy) troca a etapa depois do carregamento: espera a rede acalmar, sem ficar refém de quem nunca acalma
+            await page.wait_for_load_state("networkidle", timeout=3000)
+        except Exception:  # noqa: BLE001
+            pass
         await page.wait_for_timeout(800)
         text = (await page.evaluate("(n) => (document.body ? document.body.innerText : '').slice(0, n)",
                                     TEXT_CHARS)).strip()
@@ -203,6 +207,9 @@ class Aplicador:
     def _el(self, page, n: int):
         return page.locator(f'[data-lastro-id="{int(n)}"]').first
 
+    GONE = {"status": "lista_velha", "detalhe": "Esse elemento não existe mais: a página mudou depois da última leitura. "
+            "Leia de novo (aplicador_ler) e use os números novos."}
+
     async def goto(self, url: str) -> dict:
         if urlsplit(url).scheme != "https":
             return {"status": "bloqueado", "detalhe": "Só endereços https."}
@@ -213,6 +220,8 @@ class Aplicador:
     async def click(self, n: int, lista: int | None = None) -> dict:
         async def press(page):
             el = self._el(page, n)
+            if not await el.count():  # sem isso, o clique espera 20 s por um elemento que a página já trocou
+                return self.GONE
             try:
                 await el.click(timeout=5000)
             except Exception:  # noqa: BLE001 — coberto por outro elemento: clique pelo DOM
@@ -222,6 +231,8 @@ class Aplicador:
     async def type(self, n: int, text: str, submit: bool = False, lista: int | None = None) -> dict:
         async def fill(page):
             el = self._el(page, n)
+            if not await el.count():
+                return self.GONE
             if await el.evaluate("e => e.tagName.toLowerCase()") == "select":
                 await el.select_option(label=text)
             else:
@@ -234,7 +245,9 @@ class Aplicador:
         return await self._act(lambda page: page.evaluate(f"window.scrollBy(0, {'' if down else '-'}innerHeight * 0.85)"))
 
     async def read(self) -> dict:
-        return await self._act(lambda page: None)
+        async def nothing(_page):  # a ação é só ler: _act devolve o estado da página
+            return None
+        return await self._act(nothing)
 
     async def login(self, platform: str, n_user: int, n_password: int) -> dict:
         cred = self.vault.get(platform)

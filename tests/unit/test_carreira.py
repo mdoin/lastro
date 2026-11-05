@@ -436,6 +436,8 @@ def test_aplicador_senha_so_no_dominio_e_upload_do_cv(tmp_path):
             attached = await app.attach_cv(ids["Currículo"])
             by_button = await app.attach_cv({e["rotulo"]: e["n"] for e in attached["elementos"]}["Substituir currículo"])
             assert by_button["titulo"] == "botão:Maite-CV.pdf"  # botão que abre o seletor de arquivos também serve
+            assert (await app.read())["status"] == "ok"  # reler a página (estava quebrado: TypeError)
+            assert (await app.click(999))["status"] == "lista_velha"  # elemento que a página trocou: responde na hora
             return refused, ok, typed, attached, await app.login("linkedin", 0, ids["senha"])
         finally:
             await app.close()
