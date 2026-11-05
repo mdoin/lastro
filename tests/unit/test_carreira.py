@@ -135,3 +135,16 @@ def test_parsers_linkedin_catho_programathor():
     assert ca["salary_min"] == 4617 and ca["url"] == "https://www.catho.com.br/vagas/dev/39000261"
     [pa] = sources.parse_programathor(PROGRAMATHOR_PAGE)
     assert (pa["id"], pa["title"], pa["workplace"]) == ("programathor:33847", "AI Engineer (Júnior)", "remoto")
+
+
+@pytest.mark.parametrize("url, ok", [("http://127.0.0.1:8081", True), ("http://localhost:8081/", True),
+                                     ("http://127.0.0.1.evil.example", False), ("http://10.0.0.5:8080", False)])
+def test_evolution_http_so_no_proprio_servidor(monkeypatch, url, ok):
+    for k, v in {"EVOLUTION_URL": url, "EVOLUTION_KEY": "k", "EVOLUTION_INSTANCE": "i",
+                 "WHATSAPP_TO": "5543988273960"}.items():
+        monkeypatch.setenv(f"CARREIRA_{k}", v)
+    if ok:
+        assert hunter.evolution_config()["evolution_url"] == url
+    else:
+        with pytest.raises(ValueError):
+            hunter.evolution_config()

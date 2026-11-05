@@ -38,5 +38,7 @@ CARREIRA_EVOLUTION_INSTANCE=...
 CARREIRA_WHATSAPP_TO=5543988273960
 ```
 
-A URL precisa ser HTTPS: a chave da Evolution não pode trafegar aberta. Sem o arquivo, as vagas ficam guardadas e
+A URL precisa ser HTTPS (a chave da Evolution não pode trafegar aberta), exceto `http://127.0.0.1` quando a Evolution
+roda neste servidor. Na instância de referência ela fica em `/opt/evolution` (Docker Compose, v2.3.7, Postgres e
+Redis, porta 8081 só no loopback) e o arquivo usa o token da instância `lastro`, não a chave global. Sem o arquivo, as vagas ficam guardadas e
 saem no primeiro aviso possível.

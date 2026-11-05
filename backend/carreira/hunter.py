@@ -91,8 +91,11 @@ def evolution_config() -> dict | None:
                                                                             "evolution_instance", "whatsapp_to")}
     if not all(cfg.values()):
         return None
-    if not cfg["evolution_url"].startswith("https://"):
-        raise ValueError("CARREIRA_EVOLUTION_URL precisa ser https:// (a chave da API não pode trafegar aberta)")
+    url = cfg["evolution_url"]
+    local = re.match(r"http://(127\.0\.0\.1|localhost)(:\d+)?(/|$)", url)  # Evolution no mesmo servidor
+    if not (url.startswith("https://") or local):
+        raise ValueError("CARREIRA_EVOLUTION_URL precisa ser https:// (a chave da API não pode trafegar aberta), "
+                         "ou http://127.0.0.1 com a Evolution neste servidor")
     if not re.fullmatch(r"\d{12,13}", cfg["whatsapp_to"]):
         raise ValueError("CARREIRA_WHATSAPP_TO: só dígitos com DDI e DDD, ex.: 5543999999999")
     return cfg
