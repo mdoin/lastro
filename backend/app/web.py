@@ -33,7 +33,7 @@ from radar.engine import Radar
 
 from crypto.service import Monitor as CryptoMonitor
 
-from . import (admin, auth, carreira_web, computador_web, convictions, crypto_web, db, diary_web, lab_web, ledger_web, providers_web, radar_web, routines,
+from . import (admin, auth, carreira_web, computador_web, curriculos_web, convictions, crypto_web, db, diary_web, lab_web, ledger_web, providers_web, radar_web, routines,
                setup, store, views)
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
@@ -707,6 +707,7 @@ def create_app(settings: Settings) -> FastAPI:
 
     # --- Carreira: vagas, candidaturas, currículos, agente e navegador do aplicador ---
     carreira_web.register(app, conn, mentor=mentor, current_user=current_user, log_access=log_access)
+    curriculos_web.register(app, conn, mentor=mentor, current_user=current_user, log_access=log_access)
     computador_web.register(app, current_user=current_user, log_access=log_access,
                             session_ok=lambda cookies: auth.session_is_valid(conn, cookies.get(auth.SESSION_COOKIE)))
 

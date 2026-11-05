@@ -34,6 +34,7 @@ const CareerApplicationsPage = lazy(() => import("./pages/CareerApplications").t
 const CareerApplicationPage = lazy(() => import("./pages/CareerApplications").then((m) => ({ default: m.CareerApplicationPage })));
 const CareerResumesPage = lazy(() => import("./pages/CareerResumes").then((m) => ({ default: m.CareerResumesPage })));
 const CareerResumePage = lazy(() => import("./pages/CareerResumes").then((m) => ({ default: m.CareerResumePage })));
+const CareerResumeBasePage = lazy(() => import("./pages/CareerResumes").then((m) => ({ default: m.CareerResumeBasePage })));
 const CareerTalentPage = lazy(() => import("./pages/CareerTalent").then((m) => ({ default: m.CareerTalentPage })));
 const CareerAgentPage = lazy(() => import("./pages/CareerAgent").then((m) => ({ default: m.CareerAgentPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
@@ -153,6 +154,7 @@ export function App() {
         <Route path="carreira/candidaturas" element={page(<CareerApplicationsPage />)} />
         <Route path="carreira/candidaturas/:n" element={page(<CareerApplicationPage />)} />
         <Route path="carreira/curriculos" element={page(<CareerResumesPage />)} />
+        <Route path="carreira/curriculos/base" element={page(<CareerResumeBasePage />)} />
         <Route path="carreira/curriculos/:id" element={page(<CareerResumePage />)} />
         <Route path="carreira/agente" element={page(<CareerAgentPage />)} />
         <Route path="carreira/talent" element={page(<CareerTalentPage />)} />

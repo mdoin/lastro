@@ -189,3 +189,42 @@ section[aria-busy="true"] .career-jobs { opacity: 0.6; transition: opacity 0.2s 
 .talent-actions { display: flex; gap: 6px; flex: none; }
 .talent-plain { margin: 0; padding-left: 1.1em; }
 @media (max-width: 560px) { .talent-proposal { flex-direction: column; align-items: stretch; } }
+
+/* ===================================================== Currículos: perfis, páginas do PDF e validação da base */
+.section-title { font-size: 1rem; font-weight: 620; letter-spacing: -0.01em; margin: 0; }
+.career-files { gap: 6px; flex-wrap: wrap; }
+.career-facts-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.career-profiles { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.career-profile {
+  display: grid; grid-template-rows: auto 1fr; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); overflow: hidden;
+}
+.career-profile-body { display: grid; gap: 6px; padding: 12px 14px 14px; align-content: start; }
+/* Página A4 em miniatura: o papel é branco nos dois temas (é o documento, não a interface). */
+.career-sheet {
+  display: block; aspect-ratio: 210 / 297; max-height: 300px; overflow: hidden; background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+.career-sheet img { display: block; width: 100%; height: auto; }
+.career-sheet:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.career-sheet-empty { display: grid; place-items: center; background: var(--surface-2); }
+.career-pages { display: grid; gap: 16px; justify-items: center; }
+.career-page {
+  width: 100%; max-width: 794px; height: auto; background: #fff; border: 1px solid var(--border-strong);
+  border-radius: 6px; box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.career-md { white-space: pre-wrap; font-family: var(--font-mono); font-size: 12.5px; margin: 0; }
+.career-error-list { color: var(--critical-ink); }
+.career-older summary { cursor: pointer; padding: 12px 16px; }
+.career-facts-list, .career-questions { list-style: none; margin: 0; padding: 0; display: grid; }
+.career-facts-list > li + li, .career-questions > li + li { border-top: 1px solid var(--border); }
+.career-fact { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 10px 0; align-items: start; }
+.career-fact.is-muted .career-fact-main { color: var(--muted); text-decoration: line-through; }
+.career-fact-main { display: grid; gap: 4px; min-width: 0; }
+.career-fact-side { display: grid; gap: 6px; justify-items: end; }
+.career-question { display: grid; gap: 8px; padding: 12px 0; }
+.career-question p { margin: 0; }
+@media (max-width: 640px) {
+  .career-fact { grid-template-columns: 1fr; }
+  .career-fact-side { justify-items: start; }
+}

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response
+from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from carreira import alfaiate, candidatura, match, registro, talent
@@ -435,52 +435,6 @@ def register(app: FastAPI, conn, *, mentor, current_user, log_access) -> None:
             registro.evento(conn, vid, "retirada", "dono", anterior=cand["status"])
         log_access(user, f"carreira.candidatura.{body.acao}", str(n))
         return await candidatura_detalhe(n, user)
-
-    @app.get("/api/carreira/curriculos")
-    async def curriculos(user: str = Depends(current_user)):
-        rows = conn.execute(
-            "SELECT k.id, k.tipo, k.origem_id, k.alteracoes_json, k.created_at, length(k.conteudo_md) AS tamanho,"
-            " v.rowid AS n, v.title, v.company FROM carreira_curriculos k LEFT JOIN carreira_vagas v ON v.id = k.vaga_id"
-            " ORDER BY k.id DESC").fetchall()
-        uses: dict[int, list] = {}
-        for e in conn.execute("SELECT e.curriculo_id, e.status, e.created_at, v.rowid AS n FROM carreira_envios e "
-                              "JOIN carreira_vagas v ON v.id = e.vaga_id WHERE e.curriculo_id IS NOT NULL ORDER BY e.id"):
-            uses.setdefault(e["curriculo_id"], []).append({"n": e["n"], "status": e["status"], "created_at": e["created_at"]})
-        base = next((r["id"] for r in rows if r["tipo"] == "base"), None)
-        return [{"id": r["id"], "tipo": r["tipo"], "vigente": r["id"] == base, "origem_id": r["origem_id"],
-                 "alteracoes": json.loads(r["alteracoes_json"]), "created_at": r["created_at"], "tamanho": r["tamanho"],
-                 "n": r["n"], "title": r["title"], "company": r["company"], "envios": uses.get(r["id"], [])}
-                for r in rows]
-
-    def curriculo_row(cid: int):
-        row = conn.execute("SELECT k.*, v.rowid AS n, v.title, v.company FROM carreira_curriculos k "
-                           "LEFT JOIN carreira_vagas v ON v.id = k.vaga_id WHERE k.id = ?", (cid,)).fetchone()
-        if row is None:
-            raise HTTPException(status_code=404, detail="Currículo não encontrado.")
-        return row
-
-    @app.get("/api/carreira/curriculos/{cid}")
-    async def curriculo(cid: int, user: str = Depends(current_user)):
-        row = curriculo_row(cid)
-        origem = (conn.execute("SELECT conteudo_md FROM carreira_curriculos WHERE id = ?", (row["origem_id"],)).fetchone()
-                  if row["origem_id"] else None)
-        return {"id": row["id"], "tipo": row["tipo"], "origem_id": row["origem_id"], "conteudo_md": row["conteudo_md"],
-                "origem_md": origem["conteudo_md"] if origem else None, "alteracoes": json.loads(row["alteracoes_json"]),
-                "created_at": row["created_at"], "n": row["n"], "title": row["title"], "company": row["company"]}
-
-    @app.get("/api/carreira/curriculos/{cid}/documento")
-    async def curriculo_documento(cid: int, formato: Literal["html", "md"] = "html", user: str = Depends(current_user)):
-        """O mesmo HTML A4 que vira o PDF anexado na candidatura (imprimir → PDF no navegador), ou o Markdown."""
-        from mentor.aplicador import markdown_html  # só HTML puro; o módulo não abre navegador ao importar
-
-        row = curriculo_row(cid)
-        name = f"curriculo-{cid}"
-        if formato == "md":
-            return Response(row["conteudo_md"], media_type="text/markdown; charset=utf-8",
-                            headers={"Content-Disposition": f'attachment; filename="{name}.md"'})
-        page = markdown_html(row["conteudo_md"]).replace(
-            "<style>", f"<title>{name}</title><style>@page{{size:A4;margin:14mm 15mm}}", 1)
-        return Response(page, media_type="text/html; charset=utf-8")
 
     @app.get("/api/carreira/talent")
     async def talent_area(user: str = Depends(current_user)):
