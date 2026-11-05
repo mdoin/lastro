@@ -116,8 +116,12 @@ def markdown_html(md: str) -> str:
 
 class Aplicador:
     def __init__(self, browser, *, curriculo_md: str, nome_arquivo: str = "curriculo", frame_sink=None,
-                 vault: dict | None = None, base_dir: Path | None = None, restrict_google: bool = True):
+                 vault: dict | None = None, base_dir: Path | None = None, restrict_google: bool = True,
+                 arquivos: dict[str, bytes] | None = None):
         self.browser, self.curriculo_md, self.frame_sink = browser, curriculo_md, frame_sink
+        # Documento exato da versão (PDF/DOCX gerados e validados pela Carreira); sem ele, o Markdown vira PDF aqui.
+        self.arquivos = arquivos or {}
+        self.anexos: list[str] = []
         self.restrict_google = restrict_google
         self.nome_arquivo = re.sub(r"[^A-Za-z0-9_-]+", "-", nome_arquivo)[:60] or "curriculo"
         self.vault = load_vault() if vault is None else vault
@@ -272,21 +276,27 @@ class Aplicador:
             await page.wait_for_timeout(2500)
         return await self._act(fill)
 
-    async def attach_cv(self, n: int) -> dict:
+    async def attach_cv(self, n: int, formato: str = "pdf") -> dict:
+        formato = formato if formato in self.arquivos else "pdf"
+        mime = {"pdf": "application/pdf",
+                "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}[formato]
+
         async def attach(page):
-            self._making_pdf = True
-            try:
-                pdf_page = self._pdf_page = await self.context.new_page()
-            finally:
-                self._making_pdf = False
-            try:
-                await pdf_page.set_content(markdown_html(self.curriculo_md))
-                pdf = await pdf_page.pdf(format="A4", margin={"top": "14mm", "bottom": "14mm", "left": "15mm",
-                                                               "right": "15mm"}, print_background=True)
-            finally:
-                await pdf_page.close()
-                self._pdf_page = None
-            payload = {"name": f"{self.nome_arquivo}.pdf", "mimeType": "application/pdf", "buffer": pdf}
+            data = self.arquivos.get(formato)
+            if data is None:  # versão antiga, só Markdown: gera o PDF aqui como antes
+                self._making_pdf = True
+                try:
+                    pdf_page = self._pdf_page = await self.context.new_page()
+                finally:
+                    self._making_pdf = False
+                try:
+                    await pdf_page.set_content(markdown_html(self.curriculo_md))
+                    data = await pdf_page.pdf(format="A4", margin={"top": "14mm", "bottom": "14mm", "left": "15mm",
+                                                                    "right": "15mm"}, print_background=True)
+                finally:
+                    await pdf_page.close()
+                    self._pdf_page = None
+            payload = {"name": f"{self.nome_arquivo}.{formato}", "mimeType": mime, "buffer": data}
             el = self._el(page, n)
             if await el.evaluate("e => e.tagName === 'INPUT' && e.type === 'file'"):
                 await el.set_input_files(payload)
@@ -294,6 +304,7 @@ class Aplicador:
                 async with page.expect_file_chooser(timeout=10000) as chooser:
                     await el.click()
                 await (await chooser.value).set_files(payload)
+            self.anexos.append(formato)
         return await self._act(attach)
 
     async def close(self) -> None:
@@ -438,13 +449,15 @@ class Aplicador:
             return as_tool(await app.login(str(args.get("plataforma", "")).lower(), int(args.get("n_usuario", 0)),
                                            int(args.get("n_senha", 0))))
 
-        @tool("aplicador_anexar_curriculo", "Anexa o currículo sob medida desta vaga (PDF gerado agora) no campo de "
-              "arquivo `n` ou pelo botão `n` que abre a escolha de arquivo (\"Enviar currículo\", \"Substituir\"). "
-              "Depois, confira na página que o arquivo novo aparece. " + state,
-              {"type": "object", "properties": {"n": number}, "required": ["n"], "additionalProperties": False},
+        @tool("aplicador_anexar_curriculo", "Anexa o currículo sob medida desta vaga no campo de arquivo `n` ou pelo "
+              "botão `n` que abre a escolha de arquivo (\"Enviar currículo\", \"Substituir\"). `formato`: pdf "
+              "(padrão) ou docx, só quando o site pede Word. Depois, confira na página que o arquivo novo aparece. "
+              + state,
+              {"type": "object", "properties": {"n": number, "formato": {"type": "string", "enum": ["pdf", "docx"]}},
+               "required": ["n"], "additionalProperties": False},
               open_world=True)
         async def aplicador_anexar_curriculo(args: dict) -> dict:
-            return as_tool(await app.attach_cv(int(args.get("n", 0))))
+            return as_tool(await app.attach_cv(int(args.get("n", 0)), str(args.get("formato") or "pdf")))
 
         @tool("aplicador_rolar", "Rola a página para baixo (ou para cima). " + state,
               {"type": "object", "properties": {"direcao": {"type": "string", "enum": ["baixo", "cima"]}},

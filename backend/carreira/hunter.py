@@ -23,7 +23,7 @@ from app import db
 
 from app.mentor_client import MentorClient
 
-from . import alfaiate, candidatura, carteiro, conversa, match, registro, sources, talent
+from . import alfaiate, candidatura, carteiro, conversa, curriculo, documento, match, registro, sources, talent
 
 log = logging.getLogger("lastro.carreira")
 INTERVAL_SECONDS = 6 * 3600
@@ -257,6 +257,8 @@ async def main() -> None:
     db.migrate(conn)
     registro.interromper_pendentes(conn)
     registro.preencher_chaves(conn)
+    if base_id := curriculo.importar_arquivo(conn):
+        log.info("currículo-base estruturado importado (v%d)", base_id)
     log.info("regras: %d vaga(s) reavaliada(s)", reavaliar(conn))
     socket = os.environ.get("LASTRO_MENTOR_SOCKET")
     mentor = MentorClient(Path(socket)) if socket else None  # sem o worker, só caça e avisa
