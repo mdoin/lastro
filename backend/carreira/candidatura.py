@@ -93,12 +93,15 @@ async def run(mentor: MentorClient, text: str, curriculo_md: str, mode: str | No
     request = {"op": "ephemeral", "role": "aplicador", "text": text, "effort": "medium",
                "aplicacao": {"curriculo_md": curriculo_md, "nome_arquivo": "Maite-Doin-Curriculo"},
                **({"mode": mode} if mode else {})}
-    output, failed = "", None
+    output, failed, seen = "", None, False
     async for event in mentor.stream(request):
         if event.get("type") == "done":
             output = event.get("text") or ""
         elif event.get("type") == "error":
+            if not seen and event.get("kind") == "network":  # worker fora do ar (o cliente não lança): nada foi feito
+                raise ConnectionRefusedError(event.get("message") or "worker indisponível")
             failed = event.get("message") or "falha"
+        seen = True
     if failed or not output:
         raise RuntimeError(failed or "resposta vazia")
     return parse(output, require_evidence=mode is None)  # atualizar perfil não é candidatura
@@ -136,7 +139,8 @@ async def apply_pending(conn, mentor: MentorClient) -> list[str]:
                 result = await asyncio.wait_for(ask(mentor, vaga, perfil, respostas), TIMEOUT_SECONDS)
             except (ConnectionRefusedError, FileNotFoundError) as exc:  # o worker nem atendeu: nada foi enviado
                 log.warning("aplicador indisponível em %s: %s", vaga["id"], type(exc).__name__)
-                result = {"status": "falhou", "motivo": f"worker indisponível ({type(exc).__name__})"}
+                run["erro"] = f"worker indisponível ({type(exc).__name__}); a vaga continua na fila sem gastar tentativa"
+                break  # as próximas também cairiam: espera a próxima volta
             except Exception as exc:  # noqa: BLE001 — o agente pode ter enviado antes de cair: resultado desconhecido
                 log.warning("aplicador falhou em %s: %s", vaga["id"], type(exc).__name__)
                 result = {"status": "incerta", "motivo": f"o agente não concluiu ({type(exc).__name__}); pode ter "

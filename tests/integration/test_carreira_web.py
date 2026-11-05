@@ -92,14 +92,14 @@ def test_deduplicacao_por_url_canonica_e_chave_sem_juntar_vagas_diferentes(tmp_p
 
 
 class FakeMentor:
-    def __init__(self, answer=None, error=None):
-        self.answer, self.error, self.requests = answer, error, []
+    def __init__(self, answer=None, error=None, event=None):
+        self.answer, self.error, self.event, self.requests = answer, error, event, []
 
     async def stream(self, request):
         self.requests.append(request)
         if self.error:
             raise self.error
-        yield {"type": "done", "text": self.answer}
+        yield self.event or {"type": "done", "text": self.answer}
 
 
 def setup_apply(tmp_path, n=1):
@@ -118,6 +118,8 @@ def setup_apply(tmp_path, n=1):
     (FakeMentor(error=TimeoutError()), "incerta", False),
     (FakeMentor("texto que não é JSON"), "incerta", False),
     (FakeMentor(error=ConnectionRefusedError()), "curriculo", True),
+    (FakeMentor(event={"type": "error", "kind": "network", "message": "O mentor está indisponível no momento."}),
+     "curriculo", True),  # é assim que o MentorClient avisa que o worker caiu: não é envio incerto
 ])
 def test_envio_sem_evidencia_e_desconhecido_e_nao_repete(tmp_path, mentor, status, retried):
     conn = setup_apply(tmp_path)

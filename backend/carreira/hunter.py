@@ -185,6 +185,7 @@ async def fila_once(conn, mentor: MentorClient) -> list[str]:
 
 async def fila_forever(conn, mentor: MentorClient) -> None:
     """Processa a fila o dia todo (de dia: o aviso de "preciso de você" chega a tempo) e manda o resumo diário."""
+    await asyncio.sleep(60)  # no deploy o worker reinicia junto: espera ele abrir o socket
     while True:
         try:
             notices = await fila_once(conn, mentor) if datetime.now(TZ).hour in NOTIFY_HOURS else []
