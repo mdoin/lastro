@@ -203,6 +203,16 @@ resultados. Só mostra o que foi gravado; vazio aparece como vazio.
   resposta conhecida, CAPTCHA, código de verificação ou cadastro novo: o agente para com `precisa_de_voce` e o dono
   recebe o aviso no WhatsApp com o link.
 
+### Falhas de ferramenta corrigidas em 2026-11-05 (por que as candidaturas não concluíam)
+- `aplicador_ler` dava `TypeError` sempre (lambda que devolve None num `await`): em SPA como a Gupy o agente ficava
+  com a lista de elementos da tela de carregamento e cada clique esperava 20 s por um elemento que não existia mais.
+  Agora relê, a leitura espera a rede acalmar (até 3 s) e clique/digitação em elemento trocado respondem `lista_velha`.
+- Radio/checkbox estilizados (input de 1 px, opacidade 0, dentro de `<label>`) eram descartados da lista: as perguntas
+  Sim/Não da Gupy não apareciam. A visibilidade é medida pelo rótulo e cada radio traz `grupo` (o `name`).
+- `aplicador_anexar_curriculo` aceita botão que abre o seletor de arquivos (Indeed "Substituir currículo").
+- Worker fora do ar vinha como evento de erro (o `MentorClient` não lança) e virava `incerta`; agora não conta envio.
+- `precisa_de_voce` não conta como tentativa (a vaga volta quando o dono resolve; antes esgotava as 2 tentativas).
+
 ## Navegador do agente (página `/navegador` do Lastro)
 - O dono vê e controla o Chrome do aplicador (mesmo perfil persistente): toque para clicar, campo para digitar, teclas,
   endereço, voltar e rolar. Serve para entrar nas contas das plataformas, inclusive "Entrar com Google", e resolver
