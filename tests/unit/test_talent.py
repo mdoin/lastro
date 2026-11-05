@@ -347,10 +347,15 @@ def test_migracao_22_preserva_historico_e_aceita_origem_talent(tmp_path):
     hunter.store(conn, [vaga()])
     with registro.execucao(conn, "busca") as run_:
         run_["resultado"] = "ok"
+    conn.execute("PRAGMA foreign_keys = ON")  # como em produção: o envio aponta para a execução recriada
+    conn.execute("INSERT INTO carreira_envios (vaga_id, status, motivo, execucao_id, created_at) "
+                 "SELECT id, 'falhou', 'x', ?, 'x' FROM carreira_vagas", (run_["id"],))
     antes = conn.execute("SELECT * FROM carreira_eventos").fetchall()
     db.migrate(conn)
     assert [tuple(r) for r in conn.execute("SELECT * FROM carreira_eventos")] == [tuple(r) for r in antes]
     assert conn.execute("SELECT resultado FROM carreira_execucoes").fetchone()[0] == "ok"
+    assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    assert conn.execute("SELECT execucao_id FROM carreira_envios").fetchone()[0] == run_["id"]  # vínculo preservado
     registro.evento(conn, antes[0]["vaga_id"], "avaliada_talent", "talent")
     with registro.execucao(conn, "revisao"):
         pass

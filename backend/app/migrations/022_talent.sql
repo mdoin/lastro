@@ -107,6 +107,10 @@ BEGIN
     SELECT RAISE(ABORT, 'histórico da carreira é imutável');
 END;
 
+-- carreira_envios.execucao_id aponta para carreira_execucoes, e com foreign_keys ligado o DROP da tabela-mãe falha
+-- (e PRAGMA foreign_keys não muda dentro da transação): os vínculos saem antes e voltam com os mesmos ids.
+CREATE TEMP TABLE talent_v22_vinculos AS SELECT id, execucao_id FROM carreira_envios WHERE execucao_id IS NOT NULL;
+UPDATE carreira_envios SET execucao_id = NULL WHERE execucao_id IS NOT NULL;
 CREATE TABLE carreira_execucoes_v22 (
     id           INTEGER PRIMARY KEY,
     tipo         TEXT NOT NULL CHECK (tipo IN ('busca', 'curriculo', 'candidatura', 'perfil', 'avaliacao', 'revisao',
@@ -124,3 +128,6 @@ DROP TABLE carreira_execucoes;
 ALTER TABLE carreira_execucoes_v22 RENAME TO carreira_execucoes;
 CREATE INDEX carreira_execucoes_estado ON carreira_execucoes (estado, started_at);
 CREATE INDEX carreira_execucoes_vaga ON carreira_execucoes (vaga_id);
+UPDATE carreira_envios SET execucao_id = (SELECT t.execucao_id FROM talent_v22_vinculos t WHERE t.id = carreira_envios.id)
+    WHERE id IN (SELECT id FROM talent_v22_vinculos);
+DROP TABLE talent_v22_vinculos;
