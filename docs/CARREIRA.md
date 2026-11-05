@@ -89,5 +89,7 @@ saem no primeiro aviso possível.
   credencial e o campo indicado é mesmo de senha.
 - Currículo: o Markdown do Alfaiate vira PDF A4 na hora (`markdown_html` + impressão do Chrome) e é anexado.
 - Respostas de formulário: `/var/lib/patrimonio/carreira/respostas.md` (0600, fora do repositório), junto com o perfil.
-  Campo obrigatório sem resposta conhecida, CAPTCHA, código de verificação, teste/avaliação ou cadastro novo: o
-  agente para com `precisa_de_voce` e o dono recebe o aviso no WhatsApp com o link.
+  Questionários de autodeclaração (perfil comportamental, fit cultural) o agente responde, coerente com o perfil
+  (decisão do dono). Teste que mede habilidade (lógica, técnico, inglês, código, case, vídeo), campo obrigatório sem
+  resposta conhecida, CAPTCHA, código de verificação ou cadastro novo: o agente para com `precisa_de_voce` e o dono
+  recebe o aviso no WhatsApp com o link.
