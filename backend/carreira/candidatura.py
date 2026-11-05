@@ -56,6 +56,8 @@ def pending(conn, limit: int):
         "SELECT v.rowid AS n, v.*, c.curriculo_md, c.carta, c.aderencia, c.curriculo_id FROM carreira_candidaturas c "
         "JOIN carreira_vagas v ON v.id = c.vaga_id WHERE c.status = 'curriculo' AND c.aderencia >= ? "
         f"AND (SELECT COUNT(*) FROM carreira_envios e WHERE e.vaga_id = v.id AND e.{ATTEMPT}) < ? "
+        # só a versão do currículo aprovada pelo Talent (talent.py) vai para envio
+        "AND EXISTS (SELECT 1 FROM talent_revisoes r WHERE r.curriculo_id = c.curriculo_id AND r.resultado = 'aprovado') "
         "ORDER BY c.aderencia DESC, c.created_at LIMIT ?", (MIN_ADERENCIA, MAX_ATTEMPTS, limit)).fetchall()
 
 

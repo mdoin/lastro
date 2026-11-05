@@ -48,8 +48,8 @@ def parse(output: str) -> dict:
     return result
 
 
-async def ask(client: MentorClient, text: str) -> str:
-    request = {"op": "ephemeral", "role": "alfaiate", "text": text, "effort": "medium"}
+async def ask(client: MentorClient, text: str, role: str = "alfaiate", **extra) -> str:
+    request = {"op": "ephemeral", "role": role, "text": text, "effort": "medium", **extra}
     output, failed = "", None
     async for event in client.stream(request):
         if event.get("type") == "done":
@@ -61,13 +61,74 @@ async def ask(client: MentorClient, text: str) -> str:
     return output
 
 
+# Avaliação mais recente do Talent (talent.py) para a vaga `v`: só a elegível ganha currículo.
+LATEST = "(SELECT {col} FROM talent_avaliacoes a WHERE a.vaga_id = v.id ORDER BY a.id DESC LIMIT 1)"
+
+
 def pending(conn, limit: int):
-    """Compatíveis sem candidatura. Duplicata (mesma vaga vinda de outra fonte) com candidatura não ganha outro currículo."""
+    """Compatíveis sem candidatura e elegíveis na última avaliação do Talent, maior compatibilidade primeiro.
+    Duplicata (mesma vaga vinda de outra fonte) com candidatura não ganha outro currículo."""
     return conn.execute(
         "SELECT v.rowid AS n, v.* FROM carreira_vagas v LEFT JOIN carreira_candidaturas c ON c.vaga_id = v.id "
         "WHERE v.verdict = 'compativel' AND c.vaga_id IS NULL AND NOT EXISTS (SELECT 1 FROM carreira_candidaturas c2 "
         f"JOIN carreira_vagas o ON o.id = c2.vaga_id WHERE {registro.SAME_JOB}) "
-        "ORDER BY v.score DESC, v.first_seen LIMIT ?", (limit,)).fetchall()
+        f"AND {LATEST.format(col='elegivel')} = 1 "
+        f"ORDER BY {LATEST.format(col='pontuacao')} DESC, v.score DESC, v.first_seen LIMIT ?", (limit,)).fetchall()
+
+
+def orientacao(conn, vaga_id: str) -> tuple[str, int | None]:
+    """Bloco com a orientação do Talent para o prompt e a compatibilidade dele (None sem avaliação)."""
+    av = conn.execute("SELECT * FROM talent_avaliacoes WHERE vaga_id = ? ORDER BY id DESC LIMIT 1", (vaga_id,)).fetchone()
+    if av is None:
+        return "", None
+    reqs = json.loads(av["requisitos_json"])
+    linhas = ["\nORIENTAÇÃO DO TALENT (recrutamento; siga, sem inventar nada fora do PERFIL):",
+              f"Perfil de currículo: {av['perfil_curriculo']}. Posicionamento: {av['posicionamento']}"]
+    linhas += [f"Destacar: {d['item']} — {d['motivo']}" for d in json.loads(av["destaques_json"])]
+    linhas += [f"- {o}" for o in json.loads(av["orientacoes_json"])]
+    ausentes = [r["texto"] for r in reqs if r["situacao"] == "ausente"]
+    if ausentes:
+        linhas.append("Requisitos que o perfil NÃO comprova (vão para lacunas, nunca para o currículo): " + "; ".join(ausentes))
+    return "\n".join(linhas) + "\n", av["pontuacao"]
+
+
+def _versao(conn, vaga_id: str, base_id, curriculo_md: str, alteracoes: list[str]) -> int:
+    return conn.execute(
+        "INSERT INTO carreira_curriculos (tipo, vaga_id, origem_id, conteudo_md, alteracoes_json, created_at) "
+        "VALUES ('vaga', ?, ?, ?, ?, ?) RETURNING id",
+        (vaga_id, base_id, curriculo_md, json.dumps(alteracoes, ensure_ascii=False), db.utcnow())).fetchone()[0]
+
+
+async def corrigir(conn, client: MentorClient, vaga_id: str, problemas: list[dict]) -> bool:
+    """Nova versão do currículo com as correções da revisão do Talent. False quando a resposta não serve."""
+    perfil = profile()
+    vaga = conn.execute("SELECT v.*, c.curriculo_md, c.curriculo_id FROM carreira_vagas v JOIN carreira_candidaturas c "
+                        "ON c.vaga_id = v.id WHERE v.id = ?", (vaga_id,)).fetchone()
+    if perfil is None or vaga is None:
+        return False
+    base_id = registro.sincronizar_base(conn)
+    with registro.execucao(conn, "curriculo", vaga_id) as run:
+        guia, _ = orientacao(conn, vaga_id)
+        pedidos = "\n".join(f"- [{p['criterio']}] {p['correcao']}" + (f" (trecho: {p['trecho']})" if p["trecho"] else "")
+                             for p in problemas if p["gravidade"] != "menor")
+        text = (prompt(perfil, vaga) + guia + f"\nCURRÍCULO ANTERIOR (sua versão; mantenha o que não foi apontado):\n"
+                f"{vaga['curriculo_md']}\n\nCORREÇÕES PEDIDAS PELO TALENT (faça todas; `alteracoes` lista o que "
+                f"você corrigiu):\n{pedidos}\n")
+        try:
+            result = parse(await asyncio.wait_for(ask(client, text), TIMEOUT_SECONDS))
+        except Exception as exc:  # noqa: BLE001 — a correção volta na próxima volta (até talent.MAX_FALHAS)
+            log.warning("alfaiate: correção falhou em %s: %s", vaga_id, type(exc).__name__)
+            run["erro"] = f"correção não aproveitada ({type(exc).__name__})"
+            return False
+        cv_id = _versao(conn, vaga_id, base_id, result["curriculo_md"], result["alteracoes"])
+        conn.execute("UPDATE carreira_candidaturas SET curriculo_md = ?, carta = ?, curriculo_id = ?, updated_at = ? "
+                     "WHERE vaga_id = ?", (result["curriculo_md"], result["carta"], cv_id, db.utcnow(), vaga_id))
+        registro.evento(conn, vaga_id, "curriculo_corrigido", "alfaiate", curriculo_id=cv_id, anterior=vaga["curriculo_id"],
+                        correcoes=len(problemas))
+        run["resultado"] = f"correção aplicada ({len(result['alteracoes'])} alteração(ões))"
+    return True
+
+
 
 
 async def tailor_pending(conn, client: MentorClient) -> list[str]:
@@ -81,7 +142,8 @@ async def tailor_pending(conn, client: MentorClient) -> list[str]:
     done = []
     for vaga in rows:
         with registro.execucao(conn, "curriculo", vaga["id"]) as run:
-            text = prompt(perfil, vaga) + (f"\nCURRÍCULO BASE (estrutura de partida; fatos só do PERFIL):\n"
+            guia, compat = orientacao(conn, vaga["id"])
+            text = prompt(perfil, vaga) + guia + (f"\nCURRÍCULO BASE (estrutura de partida; fatos só do PERFIL):\n"
                                            f"{base['conteudo_md']}\n" if base else "")
             try:
                 result = parse(await asyncio.wait_for(ask(client, text), TIMEOUT_SECONDS))
@@ -89,12 +151,10 @@ async def tailor_pending(conn, client: MentorClient) -> list[str]:
                 log.warning("alfaiate falhou em %s: %s", vaga["id"], type(exc).__name__)
                 run["erro"] = f"resposta do agente não aproveitada ({type(exc).__name__})"
                 continue
+            if compat is not None:  # a compatibilidade é a da rubrica do Talent, não a estimativa do Alfaiate
+                result["aderencia"] = compat
             now = db.utcnow()
-            cv_id = conn.execute(
-                "INSERT INTO carreira_curriculos (tipo, vaga_id, origem_id, conteudo_md, alteracoes_json, created_at) "
-                "VALUES ('vaga', ?, ?, ?, ?, ?) RETURNING id",
-                (vaga["id"], base_id, result["curriculo_md"], json.dumps(result["alteracoes"], ensure_ascii=False),
-                 now)).fetchone()[0]
+            cv_id = _versao(conn, vaga["id"], base_id, result["curriculo_md"], result["alteracoes"])
             conn.execute(
                 "INSERT INTO carreira_candidaturas (vaga_id, aderencia, resumo, lacunas_json, idioma, curriculo_md, carta,"
                 " curriculo_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

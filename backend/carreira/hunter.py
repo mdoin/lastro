@@ -23,7 +23,7 @@ from app import db
 
 from app.mentor_client import MentorClient
 
-from . import alfaiate, candidatura, carteiro, conversa, match, registro, sources
+from . import alfaiate, candidatura, carteiro, conversa, match, registro, sources, talent
 
 log = logging.getLogger("lastro.carreira")
 INTERVAL_SECONDS = 6 * 3600
@@ -178,9 +178,19 @@ def texto_resumo(r: dict) -> str:
 
 
 async def fila_once(conn, mentor: MentorClient) -> list[str]:
-    """Uma volta da fila: currículo das elegíveis e candidaturas, as de maior aderência primeiro. Devolve os avisos."""
+    """Uma volta da fila: Talent avalia, Alfaiate faz o currículo das elegíveis, Talent revisa e só o aprovado vai ao
+    Aplicador (maior compatibilidade primeiro). A análise de resultados do Talent roda a cada 7 dias. Devolve avisos."""
+    await talent.avaliar_pendentes(conn, mentor)
+    try:  # versão geral de cada perfil para a base vigente (uma vez por versão); falha aqui não para a fila
+        await documento.versoes_dos_perfis(conn, mentor)
+    except Exception:  # noqa: BLE001
+        log.exception("versões dos perfis falharam")
     await alfaiate.tailor_pending(conn, mentor)
-    return await candidatura.apply_pending(conn, mentor)
+    notices = await talent.revisar_pendentes(conn, mentor)
+    notices += await candidatura.apply_pending(conn, mentor)
+    if talent.analise_devida(conn):
+        talent.analisar(conn)
+    return notices
 
 
 async def fila_forever(conn, mentor: MentorClient) -> None:

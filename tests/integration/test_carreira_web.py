@@ -28,13 +28,17 @@ def job(title, company="ACME", location="", workplace="remoto", source="gupy", u
                        currency=None, description="python llm", published_at=None)
 
 
-def cand(conn, vaga_id, status="curriculo", aderencia=90):
+def cand(conn, vaga_id, status="curriculo", aderencia=90, revisado=True):
     now = db.utcnow()
     cv = conn.execute("INSERT INTO carreira_curriculos (tipo, vaga_id, conteudo_md, created_at) VALUES ('vaga', ?, "
                       "'# CV', ?) RETURNING id", (vaga_id, now)).fetchone()[0]
     conn.execute("INSERT INTO carreira_candidaturas (vaga_id, status, aderencia, resumo, lacunas_json, idioma, "
                  "curriculo_md, carta, curriculo_id, created_at, updated_at) VALUES (?, ?, ?, 'ok', '[]', 'pt', "
                  "'# CV', 'carta', ?, ?, ?)", (vaga_id, status, aderencia, cv, now, now))
+    if revisado:  # aprovado pelo Talent (test_talent.py testa a revisão em si)
+        conn.execute("INSERT INTO talent_revisoes (vaga_id, curriculo_id, rodada, resultado, checagens_json, "
+                     "problemas_json, resumo, created_at) VALUES (?, ?, 1, 'aprovado', '[]', '[]', 'teste', ?)",
+                     (vaga_id, cv, now))
     return cv
 
 
@@ -237,8 +241,8 @@ def test_migracao_19_marca_tentativas_esgotadas_como_falha(tmp_path):
             conn.execute("INSERT INTO schema_version (version, applied_at) VALUES (?, 'x')", (number,))
     hunter.store(conn, [job("Dev A"), job("Dev B")])
     a, b = [r[0] for r in conn.execute("SELECT id FROM carreira_vagas ORDER BY rowid")]
-    cand(conn, a)
-    cand(conn, b)
+    cand(conn, a, revisado=False)  # banco na versão 18: ainda sem o Talent
+    cand(conn, b, revisado=False)
     for _ in range(2):
         conn.execute("INSERT INTO carreira_envios (vaga_id, status, motivo, created_at) VALUES (?, 'falhou', 'x', 'x')", (a,))
     assert db.migrate(conn) == db.LATEST_VERSION
