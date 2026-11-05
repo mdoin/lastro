@@ -10,7 +10,7 @@ faz a candidatura, acompanha o processo e treina para a entrevista.
 | 2. Alfaiate | Currículo por vaga a partir do currículo base, sem inventar experiência | feito |
 | 3. Aplicador | Candidatura pelo navegador próprio do agente, com logins guardados em cofre | planejado |
 | 4. Carteiro | Lê o e-mail de candidaturas, detecta avanços e testes e avisa | planejado |
-| 5. Treinador | Entrevista simulada sobre a vaga que avançou | planejado |
+| 5. Treinador | Entrevista simulada pelo WhatsApp sobre uma vaga | feito |
 
 As fases 3 e 4 guardam senhas e navegam em sites quaisquer com login: rodam num serviço e usuário próprios, sem
 acesso aos dados financeiros, e só vão ao ar depois de uma nova auditoria de segurança.
@@ -51,3 +51,13 @@ saem no primeiro aviso possível.
 - Saída conferida antes de gravar em `carreira_candidaturas` (migração 016): aderência 0–100, resumo, até 5
   lacunas com dica de estudo, idioma, currículo em Markdown e carta curta. Resposta inválida não grava e a vaga
   volta no próximo ciclo. O aviso no WhatsApp mostra a aderência das vagas já adaptadas.
+
+## Fase 5: conversa e treinador (`backend/carreira/conversa.py`, agente interno `treinador`)
+- O serviço consulta a Evolution a cada 20 s (sem webhook, sem porta aberta) e só processa mensagens recebidas do
+  número do dono (aceita a forma sem o 9, comum em números antigos). Mensagens de outros contatos são ignoradas.
+- Comandos: `vagas`, `cv N`, `treinar N`, `parar`, `ajuda`. `N` é o número `#N` que aparece no aviso.
+- Treino: uma entrevista ativa por vez (`carreira_treinos`), histórico inteiro a cada resposta do agente
+  `treinador` (sem ferramentas; perfil + vaga como dado não confiável + lacunas). `parar` pede o fechamento com
+  nota, pontos fortes, pontos a melhorar e o que estudar.
+- O cursor de leitura (`carreira_estado`) começa no momento da primeira execução e avança antes do envio: nenhuma
+  mensagem antiga vira comando e nenhuma é respondida duas vezes.

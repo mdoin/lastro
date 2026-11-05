@@ -37,6 +37,7 @@ IMPORT_ALLOWLIST = {
     # vagas (https, sem seguir redirecionamento) e POST na Evolution do dono (https, ou 127.0.0.1 no mesmo servidor)
     "carreira/sources.py": {"httpx"},
     "carreira/hunter.py": {"httpx"},
+    "carreira/conversa.py": {"httpx"},  # só a Evolution do dono (mesma configuração do aviso)
     "ledger/ocr.py": {"subprocess"},  # só o binário local tesseract, argumentos fixos, stdin, prazo; sem shell nem rede
 }
 

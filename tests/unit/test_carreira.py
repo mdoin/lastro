@@ -201,3 +201,68 @@ def test_prompt_do_alfaiate_nao_herda_regras_financeiras():
 
     text = load_prompt("alfaiate")
     assert text.startswith("Você é o Alfaiate") and "mentor financeiro" not in text
+
+
+def test_numero_antigo_sem_o_nove():
+    from carreira import conversa
+
+    assert conversa.owner_jids("5543988273960") == {"5543988273960@s.whatsapp.net", "554388273960@s.whatsapp.net"}
+
+
+def setup_conversa(monkeypatch, tmp_path):
+    from carreira import alfaiate
+
+    (tmp_path / "perfil.md").write_text("Python, LLM", encoding="utf-8")
+    monkeypatch.setenv("CARREIRA_PERFIL", str(tmp_path / "perfil.md"))
+    conn = db.connect(tmp_path / "c.db")
+    db.migrate(conn)
+    hunter.store(conn, [job("Desenvolvedor Python Júnior", description="llm")])
+    asyncio.run(alfaiate.tailor_pending(conn, FakeMentor(ANSWER)))
+    return conn
+
+
+def test_comandos_e_treino(monkeypatch, tmp_path):
+    from carreira import conversa
+
+    conn = setup_conversa(monkeypatch, tmp_path)
+    n = conn.execute("SELECT rowid FROM carreira_vagas").fetchone()[0]
+    coach = FakeMentor("Pergunta 1: fale de você.")
+    run = lambda text: asyncio.run(conversa.handle(conn, coach, text))  # noqa: E731
+    assert "vagas" in run("Ajuda") and f"#{n}" in run("vagas") and "Kubernetes" in run(f"cv {n}")
+    assert "Pergunta 1" in run(f"Treinar {n}")
+    assert run("Sou dev há 1 ano") == "Pergunta 1: fale de você."
+    assert "ENCERRAR" not in coach.requests[-1]["text"].split("ÚLTIMA MENSAGEM")[0]
+    run("parar")
+    assert "ENCERRAR" in coach.requests[-1]["text"] and all(r["role"] == "treinador" for r in coach.requests)
+    row = conn.execute("SELECT status, transcript_json FROM carreira_treinos").fetchone()
+    assert row["status"] == "encerrado" and len(json.loads(row["transcript_json"])) == 5
+    assert "vagas" in run("qualquer coisa")  # sem treino ativo: ajuda
+
+
+def test_poll_so_le_o_dono_e_nao_repete(monkeypatch, tmp_path):
+    from carreira import conversa
+
+    conn = setup_conversa(monkeypatch, tmp_path)
+    conversa.set_cursor(conn, 100)
+    records = [
+        {"key": {"remoteJid": "554388273960@s.whatsapp.net", "fromMe": False}, "messageTimestamp": 101,
+         "message": {"conversation": "vagas"}},
+        {"key": {"remoteJid": "551199999999@s.whatsapp.net", "fromMe": False}, "messageTimestamp": 102,
+         "message": {"conversation": "cv 1"}},  # outro contato: ignorado
+        {"key": {"remoteJid": "554388273960@s.whatsapp.net", "fromMe": True}, "messageTimestamp": 103,
+         "message": {"conversation": "eco do bot"}},
+        {"key": {"remoteJid": "554388273960@s.whatsapp.net", "fromMe": False}, "messageTimestamp": 99,
+         "message": {"conversation": "antiga"}}]
+    transport = httpx.MockTransport(lambda r: httpx.Response(200, json={"messages": {"records": records}}))
+    cfg = {"evolution_url": "http://127.0.0.1:8081", "evolution_key": "k", "evolution_instance": "lastro",
+           "whatsapp_to": "5543988273960"}
+    sent = []
+
+    async def cycle():
+        async def send(text):
+            sent.append(text)
+        async with httpx.AsyncClient(transport=transport) as client:
+            return await conversa.poll_once(conn, client, cfg, None, send)
+
+    assert asyncio.run(cycle()) == 1 and "Candidaturas prontas" in sent[0]
+    assert asyncio.run(cycle()) == 0 and conversa.cursor(conn) == 101

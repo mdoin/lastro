@@ -1,5 +1,5 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
--- Lastro — v16: Carreira, fase 2 (docs/CARREIRA.md). Compatível: só uma tabela nova.
+-- Lastro — v16: Carreira, fases 2 e 5 (docs/CARREIRA.md). Compatível: só tabelas novas.
 -- Uma candidatura por vaga: currículo e carta feitos pelo Alfaiate a partir do perfil do dono (sem inventar).
 -- As fases seguintes avançam o status (candidatura enviada, retorno da empresa, entrevista).
 
@@ -14,4 +14,20 @@ CREATE TABLE carreira_candidaturas (
     carta         TEXT NOT NULL,
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL
+);
+
+-- Fase 5 (Treinador): entrevista simulada pelo WhatsApp, uma por vez; o histórico vai inteiro a cada resposta.
+CREATE TABLE carreira_treinos (
+    id               INTEGER PRIMARY KEY,
+    vaga_id          TEXT NOT NULL REFERENCES carreira_vagas (id),
+    status           TEXT NOT NULL CHECK (status IN ('ativo', 'encerrado')),
+    transcript_json  TEXT NOT NULL,                 -- [{"de": "pessoa"|"treinador", "texto": "..."}]
+    created_at       TEXT NOT NULL,
+    updated_at       TEXT NOT NULL
+);
+
+-- Estado do serviço (ex.: até onde as mensagens do dono no WhatsApp já foram lidas).
+CREATE TABLE carreira_estado (
+    chave  TEXT PRIMARY KEY,
+    valor  TEXT NOT NULL
 );

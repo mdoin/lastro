@@ -23,7 +23,7 @@ from app import db
 
 from app.mentor_client import MentorClient
 
-from . import alfaiate, match, sources
+from . import alfaiate, conversa, match, sources
 
 log = logging.getLogger("lastro.carreira")
 INTERVAL_SECONDS = 6 * 3600
@@ -73,7 +73,7 @@ def pending_digest(conn) -> tuple[str, list[str]] | None:
     picked = []
     for verdict, limit in zip(("compativel", "talvez"), MAX_PER_DIGEST):
         picked += conn.execute(
-            "SELECT v.*, c.aderencia, c.resumo FROM carreira_vagas v LEFT JOIN carreira_candidaturas c "
+            "SELECT v.rowid AS n, v.*, c.aderencia, c.resumo FROM carreira_vagas v LEFT JOIN carreira_candidaturas c "
             "ON c.vaga_id = v.id WHERE v.status = 'nova' AND v.verdict = ? ORDER BY v.score DESC, v.first_seen "
             "LIMIT ?", (verdict, limit)).fetchall()
     if not picked:
@@ -83,10 +83,10 @@ def pending_digest(conn) -> tuple[str, list[str]] | None:
         rows = [r for r in picked if r["verdict"] == verdict]
         if rows:
             lines.append(f"\n*{header}*")
-        for n, row in enumerate(rows, 1):
-            fit = (f"\n   Aderência {row['aderencia']}%, currículo sob medida pronto: {row['resumo'][:200]}"
+        for row in rows:
+            fit = (f"\n   Aderência {row['aderencia']}%: {row['resumo'][:200]} (*cv {row['n']}*, *treinar {row['n']}*)"
                    if row["aderencia"] is not None else "")
-            lines.append(f"{n}. {row['title'][:120]} — {row['company'][:60] or 'empresa não informada'}\n"
+            lines.append(f"#{row['n']} {row['title'][:120]} — {row['company'][:60] or 'empresa não informada'}\n"
                          f"   {'; '.join(json.loads(row['reasons_json']))}{fit}\n   {row['url']}")
     return "\n".join(lines), [r["id"] for r in picked]
 
@@ -136,6 +136,19 @@ async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None,
     return summary
 
 
+async def chat_forever(conn, mentor: MentorClient | None) -> None:
+    """Responde às mensagens do dono no WhatsApp (comandos e Treinador)."""
+    while True:
+        try:
+            cfg = evolution_config()
+            if cfg:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=False) as client:
+                    await conversa.poll_once(conn, client, cfg, mentor, lambda text: send_whatsapp(client, cfg, text))
+        except Exception:  # noqa: BLE001 — Evolution fora do ar: tenta de novo na próxima volta
+            log.exception("conversa falhou")
+        await asyncio.sleep(conversa.POLL_SECONDS)
+
+
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     for noisy in ("httpx", "httpcore"):  # a URL da Evolution leva o nome da instância: fora do log
@@ -147,6 +160,7 @@ async def main() -> None:
     db.migrate(conn)
     socket = os.environ.get("LASTRO_MENTOR_SOCKET")
     mentor = MentorClient(Path(socket)) if socket else None  # sem o worker, só caça e avisa
+    chat = asyncio.create_task(chat_forever(conn, mentor)) if args.loop else None  # noqa: F841 — mantém a referência
     while True:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=False) as client:
             try:
