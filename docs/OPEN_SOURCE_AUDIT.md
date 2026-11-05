@@ -98,6 +98,8 @@ Recomendo que você confirme essa leitura dos termos para o uso pessoal atual (�
   incluem por padrão. Imagens publicadas não devem redistribuir esse binário.
 - **npm** (`package-lock.json`, 194 pacotes): MIT 154, Apache-2.0 23, ISC 2, BSD-3 1, OFL-1.1 2 (fontes Inter e
   Geist Mono), MPL-2.0 12 (`lightningcss`, só ferramenta de build, não vai no pacote).
+- **noVNC** (`@novnc/novnc` 1.7.0, MPL-2.0): cliente VNC da página Computadores, vai no pacote sem modificação
+  (MPL-2.0 é compatível com AGPL; o código-fonte é o do pacote publicado).
 - **Ativos próprios**: marca (`docs/brand/`), mascotes em pixel art (`frontend/src/components/mascots.ts`, autorais),
   capturas de tela (dados fictícios).
 - **OpenBot** (PolyForm Noncommercial 1.0.0): incompatível com Apache-2.0 e AGPL-3.0 para incorporação de código.

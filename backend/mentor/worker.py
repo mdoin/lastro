@@ -42,6 +42,7 @@ from providers.base import AgentSession, ProviderError, TurnOutcome
 from providers.credentials import ConnectionStore
 from providers.registry import IMPLICIT_ID, Runtime
 
+from . import computador
 from .provider_admin import ProviderAdmin
 from .research import ResearchSession
 from .session import session_spec
@@ -255,7 +256,8 @@ class MentorWorker:
             # Pesquisa: contexto próprio a cada tentativa (cache, limites, evidências); nada vem de outra sessão.
             async def frames(image: str, url: str) -> None:  # tela ao vivo do navegador desta pesquisa
                 await emit({"type": "browser_frame", "image": image, "url": url})
-            research = ResearchSession(self.browser, frame_sink=frames) if mode == "pesquisa_web" else None
+            research = ResearchSession(self.browser, frame_sink=frames,
+                                       computer=role if computador.enabled() else None) if mode == "pesquisa_web" else None
             aplicador = self._aplicador(req or {}, frames) if role == "aplicador" else None
             try:
                 lab = (req or {}).get("lab")

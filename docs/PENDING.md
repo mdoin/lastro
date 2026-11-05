@@ -31,3 +31,4 @@
 | 27 | Radar cripto e reuniões autônomas (docs/CRYPTO.md, migração 012): deploy após backup (`pre-v12.db`), reiniciar `lastro-coletor`; chave CoinGecko opcional pela tela; reuniões autônomas ficam desligadas até você autorizar | usuário | pronto para revisão |
 | 28 | Laboratório do Conselho (docs/LAB.md, migração 014): Bento sozinho × Conselho, hipóteses conferidas e reavaliações; automação pelo Radar desligada por padrão | — | implantado em 28/10/2026 |
 | 29 | Carreira, fase 1: caçador de vagas (docs/CARREIRA.md, migração 015, serviço `lastro-carreira`): criar `/etc/meu-patrimonio/carreira.env` com a Evolution (HTTPS), backup (`pre-v15.db`), deploy. Fases 2–5 planejadas; 3 e 4 exigem auditoria antes | usuário | pronto para revisão |
+| 30 | Computadores dos agentes (docs/COMPUTADORES.md): saída por IP residencial pelo Raspberry Pi do dono (Tailscale exit node, ACL `autogroup:internet`) | Raspberry Pi | aguardando o Pi |

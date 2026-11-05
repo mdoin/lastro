@@ -1,0 +1,33 @@
+# Barra de tarefas do computador do agente: lançadores (navegador, arquivos, terminal), janelas abertas e relógio.
+# Fundo 1 (precisa vir antes de quem o usa)
+rounded = 0
+border_width = 0
+background_color = #DCE6FA 100
+border_color = #DCE6FA 0
+
+panel_items = LTC
+panel_size = 100% 40
+panel_position = bottom center horizontal
+panel_background_id = 1
+panel_padding = 8 4 8
+panel_layer = top
+wm_menu = 1
+font_shadow = 0
+
+launcher_padding = 4 4 8
+launcher_icon_size = 28
+launcher_item_app = /usr/share/applications/chromium.desktop
+launcher_item_app = /usr/share/applications/pcmanfm.desktop
+launcher_item_app = /usr/share/applications/debian-xterm.desktop
+
+taskbar_mode = single_desktop
+taskbar_padding = 4 2 4
+task_text = 1
+task_maximum_size = 220 32
+task_font = Noto Sans 9
+task_font_color = #1F2A44 100
+task_active_font_color = #1F2A44 100
+
+time1_format = %H:%M
+time1_font = Noto Sans 10
+clock_font_color = #1F2A44 100

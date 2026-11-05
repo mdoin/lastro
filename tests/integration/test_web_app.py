@@ -340,3 +340,26 @@ def test_projection_extreme_inputs_are_422_not_500(env):
     for body in ({"initial": "1e1000", "contribution": "150", "months": 12},
                  {"initial": "0", "contribution": "150", "months": 12, "contribution_annual_increase": "-1"}):
         assert client.post("/api/projection", json=body, headers=H).status_code == 422, body
+
+
+def test_tela_do_computador_exige_login_e_mesma_origem(env, monkeypatch):
+    from starlette.websockets import WebSocketDisconnect
+
+    from mentor import computador
+
+    client, app, _ = env
+    monkeypatch.setattr(computador, "SOCKET", "/nao/existe/controle.sock")
+    url, mine = "/api/computadores/cripto/tela", "http://testserver"  # o WebSocket de teste usa host "testserver"
+
+    def closed_with(origin):
+        session = client.cookies.get(auth.SESSION_COOKIE)
+        headers = {"origin": origin, **({"cookie": f"{auth.SESSION_COOKIE}={session}"} if session else {})}
+        with pytest.raises(WebSocketDisconnect) as exc, client.websocket_connect(url, headers=headers):
+            pass
+        return exc.value.code
+
+    assert closed_with(mine) == 4403  # sem login
+    login(client, app)
+    assert closed_with("https://outro.site") == 4403
+    assert closed_with(mine) == 4503  # login e origem certos: chega ao controlador (fora do ar no teste)
+    assert client.get("/api/computadores").status_code == 503

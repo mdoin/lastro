@@ -8,7 +8,8 @@ set -euo pipefail
 
 SRC=$(cd "$(dirname "$0")/.." && pwd)
 DEST=/opt/meu-patrimonio
-UNITS=(patrimonio-agent-api.service lastro-mentor.service lastro-web.service lastro-coletor.service lastro-carreira.service)
+UNITS=(patrimonio-agent-api.service lastro-mentor.service lastro-web.service lastro-coletor.service lastro-carreira.service
+       lastro-computadores.service)
 
 [ "$(id -u)" -eq 0 ] || { echo "Rode com sudo." >&2; exit 1; }
 
@@ -53,6 +54,10 @@ if [ -d /sys/kernel/security/apparmor ]; then
   install -m 0644 "$DEST/deploy/apparmor/lastro-chrome" /etc/apparmor.d/lastro-chrome
   apparmor_parser -r /etc/apparmor.d/lastro-chrome
 fi
+
+# Computadores dos agentes (docs/COMPUTADORES.md): imagens locais (o cache do Docker deixa rápido quando nada mudou).
+docker build -q -t lastro-saida:1 "$DEST/deploy/computador/gateway" >/dev/null
+docker build -q -t lastro-computador:1 "$DEST/deploy/computador" >/dev/null
 
 # Comando de administração e unidades systemd.
 install -m 0755 "$DEST/deploy/lastro-admin" /usr/local/bin/lastro-admin

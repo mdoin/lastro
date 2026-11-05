@@ -40,6 +40,10 @@ mesmo tempo, 40 ações por pesquisa, 800 requisições por ação, 5 MB por res
 não fazer login, cadastro, compra nem publicação. Testes: `tests/integration/test_free_browser.py`, com o Chrome real e
 a rede simulada.
 
+**Com os computadores dos agentes instalados** (docs/COMPUTADORES.md), as ferramentas `navegador_*` usam o Chrome
+visível do computador do próprio agente, e a sessão ganha `computador_terminal`. A rede desse Chrome sai por um gateway
+que bloqueia redes privadas, em vez da guarda descrita acima.
+
 Os agentes com dados da pessoa só têm `pesquisar_web` (o pedido). As ferramentas acima existem apenas na sessão
 de pesquisa. `tools_for` recusa juntar internet aberta e dados do dono na mesma sessão.
 

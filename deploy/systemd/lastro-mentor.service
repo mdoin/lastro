@@ -19,6 +19,8 @@ Environment=LASTRO_IMPLICIT_CLAUDE_CODE=1
 Environment=LASTRO_PROVIDERS_FILE=/var/lib/mentor/providers.json
 Environment=LASTRO_MENTOR_WORKDIR=/var/lib/mentor/work
 Environment=LASTRO_MENTOR_CONCURRENCY=3
+# Computadores dos agentes (docs/COMPUTADORES.md); sem esta variável, a pesquisa usa a aba anônima.
+Environment=LASTRO_COMPUTADORES_SOCKET=/run/lastro-computadores/controle.sock
 Environment=MPA_AGENT_API_URL=http://127.0.0.1:8765
 Environment=MPA_AGENT_API_TOKEN_FILE=/etc/meu-patrimonio/mentor-token
 # Navegador de pesquisa (só fontes oficiais; sandbox do Chrome via perfil AppArmor lastro-chrome).
