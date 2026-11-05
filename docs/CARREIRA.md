@@ -108,3 +108,14 @@ saem no primeiro aviso possível.
 - WhatsApp: `atualizar perfil gupy` (linkedin, catho, indeed, programathor, infojobs, vagas). O aplicador roda no modo
   `carreira_perfil`: entra na conta, deixa as seções iguais ao perfil base sem inventar e anexa o currículo geral
   (`/var/lib/patrimonio/carreira/curriculo.md`). O resultado chega no WhatsApp com o que mudou.
+
+## Compatibilidade do navegador (melhorias inspiradas no OpenBot)
+- **Cookies de sessão persistem entre reinícios.** O `launch_persistent_context` já guarda perfil, localStorage,
+  IndexedDB e cookies com validade; os cookies de sessão (sem expiração, usados por muitos logins) o Chromium
+  descarta num fechamento limpo. O aplicador os salva em `chrome/session_cookies.json` (0600, dentro do próprio
+  perfil) ao fechar e recoloca ao abrir — o login feito pela página "Navegador do agente" continua valendo depois.
+- **Lista de elementos versionada.** Cada leitura numera a lista (`lista`); `aplicador_clicar`/`aplicador_digitar`
+  aceitam esse número e recusam a ação (`lista_velha`) se a página mudou desde então, evitando clicar no elemento
+  errado. Equivale ao `snapshotId` do OpenBot.
+- **Fora do escopo (não implementado):** flags anti-detecção de automação (esconder do site que o navegador é
+  controlado). Servem para burlar a verificação de robô dos próprios sites; ficam de fora por decisão de segurança.

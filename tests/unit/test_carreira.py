@@ -495,3 +495,59 @@ def test_controle_manual_abre_mostra_e_fecha(monkeypatch, tmp_path):
     assert first["ativo"] and len(first["imagem"]) > 100 and first["largura"] == 1280
     assert typed["ativo"] and "erro" not in typed
     assert closed == {"ativo": False} and not aplicador.LOCK.locked()
+
+
+@pytest.mark.skipif(not __import__("os").path.exists(SHELL), reason="sem o Chrome do navegador de pesquisa")
+def test_cookie_de_sessao_sobrevive_ao_reinicio(tmp_path):
+    from mentor.aplicador import Aplicador
+
+    class Browser:
+        executable, sandbox, ignore_https_errors = SHELL, False, False
+
+    page_html = "<!doctype html><meta charset=utf-8><title>vaga</title><p>ok</p>"
+
+    async def set_cookie(app):
+        await app._ensure()
+        await app.context.route("https://**/*", lambda r: r.fulfill(status=200, content_type="text/html",
+                                                                     body=page_html))
+        await app.goto("https://empresa.gupy.io/login")
+        # cookie de sessão (sem expires): o Chromium o descarta num fechamento limpo, salvamos à parte
+        await app.context.add_cookies([{"name": "sessao", "value": "logado-123", "url": "https://empresa.gupy.io"}])
+
+    async def read_cookie(app):
+        await app._ensure()
+        await app.context.route("https://**/*", lambda r: r.fulfill(status=200, content_type="text/html",
+                                                                     body=page_html))
+        await app.goto("https://empresa.gupy.io/painel")
+        return [c["value"] for c in await app.context.cookies("https://empresa.gupy.io") if c["name"] == "sessao"]
+
+    async def run():
+        first = Aplicador(Browser(), curriculo_md="x", vault={}, base_dir=tmp_path, restrict_google=False)
+        try:
+            await set_cookie(first)
+        finally:
+            await first.close()  # salva os cookies de sessão
+        assert (tmp_path / "chrome" / "session_cookies.json").exists()
+        second = Aplicador(Browser(), curriculo_md="x", vault={}, base_dir=tmp_path, restrict_google=False)
+        try:
+            return await read_cookie(second)
+        finally:
+            await second.close()
+
+    assert asyncio.run(run()) == ["logado-123"]
+
+
+def test_lista_de_elementos_velha_e_recusada():
+    from mentor.aplicador import Aplicador
+
+    app = Aplicador(None, curriculo_md="x", vault={})
+    app.snapshot = 5  # como se já tivesse lido a página 5 vezes
+
+    async def run():
+        certa = await app._act(lambda page: {"status": "ok"}, lista=5)
+        velha = await app._act(lambda page: {"status": "ok"}, lista=3)
+        return certa, velha
+
+    certa, velha = asyncio.run(run())
+    assert certa["status"] != "lista_velha"  # a lista atual passa (sem navegador, para no _ensure depois)
+    assert velha["status"] == "lista_velha" and velha["lista"] == 5
