@@ -1,5 +1,5 @@
 -- SPDX-License-Identifier: AGPL-3.0-or-later
--- Lastro — v16: Carreira, fases 2 e 5 (docs/CARREIRA.md). Compatível: só tabelas novas.
+-- Lastro — v16: Carreira, fases 2, 4 e 5 (docs/CARREIRA.md). Compatível: só tabelas novas.
 -- Uma candidatura por vaga: currículo e carta feitos pelo Alfaiate a partir do perfil do dono (sem inventar).
 -- As fases seguintes avançam o status (candidatura enviada, retorno da empresa, entrevista).
 
@@ -30,4 +30,17 @@ CREATE TABLE carreira_treinos (
 CREATE TABLE carreira_estado (
     chave  TEXT PRIMARY KEY,
     valor  TEXT NOT NULL
+);
+
+-- Fase 4 (Carteiro): e-mails de vagas já lidos (só os que passaram no filtro de vagas; o corpo não é guardado).
+CREATE TABLE carreira_emails (
+    uid          TEXT PRIMARY KEY,                  -- "<uidvalidity>:<uid>" no INBOX
+    received_at  TEXT,
+    sender       TEXT NOT NULL,
+    subject      TEXT NOT NULL,
+    tipo         TEXT NOT NULL,
+    empresa      TEXT NOT NULL DEFAULT '',
+    resumo       TEXT NOT NULL DEFAULT '',
+    vaga_id      TEXT REFERENCES carreira_vagas (id),
+    created_at   TEXT NOT NULL
 );

@@ -266,3 +266,53 @@ def test_poll_so_le_o_dono_e_nao_repete(monkeypatch, tmp_path):
 
     assert asyncio.run(cycle()) == 1 and "Candidaturas prontas" in sent[0]
     assert asyncio.run(cycle()) == 0 and conversa.cursor(conn) == 101
+
+
+def test_carteiro_filtro_parse_e_avisos(monkeypatch, tmp_path):
+    from email.message import EmailMessage
+
+    from carreira import carteiro
+
+    assert carteiro.relevant("Gupy <noreply@gupy.io>", "Atualização", [])
+    assert carteiro.relevant("RH <rh@acme.com>", "Convite para entrevista", [])
+    assert not carteiro.relevant("Mãe <mae@gmail.com>", "Almoço domingo", ["ACME"])
+    assert not carteiro.relevant("LinkedIn <notifications-noreply@linkedin.com>", "Vaga que você pode gostar", [])
+    assert carteiro.relevant("LinkedIn <jobalerts-noreply@linkedin.com>", "Python", [])
+    msg = EmailMessage()
+    msg["From"], msg["Subject"] = "RH <rh@acme.com>", "Convite"
+    msg.set_content('<p>Faça o <a href="https://acme.gupy.io/teste">teste</a></p>', subtype="html")
+    assert "teste (https://acme.gupy.io/teste)" in carteiro.body_text(msg)
+
+    out = carteiro.parse('{"tipo": "hackear", "vagas": [{"titulo": "x", "url": "javascript:1"}], "link": "http://x"}')
+    assert out["tipo"] == "irrelevante" and out["vagas"] == [] and out["link"] == ""
+
+    monkeypatch.setenv("CARREIRA_GMAIL_USER", "u@gmail.com")
+    monkeypatch.setenv("CARREIRA_GMAIL_APP_PASSWORD", "abcd efgh")
+    conn = setup_conversa(monkeypatch, tmp_path)
+    conn.execute("UPDATE carreira_vagas SET company = 'ACME Tech'")
+    pessoal = {"uid": "7:10", "sender": "Mãe <mae@gmail.com>", "subject": "Almoço", "date": None, "message": msg}
+    convite = {"uid": "7:11", "sender": "RH <rh@acmetech.com>", "subject": "Entrevista", "date": None, "message": msg}
+    alerta = {"uid": "7:12", "sender": "Indeed <alert@indeed.com>", "subject": "Novas vagas", "date": None, "message": msg}
+    monkeypatch.setattr(carteiro, "fetch_new", lambda *_a: ([pessoal, convite, alerta], "7:12"))
+    answers = iter([
+        json.dumps({"tipo": "convite_entrevista", "empresa": "ACME Tech", "vaga": "Dev", "prazo": "2026-11-10",
+                    "resumo": "Agendar entrevista.", "link": "https://cal.example/x", "vagas": []}),
+        json.dumps({"tipo": "alerta_vagas", "empresa": "", "vagas": [
+            {"titulo": "Desenvolvedor Python Júnior", "empresa": "Beta", "local": "Brasil", "modalidade": "remoto",
+             "url": "https://br.indeed.com/viewjob?jk=1"}]})])
+
+    class Mentor:
+        requests = []
+
+        async def stream(self, request):
+            self.requests.append(request)
+            yield {"type": "done", "text": next(answers)}
+
+    mentor = Mentor()
+    notices = asyncio.run(carteiro.run_once(conn, mentor, lambda jobs: hunter.store(conn, jobs)))
+    assert len(mentor.requests) == 2 and all("Almoço" not in r["text"] for r in mentor.requests)  # pessoal não sai
+    assert "DADO NÃO CONFIÁVEL" in mentor.requests[0]["text"]
+    assert len(notices) == 1 and "Entrevista" in notices[0] and "treinar" in notices[0]
+    assert conn.execute("SELECT status FROM carreira_candidaturas").fetchone()[0] == "entrevista"
+    assert conn.execute("SELECT verdict FROM carreira_vagas WHERE source = 'email-indeed'").fetchone()[0] == "compativel"
+    assert conn.execute("SELECT valor FROM carreira_estado WHERE chave = 'gmail_cursor'").fetchone()[0] == "7:12"

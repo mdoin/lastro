@@ -22,7 +22,7 @@ FORBIDDEN_ACTIONS = re.compile(
 )
 # Clientes de rede de saída. A API só escuta; não chama ninguém.
 FORBIDDEN_IMPORTS = {"requests", "httpx", "aiohttp", "urllib.request", "http.client", "smtplib",
-                     "ftplib", "socket", "paramiko", "selenium", "playwright", "subprocess"}
+                     "ftplib", "imaplib", "socket", "paramiko", "selenium", "playwright", "subprocess"}
 # Exceções conscientes, uma por arquivo, revisadas (ver docs/SECURITY_MODEL.md §4).
 IMPORT_ALLOWLIST = {
     "mentor/tools.py": {"httpx"},  # só loopback; garantido por test_mentor_tools_refuse_non_loopback
@@ -37,7 +37,8 @@ IMPORT_ALLOWLIST = {
     # vagas (https, sem seguir redirecionamento) e POST na Evolution do dono (https, ou 127.0.0.1 no mesmo servidor)
     "carreira/sources.py": {"httpx"},
     "carreira/hunter.py": {"httpx"},
-    "carreira/conversa.py": {"httpx"},  # só a Evolution do dono (mesma configuração do aviso)
+    "carreira/conversa.py": {"httpx"},
+    "carreira/carteiro.py": {"imaplib"},  # só imap.gmail.com:993 (TLS), INBOX em modo leitura, BODY.PEEK  # só a Evolution do dono (mesma configuração do aviso)
     "ledger/ocr.py": {"subprocess"},  # só o binário local tesseract, argumentos fixos, stdin, prazo; sem shell nem rede
 }
 

@@ -23,7 +23,7 @@ from app import db
 
 from app.mentor_client import MentorClient
 
-from . import alfaiate, conversa, match, sources
+from . import alfaiate, carteiro, conversa, match, sources
 
 log = logging.getLogger("lastro.carreira")
 INTERVAL_SECONDS = 6 * 3600
@@ -149,6 +149,21 @@ async def chat_forever(conn, mentor: MentorClient | None) -> None:
         await asyncio.sleep(conversa.POLL_SECONDS)
 
 
+async def mail_forever(conn, mentor: MentorClient) -> None:
+    """Lê os e-mails de vagas (Carteiro) e avisa no WhatsApp o que pede ação."""
+    while True:
+        try:
+            cfg = evolution_config()
+            if cfg and datetime.now(TZ).hour in NOTIFY_HOURS:
+                notices = await carteiro.run_once(conn, mentor, lambda jobs: store(conn, jobs))
+                async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=False) as client:
+                    for text in notices:
+                        await send_whatsapp(client, cfg, text)
+        except Exception:  # noqa: BLE001 — Gmail ou Evolution fora do ar: tenta de novo na próxima volta
+            log.exception("carteiro falhou")
+        await asyncio.sleep(carteiro.POLL_SECONDS)
+
+
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     for noisy in ("httpx", "httpcore"):  # a URL da Evolution leva o nome da instância: fora do log
@@ -160,7 +175,9 @@ async def main() -> None:
     db.migrate(conn)
     socket = os.environ.get("LASTRO_MENTOR_SOCKET")
     mentor = MentorClient(Path(socket)) if socket else None  # sem o worker, só caça e avisa
-    chat = asyncio.create_task(chat_forever(conn, mentor)) if args.loop else None  # noqa: F841 — mantém a referência
+    tasks = [asyncio.create_task(chat_forever(conn, mentor))] if args.loop else []  # noqa: F841 — mantém a referência
+    if args.loop and mentor is not None:
+        tasks.append(asyncio.create_task(mail_forever(conn, mentor)))
     while True:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=False) as client:
             try:

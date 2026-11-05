@@ -20,7 +20,7 @@ MAX_TURNS = {"coordenador": 25, "pesquisa": 8, "rotina": 12, "sintese": 4,
 DEFAULT_MAX_TURNS = 8
 RESEARCH_TURNS = 16  # busca → abrir → localizar → conferir outra fonte: precisa de mais idas e voltas
 CHAT_MODES = ("direto", "grupo", "conversa")  # conversa com a pessoa (não reunião, auditoria ou rotina)
-CAREER_ROLES = ("alfaiate", "treinador")
+CAREER_ROLES = ("alfaiate", "treinador", "carteiro")
 ROLES = ("coordenador", "diagnostico", "simulacao", "educacao", "pesquisa", "sintese", "rotina", *AGENTS)
 
 

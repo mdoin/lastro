@@ -9,7 +9,7 @@ faz a candidatura, acompanha o processo e treina para a entrevista.
 | 1. Caçador | Busca vagas públicas, avalia pelas regras e manda um resumo no WhatsApp | feito |
 | 2. Alfaiate | Currículo por vaga a partir do currículo base, sem inventar experiência | feito |
 | 3. Aplicador | Candidatura pelo navegador próprio do agente, com logins guardados em cofre | planejado |
-| 4. Carteiro | Lê o e-mail de candidaturas, detecta avanços e testes e avisa | planejado |
+| 4. Carteiro | Lê o e-mail de candidaturas, detecta avanços e testes e avisa | feito |
 | 5. Treinador | Entrevista simulada pelo WhatsApp sobre uma vaga | feito |
 
 As fases 3 e 4 guardam senhas e navegam em sites quaisquer com login: rodam num serviço e usuário próprios, sem
@@ -61,3 +61,16 @@ saem no primeiro aviso possível.
   nota, pontos fortes, pontos a melhorar e o que estudar.
 - O cursor de leitura (`carreira_estado`) começa no momento da primeira execução e avança antes do envio: nenhuma
   mensagem antiga vira comando e nenhuma é respondida duas vezes.
+
+## Fase 4: carteiro (`backend/carreira/carteiro.py`, agente interno `carteiro`)
+- Gmail por IMAP com senha de app (`CARREIRA_GMAIL_USER`, `CARREIRA_GMAIL_APP_PASSWORD` no `carreira.env`), INBOX
+  em modo leitura e `BODY.PEEK`: nada é marcado como lido, movido ou apagado. A cada 15 min, das 8 h às 21 h.
+- Filtro determinístico antes da IA: remetente de plataforma de vagas ou recrutamento, termo de processo seletivo no
+  assunto, ou empresa com candidatura; notificações sociais, newsletters e segurança de conta ficam de fora.
+  Na caixa real (7 dias): 41 de 110 passam (alertas e mensagens do LinkedIn, Indeed, plataforma de recrutamento).
+- O agente `carteiro` (sem ferramentas; e-mail como dado não confiável) classifica: convite para teste, entrevista,
+  recusa, proposta, confirmação, andamento, alerta de vagas ou irrelevante. O corpo não é guardado; fica a
+  classificação em `carreira_emails`.
+- Convite, recusa, proposta e andamento: aviso imediato no WhatsApp (com `treinar N` quando é entrevista de uma
+  candidatura conhecida) e o status da candidatura avança. Alertas (Indeed, LinkedIn...) viram vagas do caçador.
+- Primeira execução: últimos 7 dias; depois, só o que chegou desde o cursor (UID). Até 20 e-mails por ciclo.

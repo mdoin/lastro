@@ -162,6 +162,11 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         caps=Capabilities(data=False),
         summary="Sessão interna da Carreira que conduz entrevistas simuladas pelo WhatsApp."),
     AgentSpec(
+        id="carteiro", name="Carteiro", handle="carteiro", title="E-mails de vagas (interna)", kind="internal",
+        prompt="carteiro.md", icon="inbox", max_turns=1, effort="low",
+        caps=Capabilities(data=False),
+        summary="Sessão interna da Carreira que classifica e-mails de processos seletivos e alertas de vagas."),
+    AgentSpec(
         id="auditor", name="Cora", handle="cora", title="Auditora · verificação independente", kind="auditor",
         prompt="auditor.md", chat_prompt="auditor_conversa.md", icon="shieldCheck", color="var(--agent-auditor)", max_turns=6,
         caps=Capabilities(data=True, facts=True, market=True, calc=True, journal=True, research=True),
