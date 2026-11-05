@@ -131,6 +131,25 @@ def sincronizar_base(conn) -> int | None:
                         "RETURNING id", (text, db.utcnow())).fetchone()[0]
 
 
+# --- Resumo do dia --------------------------------------------------------------------------------------------
+
+def resumo(conn, desde: str) -> dict:
+    """O que os agentes fizeram desde `desde` (ISO UTC) e o que está parado esperando. Base do resumo diário e do painel."""
+    v = conn.execute("SELECT COUNT(*) AS encontradas, COUNT(*) FILTER (WHERE verdict = 'compativel') AS elegiveis "
+                     "FROM carreira_vagas WHERE first_seen >= ?", (desde,)).fetchone()
+    envios = dict(conn.execute("SELECT status, COUNT(*) FROM carreira_envios WHERE created_at >= ? GROUP BY status",
+                               (desde,)).fetchall())
+    curriculos = conn.execute("SELECT COUNT(*) FROM carreira_curriculos WHERE tipo = 'vaga' AND created_at >= ?",
+                              (desde,)).fetchone()[0]
+    parados = dict(conn.execute("SELECT status, COUNT(*) FROM carreira_candidaturas WHERE status IN "
+                                "('precisa_de_voce', 'incerta') GROUP BY status").fetchall())
+    return {"encontradas": v["encontradas"], "elegiveis": v["elegiveis"], "curriculos": curriculos,
+            "tentativas": sum(envios.values()), "confirmadas": envios.get("enviada", 0),
+            "incertas": envios.get("incerta", 0), "intervencoes": envios.get("precisa_de_voce", 0),
+            "falhas": envios.get("falhou", 0), "nao_aplicaveis": envios.get("nao_aplicavel", 0),
+            "aguardando_voce": parados.get("precisa_de_voce", 0), "a_conferir": parados.get("incerta", 0)}
+
+
 # --- Etapas informadas pela empresa ---------------------------------------------------------------------------
 
 def avancar_etapa(conn, vaga_id: str, etapa: str, origem: str, **detalhe) -> bool:

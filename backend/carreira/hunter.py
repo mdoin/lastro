@@ -13,7 +13,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -30,6 +30,8 @@ INTERVAL_SECONDS = 6 * 3600
 TZ = ZoneInfo("America/Sao_Paulo")
 NOTIFY_HOURS = range(8, 21)  # não acorda o dono de madrugada
 MAX_PER_DIGEST = (8, 4)  # compatíveis, talvez
+FILA_SECONDS = 1800  # a fila (currículo + candidatura) roda bem mais vezes que a busca
+RESUMO_HOUR = 20  # resumo diário no WhatsApp, na primeira volta da fila a partir desta hora
 
 
 async def fetch_all(client: httpx.AsyncClient) -> tuple[list[sources.Job], list[str]]:
@@ -121,7 +123,8 @@ async def send_whatsapp(client: httpx.AsyncClient, cfg: dict, message: str) -> N
     response.raise_for_status()
 
 
-async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None, mentor: MentorClient | None = None) -> dict:
+async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None) -> dict:
+    """Busca e aviso de vagas novas. Currículo e candidatura ficam na fila (fila_forever), que roda mais vezes."""
     with registro.execucao(conn, "busca") as run:
         jobs, errors = await fetch_all(client)
         summary = {"vistas": len(jobs), "novas": store(conn, jobs), "erros": errors, "aviso": "sem novidade"}
@@ -129,15 +132,6 @@ async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None,
         if errors:  # fonte fora do ar não é falha da busca: fica como aviso no resultado
             run["resultado"] += f"; {len(errors)} fonte(s) com erro: " + "; ".join(e.split(":")[0] for e in errors[:6])
     registro.sincronizar_base(conn)
-    applied = []
-    if mentor is not None:
-        summary["curriculos"] = len(await alfaiate.tailor_pending(conn, mentor))
-        if (now or datetime.now(TZ)).hour in NOTIFY_HOURS:  # candidatura de dia: o aviso de "preciso de você" chega a tempo
-            applied = await candidatura.apply_pending(conn, mentor)
-            summary["candidaturas"] = len(applied)
-    if applied and (cfg := evolution_config()):
-        for text in applied:
-            await send_whatsapp(client, cfg, text)
     digest = pending_digest(conn)
     if digest is None:
         return summary
@@ -153,6 +147,62 @@ async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None,
     conn.executemany("UPDATE carreira_vagas SET status = 'avisada' WHERE id = ?", [(i,) for i in ids])
     summary["aviso"] = f"{len(ids)} enviada(s)"
     return summary
+
+
+def reavaliar(conn) -> int:
+    """Aplica as regras atuais às vagas guardadas (as que vieram por e-mail não voltam pela busca). Devolve as mudadas."""
+    changed = []
+    for row in conn.execute("SELECT * FROM carreira_vagas").fetchall():
+        verdict, score, reasons = match.evaluate(dict(row))
+        if (verdict, score) != (row["verdict"], row["score"]):
+            changed.append((verdict, score, json.dumps(reasons, ensure_ascii=False), row["id"]))
+    conn.executemany("UPDATE carreira_vagas SET verdict = ?, score = ?, reasons_json = ? WHERE id = ?", changed)
+    return len(changed)
+
+
+def _estado(conn, chave: str, valor: str) -> None:
+    conn.execute("INSERT INTO carreira_estado (chave, valor) VALUES (?, ?) "
+                 "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor", (chave, valor))
+
+
+def texto_resumo(r: dict) -> str:
+    lines = ["*Lastro · Carreira* — resumo do dia",
+             f"Vagas encontradas: {r['encontradas']} ({r['elegiveis']} elegíveis) · currículos feitos: {r['curriculos']}",
+             f"Candidaturas tentadas: {r['tentativas']} · *enviadas e confirmadas: {r['confirmadas']}*",
+             f"Sem confirmação: {r['incertas']} · precisaram de você: {r['intervencoes']} · falhas: {r['falhas']} · "
+             f"não aplicáveis: {r['nao_aplicaveis']}"]
+    if r["aguardando_voce"] or r["a_conferir"]:
+        lines.append(f"Esperando você: {r['aguardando_voce']} pendência(s) e {r['a_conferir']} envio(s) a conferir "
+                     "(Lastro → Carreira → Visão geral)")
+    return "\n".join(lines)
+
+
+async def fila_once(conn, mentor: MentorClient) -> list[str]:
+    """Uma volta da fila: currículo das elegíveis e candidaturas, as de maior aderência primeiro. Devolve os avisos."""
+    await alfaiate.tailor_pending(conn, mentor)
+    return await candidatura.apply_pending(conn, mentor)
+
+
+async def fila_forever(conn, mentor: MentorClient) -> None:
+    """Processa a fila o dia todo (de dia: o aviso de "preciso de você" chega a tempo) e manda o resumo diário."""
+    while True:
+        try:
+            notices = await fila_once(conn, mentor) if datetime.now(TZ).hour in NOTIFY_HOURS else []
+            now = datetime.now(TZ)  # a volta pode levar uma hora: a hora do resumo é conferida depois dela
+            last = conn.execute("SELECT valor FROM carreira_estado WHERE chave = 'resumo_dia'").fetchone()
+            if RESUMO_HOUR <= now.hour < 23 and (last is None or last[0] != now.date().isoformat()):
+                midnight = now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+                notices.append(texto_resumo(registro.resumo(conn, midnight.isoformat(timespec="seconds"))))
+                _estado(conn, "resumo_dia", now.date().isoformat())
+            if notices and (cfg := evolution_config()):
+                async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=False) as client:
+                    for text in notices:
+                        await send_whatsapp(client, cfg, text)
+        except Exception:  # noqa: BLE001 — worker ou Evolution fora do ar: a fila continua na próxima volta
+            log.exception("fila falhou")
+        interval = int(os.environ.get("CARREIRA_FILA_INTERVAL", FILA_SECONDS))
+        _estado(conn, "proxima_fila", (datetime.now(timezone.utc) + timedelta(seconds=interval)).isoformat(timespec="seconds"))
+        await asyncio.sleep(interval)
 
 
 async def chat_forever(conn, mentor: MentorClient | None) -> None:
@@ -189,28 +239,38 @@ async def main() -> None:
         logging.getLogger(noisy).setLevel(logging.WARNING)
     parser = argparse.ArgumentParser(prog="lastro-carreira")
     parser.add_argument("--loop", action="store_true")
+    parser.add_argument("--fila", action="store_true", help="uma volta da fila agora (fora do horário também) e sai")
+    parser.add_argument("--perfil", choices=sorted(candidatura.PLATFORMS), help="atualiza o perfil nessa plataforma e sai")
     args = parser.parse_args()
     conn = db.connect(Path(os.environ.get("LASTRO_DB", "/var/lib/patrimonio/lastro.db")))
     db.migrate(conn)
     registro.interromper_pendentes(conn)
     registro.preencher_chaves(conn)
+    log.info("regras: %d vaga(s) reavaliada(s)", reavaliar(conn))
     socket = os.environ.get("LASTRO_MENTOR_SOCKET")
     mentor = MentorClient(Path(socket)) if socket else None  # sem o worker, só caça e avisa
+    if args.fila or args.perfil:  # operação manual (primeira execução, conferência): mesmo código do serviço
+        if mentor is None:
+            raise SystemExit("LASTRO_MENTOR_SOCKET não definido")
+        result = (await candidatura.update_profile(mentor, args.perfil, conn) if args.perfil
+                  else await fila_once(conn, mentor))
+        print(json.dumps(result, ensure_ascii=False, indent=1))
+        return
     tasks = [asyncio.create_task(chat_forever(conn, mentor))] if args.loop else []  # noqa: F841 — mantém a referência
     if args.loop and mentor is not None:
         tasks.append(asyncio.create_task(mail_forever(conn, mentor)))
+        tasks.append(asyncio.create_task(fila_forever(conn, mentor)))
     while True:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=False) as client:
             try:
-                log.info("ciclo: %s", await run_once(conn, client, mentor=mentor))
+                log.info("ciclo: %s", await run_once(conn, client))
             except Exception:  # noqa: BLE001 — o serviço segue; o próximo ciclo tenta de novo
                 log.exception("ciclo falhou")
         if not args.loop:
             return
         interval = int(os.environ.get("CARREIRA_INTERVAL", INTERVAL_SECONDS))
         next_at = datetime.fromisoformat(db.utcnow()) + timedelta(seconds=interval)
-        conn.execute("INSERT INTO carreira_estado (chave, valor) VALUES ('proximo_ciclo', ?) "
-                     "ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor", (next_at.isoformat(),))
+        _estado(conn, "proximo_ciclo", next_at.isoformat())
         await asyncio.sleep(interval)
 
 

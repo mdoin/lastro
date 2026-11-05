@@ -85,7 +85,9 @@ def evaluate(job: Job) -> tuple[str, int, list[str]]:
         reasons.append("júnior/estágio")
     if pleno:
         reasons.append("pleno: um degrau acima")
-    verdict = "compativel" if firm and junior and skills else "talvez"
+    # Regra do dono: acima de júnior fica de fora e pleno vira "talvez"; sem senioridade no título também é elegível.
+    # Júnior e habilidades só pesam na prioridade (score); a aderência do Alfaiate decide se a candidatura sai.
+    verdict = "compativel" if firm and not pleno else "talvez"
     if it_only:
         pays = job["salary_min"] is not None  # abaixo do piso em BRL já saiu acima
         reasons.append("TI geral: " + ("salário publicado acima do piso" if pays else "só vale se pagar bem"))

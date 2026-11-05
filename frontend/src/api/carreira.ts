@@ -50,7 +50,7 @@ export type AgentState = "ocioso" | "buscando" | "preparando_curriculo" | "preen
   | "aguardando_intervencao" | "erro" | "concluido";
 export interface AgentInfo {
   estado: AgentState; atual: AgentRun | null; ultima: AgentRun | null; proximo_ciclo: string | null;
-  recentes: AgentRun[]; erros: AgentRun[];
+  proxima_fila: string | null; recentes: AgentRun[]; erros: AgentRun[];
   fila: {
     curriculos: { n: number; title: string; company: string; score: number }[];
     envios: { n: number; title: string; company: string; aderencia: number }[];
@@ -62,6 +62,12 @@ export interface Metrics {
   total: number; compativeis: number; talvez: number; novas_7d: number; enviadas: number; aguardando: number;
   em_andamento: number; entrevistas: number; propostas: number; rejeicoes: number; falhas: number; incertas: number;
   intervencao: number; preparando: number; respondidas: number; taxa_resposta: number | null;
+  hoje: DaySummary; na_fila: number; executando: number;
+}
+/** O que os agentes fizeram desde a meia-noite (horário de Brasília) e o que está parado esperando o dono. */
+export interface DaySummary {
+  encontradas: number; elegiveis: number; curriculos: number; tentativas: number; confirmadas: number; incertas: number;
+  intervencoes: number; falhas: number; nao_aplicaveis: number; aguardando_voce: number; a_conferir: number;
 }
 export interface NextAction {
   tipo: "entrevista" | "teste" | "proposta" | "intervencao" | "verificar_envio" | "falha";

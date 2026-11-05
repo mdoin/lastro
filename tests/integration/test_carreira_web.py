@@ -193,6 +193,7 @@ def test_resumo_vagas_candidaturas_curriculos_e_acoes(web, tmp_path):
     m = client.get("/api/carreira/resumo").json()["metricas"]
     assert (m["total"], m["enviadas"], m["rejeicoes"], m["aguardando"], m["incertas"]) == (3, 1, 1, 0, 1)
     assert m["taxa_resposta"] == 1.0  # o envio incerto não conta como enviado
+    assert m["hoje"]["encontradas"] == 3 and m["hoje"]["a_conferir"] == 1 and m["executando"] == 0
 
     vagas = client.get("/api/carreira/vagas", params={"compat": ""}).json()
     assert vagas["total"] == 3

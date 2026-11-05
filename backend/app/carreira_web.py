@@ -10,6 +10,7 @@
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from pydantic import BaseModel, Field
@@ -18,6 +19,7 @@ from carreira import alfaiate, candidatura, match, registro
 
 from . import db
 
+TZ = ZoneInfo("America/Sao_Paulo")  # "hoje" do painel é o dia do dono
 KEYS = Literal["Enter", "Backspace", "Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"]
 ETAPAS = ("em_analise", "teste", "entrevista", "proposta", "recusada")
 AGENT_STATE = {"busca": "buscando", "curriculo": "preparando_curriculo", "candidatura": "preenchendo",
@@ -121,6 +123,10 @@ def metricas(conn) -> dict:
         ((datetime.now(timezone.utc) - timedelta(days=7)).isoformat(timespec="seconds"),)).fetchone()
     out = {**dict(v), **dict(c)}
     out["taxa_resposta"] = round(c["respondidas"] / c["enviadas"], 3) if c["enviadas"] else None
+    midnight = datetime.now(TZ).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    out["hoje"] = registro.resumo(conn, midnight.isoformat(timespec="seconds"))
+    out["na_fila"] = len(candidatura.pending(conn, 1000))
+    out["executando"] = conn.execute("SELECT COUNT(*) FROM carreira_execucoes WHERE estado = 'executando'").fetchone()[0]
     return out
 
 
@@ -146,7 +152,8 @@ def agente(conn) -> dict:
         estado = "concluido"
     else:
         estado = "ocioso"
-    state = dict(conn.execute("SELECT chave, valor FROM carreira_estado WHERE chave = 'proximo_ciclo'").fetchall())
+    state = dict(conn.execute("SELECT chave, valor FROM carreira_estado WHERE chave IN ('proximo_ciclo', 'proxima_fila')"
+                              ).fetchall())
     today = db.utcnow()[:10]
     used = conn.execute("SELECT COUNT(*) FROM carreira_envios WHERE substr(created_at, 1, 10) = ?", (today,)).fetchone()[0]
 
@@ -160,6 +167,7 @@ def agente(conn) -> dict:
         "atual": run(running[0]) if running else None,
         "ultima": run(last) if last else None,
         "proximo_ciclo": state.get("proximo_ciclo"),
+        "proxima_fila": state.get("proxima_fila"),
         "recentes": [run(r) for r in recent],
         "erros": [run(r) for r in recent if r["estado"] in ("falhou", "interrompida") and r["started_at"] >= week_ago][:5],
         "fila": {

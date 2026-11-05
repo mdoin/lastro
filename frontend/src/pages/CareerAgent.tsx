@@ -40,7 +40,8 @@ export function CareerAgentPage() {
                 <div><dt>Última execução</dt><dd>{data.ultima ? `${RUN_KIND[data.ultima.tipo]} · ${RUN_STATE[data.ultima.estado].label}` : "nenhuma"}</dd></div>
                 <div><dt>Resultado</dt><dd>{data.ultima?.resultado || data.ultima?.erro || "—"}</dd></div>
                 <div><dt>Terminou</dt><dd>{formatDateTime(data.ultima?.finished_at)}</dd></div>
-                <div><dt>Próximo ciclo</dt><dd>{data.proximo_ciclo ? formatDateTime(data.proximo_ciclo) : "ainda não informado pelo serviço"}</dd></div>
+                <div><dt>Próxima busca</dt><dd>{data.proximo_ciclo ? formatDateTime(data.proximo_ciclo) : "ainda não informado pelo serviço"}</dd></div>
+                <div><dt>Próxima volta da fila</dt><dd>{data.proxima_fila ? formatDateTime(data.proxima_fila) : "ainda não informado pelo serviço"}</dd></div>
                 <div><dt>Envios hoje</dt><dd>{data.fila.envios_hoje} de {data.fila.limite_diario} (até {data.fila.por_ciclo} por ciclo, das 8 h às 21 h)</dd></div>
               </dl>
             </div>

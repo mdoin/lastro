@@ -20,8 +20,8 @@ from . import alfaiate, registro, sources
 
 log = logging.getLogger("lastro.carreira")
 MIN_ADERENCIA = 60
-DAILY_LIMIT = 10
-PER_CYCLE = 3
+DAILY_LIMIT = int(os.environ.get("CARREIRA_LIMITE_DIA", 10))  # tentativas por dia (limite de volume)
+PER_CYCLE = int(os.environ.get("CARREIRA_POR_CICLO", 3))  # tentativas por volta da fila (a cada 30 min)
 MAX_ATTEMPTS = 2
 TIMEOUT_SECONDS = 1000
 STATUS = {"enviada": "candidatada", "incerta": "incerta", "precisa_de_voce": "precisa_de_voce", "nao_aplicavel": "encerrada"}
@@ -72,13 +72,21 @@ async def ask(mentor: MentorClient, vaga, perfil: str, respostas: str) -> dict:
     return await run(mentor, text, vaga["curriculo_md"])
 
 
-async def update_profile(mentor: MentorClient, platform: str) -> dict:
-    """Atualiza o perfil do dono numa plataforma (modo carreira_perfil do aplicador)."""
+async def update_profile(mentor: MentorClient, platform: str, conn=None) -> dict:
+    """Atualiza o perfil do dono numa plataforma (modo carreira_perfil do aplicador). Com `conn`, registra a execução
+    (data e resultado) em carreira_execucoes."""
     perfil, respostas, cv = alfaiate.profile(), answers(), base_cv()
     if None in (perfil, respostas, cv):
         raise RuntimeError("faltam perfil, respostas ou currículo base")
     text = (f"PLATAFORMA: {platform} ({PLATFORMS[platform]})\n\nPERFIL:\n{perfil}\n\nRESPOSTAS:\n{respostas}\n")
-    return await asyncio.wait_for(run(mentor, text, cv, mode="carreira_perfil"), TIMEOUT_SECONDS)
+    if conn is None:
+        return await asyncio.wait_for(run(mentor, text, cv, mode="carreira_perfil"), TIMEOUT_SECONDS)
+    with registro.execucao(conn, "perfil") as rec:
+        result = await asyncio.wait_for(run(mentor, text, cv, mode="carreira_perfil"), TIMEOUT_SECONDS)
+        rec["resultado"] = f"{platform}: {result['status']} — {result['motivo']}"
+        if result["status"] == "falhou":
+            rec["erro"] = result["motivo"]
+    return result
 
 
 async def run(mentor: MentorClient, text: str, curriculo_md: str, mode: str | None = None) -> dict:

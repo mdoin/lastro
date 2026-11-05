@@ -41,7 +41,8 @@ def job(title, workplace="remoto", location="", source="gupy", salary=None, curr
     (job("Desenvolvedor Python Júnior", description="LLM, RAG e SQL"), "compativel"),
     (job("AI Engineer Jr", location="LATAM", source="remoteok", description="python agents"), "compativel"),
     (job("Engenheiro de Software Pleno", description="python"), "talvez"),
-    (job("Software Engineer", location="Remote", source="remoteok"), "talvez"),
+    (job("Software Engineer", location="Remote", source="remoteok"), "compativel"),  # sem senioridade: elegível
+    (job("Software Engineer", location="Remote", source="remoteok", description="python sql"), "compativel"),
     (job("Desenvolvedor Júnior", "hibrido", "Cambé, Paraná", description="python"), "talvez"),
     (job("Desenvolvedor Júnior", "presencial", "Londrina, Paraná"), "talvez"),
     (job("Desenvolvedor Júnior", "presencial", "Cambé, Paraná"), "fora"),  # presencial só em Londrina
@@ -502,6 +503,36 @@ def test_atualizar_perfil_pelo_whatsapp(monkeypatch, tmp_path):
     [req] = mentor.requests
     assert req["role"] == "aplicador" and req["mode"] == "carreira_perfil" and req["aplicacao"]["curriculo_md"] == "# Maitê Doin"
     assert "Perfil atualizado" in sent[0] and "Intermidia" in sent[0]
+    run = conn.execute("SELECT tipo, estado, resultado FROM carreira_execucoes WHERE tipo = 'perfil'").fetchone()
+    assert tuple(run) == ("perfil", "concluida", "gupy: enviada — Perfil igual ao currículo.")  # data e resultado ficam
+
+
+def test_fila_reavalia_regras_e_resume_o_dia(monkeypatch, tmp_path):
+    from carreira import candidatura, registro
+
+    conn = setup_conversa(monkeypatch, tmp_path)  # 1 vaga compatível com currículo (aderência 100)
+    hunter.store(conn, [{**job("Software Engineer", location="Remote", source="remoteok"), "url": "https://remoteok.com/1"}])
+    conn.execute("UPDATE carreira_vagas SET verdict = 'talvez', score = -1 WHERE source = 'remoteok'")  # regra antiga
+    assert hunter.reavaliar(conn) == 1 and hunter.reavaliar(conn) == 0
+    assert conn.execute("SELECT verdict FROM carreira_vagas WHERE source = 'remoteok'").fetchone()[0] == "compativel"
+
+    (tmp_path / "respostas.md").write_text("Pretensão: R$ 4.000", encoding="utf-8")
+    monkeypatch.setenv("CARREIRA_RESPOSTAS", str(tmp_path / "respostas.md"))
+    sent = json.dumps({"status": "enviada", "motivo": "ok", "evidencia": "Candidatura enviada!",
+                       "url_final": "https://acme.gupy.io/x"})
+    mentor = FakeMentor(None)
+
+    async def by_role(request):  # cada agente devolve a própria resposta
+        mentor.requests.append(request)
+        yield {"type": "done", "text": ANSWER if request["role"] == "alfaiate" else sent}
+    mentor.stream = by_role
+    notices = asyncio.run(hunter.fila_once(conn, mentor))  # currículo da nova elegível e candidatura da melhor
+    assert [r["role"] for r in mentor.requests] == ["alfaiate", "aplicador", "aplicador"]
+    assert "Candidatura enviada" in notices[0]
+    r = registro.resumo(conn, "2000-01-01T00:00:00+00:00")
+    assert (r["encontradas"], r["elegiveis"], r["tentativas"], r["confirmadas"]) == (2, 2, 2, 2)
+    assert "enviadas e confirmadas: 2" in hunter.texto_resumo(r)
+    assert candidatura.pending(conn, 10) == []
 
 
 @pytest.mark.skipif(not __import__("os").path.exists(SHELL), reason="sem o Chrome do navegador de pesquisa")

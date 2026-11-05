@@ -15,12 +15,14 @@ const at = (path: string, el: ReactElement) =>
   renderToStaticMarkup(<MemoryRouter initialEntries={[path]}>{el}</MemoryRouter>);
 
 const idle: AgentInfo = {
-  estado: "ocioso", atual: null, ultima: null, proximo_ciclo: null, recentes: [], erros: [],
+  estado: "ocioso", atual: null, ultima: null, proximo_ciclo: null, proxima_fila: null, recentes: [], erros: [],
   fila: { curriculos: [], envios: [], envios_hoje: 0, limite_diario: 10, por_ciclo: 3 },
 };
 const zero: Metrics = {
   total: 0, compativeis: 0, talvez: 0, novas_7d: 0, enviadas: 0, aguardando: 0, em_andamento: 0, entrevistas: 0,
   propostas: 0, rejeicoes: 0, falhas: 0, incertas: 0, intervencao: 0, preparando: 0, respondidas: 0, taxa_resposta: null,
+  na_fila: 0, executando: 0, hoje: { encontradas: 0, elegiveis: 0, curriculos: 0, tentativas: 0, confirmadas: 0, incertas: 0,
+    intervencoes: 0, falhas: 0, nao_aplicaveis: 0, aguardando_voce: 0, a_conferir: 0 },
 };
 const app = (n: number, over: Partial<Application>): Application => ({
   n, id: `gupy:${n}`, title: `Vaga ${n}`, company: "ACME", location: "", workplace: "remoto", salary_min: null,

@@ -109,9 +109,9 @@ async def coach(mentor: MentorClient, vaga, perfil: str, transcript: list[dict],
 BACKGROUND: set = set()
 
 
-async def _profile_job(mentor: MentorClient, platform: str, send) -> None:
+async def _profile_job(conn, mentor: MentorClient, platform: str, send) -> None:
     try:
-        result = await candidatura.update_profile(mentor, platform)
+        result = await candidatura.update_profile(mentor, platform, conn)
         head = {"enviada": "Perfil atualizado ✅", "precisa_de_voce": "Preciso de você"}.get(result["status"],
                                                                                           "Não consegui atualizar")
         changes = "\n".join(f"• {r['pergunta']}: {r['resposta'][:120]}" for r in result["respostas"][:12])
@@ -130,7 +130,7 @@ async def handle(conn, mentor: MentorClient | None, text: str, send=None) -> str
             return f"Plataformas: {', '.join(candidatura.PLATFORMS)}."
         if mentor is None or send is None:
             return "O agente não está disponível agora."
-        task = asyncio.create_task(_profile_job(mentor, platform, send))
+        task = asyncio.create_task(_profile_job(conn, mentor, platform, send))
         BACKGROUND.add(task)
         task.add_done_callback(BACKGROUND.discard)
         return f"Vou atualizar seu perfil na {platform}. Leva alguns minutos; aviso quando terminar."

@@ -22,7 +22,10 @@ a auditoria de segurança completa (run-2) continua pendente e deve cobrir a Car
 - **Regras** (`match.py`, determinísticas, sem modelo):
   - remoto: Brasil ou internacional que aceite quem mora no Brasil;
   - híbrido só em Londrina/Cambé, presencial só em Londrina, e nesses casos salário ≥ R$ 5.000 ou empresa grande;
-  - cargos de IA, software, Python, dados e automação; acima de júnior fica de fora, pleno vira "talvez";
+  - cargos de IA, software, Python, dados e automação; acima de júnior fica de fora, pleno vira "talvez"; sem
+    senioridade no título é compatível (júnior e habilidades só aumentam a prioridade). Até 2026-11-05 o código exigia
+    "júnior" e habilidade no título para "compatível", mais estrito que a regra: quase tudo virava "talvez" e não
+    entrava na fila. Ao iniciar, o serviço reaplica as regras a todas as vagas guardadas;
   - TI geral (suporte, infraestrutura, sistemas, QA) só passa de "talvez" com salário publicado acima do piso.
 - **Aviso:** até 8 compatíveis e 4 "vale conferir" por mensagem, só entre 8 h e 21 h (horário de Brasília). Cada
   vaga é avisada uma vez (`status` nova → avisada).
@@ -75,9 +78,37 @@ saem no primeiro aviso possível.
   candidatura conhecida) e o status da candidatura avança. Alertas (Indeed, LinkedIn...) viram vagas do caçador.
 - Primeira execução: últimos 7 dias; depois, só o que chegou desde o cursor (UID). Até 20 e-mails por ciclo.
 
+## Fila contínua (`hunter.fila_forever`)
+- A busca roda a cada 6 h; a fila roda a cada 30 min (`CARREIRA_FILA_INTERVAL`), das 8 h às 21 h, sem depender da
+  busca nem de conversa: currículo das compatíveis sem candidatura (Alfaiate, 3 por volta, maior pontuação primeiro) e
+  candidaturas da fila (maior aderência primeiro). Antes, currículo e candidatura só rodavam dentro do ciclo de 6 h
+  (2 a 3 voltas por dia) e só para vagas "compatíveis" pela regra estrita acima: por isso o Lastro só recomendava.
+- Limites: `CARREIRA_LIMITE_DIA` (tentativas por dia, padrão 10) e `CARREIRA_POR_CICLO` (por volta, padrão 3), no
+  `carreira.env`. Uma vaga bloqueada (`precisa_de_voce`) não para a fila: as outras seguem.
+- Resumo diário no WhatsApp na primeira volta a partir das 20 h (`registro.resumo`); os mesmos números aparecem na
+  visão geral (hoje, na fila, executando agora, aguardando você, próxima busca e próxima volta da fila).
+- Operação manual com o mesmo código do serviço (como `patrimonio`, no grupo `lastro-sock`):
+  `python -m carreira.hunter --fila` (uma volta agora) e `--perfil indeed` (atualiza o perfil e registra a execução).
+
+### Estados (pedido do dono, reaproveitando o que existe)
+| Estado | Onde |
+|---|---|
+| Elegível | vaga `compativel` sem candidatura (fila do Alfaiate) |
+| Na fila | candidatura `curriculo`, aderência ≥ 60, menos de 2 tentativas |
+| Preparando | execução `curriculo` em andamento |
+| Preenchendo / enviando | execução `candidatura` em andamento (uma sessão do agente; não há sinal separado do clique final) |
+| Enviada e confirmada | `candidatada` (só com `evidencia` da plataforma ou confirmação do dono/e-mail) |
+| Resultado desconhecido | `incerta` (não é repetida; o dono confere) |
+| Bloqueada por intervenção | `precisa_de_voce` ("não enviada" na tela devolve à fila depois de resolver) |
+| Falha recuperável | envio `falhou` com tentativa restante (a candidatura continua `curriculo`) |
+| Falha definitiva | `falhou` (2 tentativas) ou `encerrada` (não aplicável, duplicata) |
+
 ## Fase 3: aplicador (`backend/mentor/aplicador.py`, `backend/carreira/candidatura.py`, agente interno `aplicador`)
-- Seleção (serviço `lastro-carreira`, das 8 h às 21 h): candidaturas com currículo pronto e aderência ≥ 60, até 3 por
-  ciclo, 10 tentativas por dia e 2 por vaga. Cada tentativa fica em `carreira_envios` (migração 017).
+- Seleção (fila contínua, das 8 h às 21 h): candidaturas com currículo pronto e aderência ≥ 60, até 3 por
+  volta, 10 tentativas por dia e 2 por vaga. Cada tentativa fica em `carreira_envios` (migração 017).
+- Login: primeiro confere se a sessão salva já vale; senão senha do cofre; se a senha não anda e a página oferece
+  "Entrar com Google", usa a conta Google já aberta no perfil (foi assim que a Gupy entrou em 2026-11-05; a senha
+  parava na tela sem erro). Código por e-mail/SMS, CAPTCHA ou verificação do Google: `precisa_de_voce`.
 - O worker abre uma sessão do agente `aplicador` (até 70 passos, prazo de 15 min) cujas ÚNICAS ferramentas são as do
   navegador do aplicador: abrir, clicar, digitar, rolar, ler, anexar currículo e login. `tools_for` recusa juntar esse
   navegador com dados do dono.
@@ -107,7 +138,8 @@ saem no primeiro aviso possível.
 ## Atualizar perfil nas plataformas
 - WhatsApp: `atualizar perfil gupy` (linkedin, catho, indeed, programathor, infojobs, vagas). O aplicador roda no modo
   `carreira_perfil`: entra na conta, deixa as seções iguais ao perfil base sem inventar e anexa o currículo geral
-  (`/var/lib/patrimonio/carreira/curriculo.md`). O resultado chega no WhatsApp com o que mudou.
+  (`/var/lib/patrimonio/carreira/curriculo.md`). Não mexe em privacidade nem visibilidade do perfil. O resultado chega
+  no WhatsApp com o que mudou e fica em `carreira_execucoes` (tipo `perfil`, data e resultado).
 
 ## Compatibilidade do navegador (melhorias inspiradas no OpenBot)
 - **Cookies de sessão persistem entre reinícios.** O `launch_persistent_context` já guarda perfil, localStorage,

@@ -38,6 +38,17 @@ export function Overview({ data }: { data: Summary }) {
   const a = data.agente;
   return (
     <>
+      <section aria-label="Hoje" className="career-metrics">
+        <Metric label="Encontradas hoje" value={m.hoje.encontradas} sub={`${m.hoje.elegiveis} elegíveis`} to="/carreira/vagas?compat=todas" />
+        <Metric label="Na fila" value={m.na_fila} sub={`${a.fila.curriculos.length} aguardando currículo`} to="/carreira/agente" />
+        <Metric label="Executando agora" value={m.executando} sub={a.atual ? RUN_KIND[a.atual.tipo] : "nenhuma execução agora"} to="/carreira/agente" />
+        <Metric label="Enviadas hoje" value={m.hoje.confirmadas} sub={`${m.hoje.tentativas} tentativa(s), com confirmação`} to="/carreira/candidaturas" />
+        <Metric label="Erros hoje" value={m.hoje.falhas + m.hoje.incertas} sub={`${m.hoje.incertas} sem confirmação`}
+          tone={m.hoje.falhas + m.hoje.incertas ? "warning" : undefined} />
+        <Metric label="Aguardando você" value={m.intervencao} sub={`${m.incertas} envio(s) a conferir`}
+          tone={m.intervencao ? "warning" : undefined} />
+      </section>
+
       <section aria-label="Indicadores" className="career-metrics">
         <Metric label="Oportunidades" value={m.total} sub={`${m.novas_7d} nos últimos 7 dias`} to="/carreira/vagas?compat=todas" />
         <Metric label="Compatíveis" value={m.compativeis} sub={`${m.talvez} para conferir`} to="/carreira/vagas?compat=compativel" />
@@ -59,7 +70,8 @@ export function Overview({ data }: { data: Summary }) {
               <div><dt>Última execução</dt><dd>{a.ultima ? `${RUN_KIND[a.ultima.tipo]} · ${RUN_STATE[a.ultima.estado].label}${
                 a.ultima.resultado ? ` · ${a.ultima.resultado}` : ""}` : "nenhuma registrada"}</dd></div>
               <div><dt>Terminou</dt><dd>{formatDateTime(a.ultima?.finished_at)}</dd></div>
-              <div><dt>Próximo ciclo</dt><dd>{a.proximo_ciclo ? formatDateTime(a.proximo_ciclo) : "ainda não informado pelo serviço"}</dd></div>
+              <div><dt>Próxima busca</dt><dd>{a.proximo_ciclo ? formatDateTime(a.proximo_ciclo) : "ainda não informado pelo serviço"}</dd></div>
+              <div><dt>Próxima volta da fila</dt><dd>{a.proxima_fila ? formatDateTime(a.proxima_fila) : "ainda não informado pelo serviço"}</dd></div>
               <div><dt>Na fila</dt><dd>{a.fila.curriculos.length} currículo(s) · {a.fila.envios.length} envio(s)</dd></div>
             </dl>
             {a.erros[0] && (
