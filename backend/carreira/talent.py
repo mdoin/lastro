@@ -233,7 +233,7 @@ def pendentes_avaliacao(conn, perfil: str, limit: int) -> list:
 
 
 async def avaliar_pendentes(conn, mentor, limit: int = PER_CYCLE) -> list[str]:
-    perfil = alfaiate.profile()
+    perfil = alfaiate.profile(conn)
     if perfil is None:
         return []
     done = []
@@ -385,7 +385,7 @@ def pendentes_revisao(conn, limit: int) -> list:
 
 async def revisar_pendentes(conn, mentor, limit: int = PER_CYCLE) -> list[str]:
     """Revisa e, quando há correções, devolve ao Alfaiate e revisa de novo, até MAX_RODADAS. Devolve avisos."""
-    perfil = alfaiate.profile()
+    perfil = alfaiate.profile(conn)
     if perfil is None:
         return []
     fontes = perfil + "\n" + (registro.curriculo_base_md() or "")

@@ -152,7 +152,7 @@ async def handle(conn, mentor: MentorClient | None, text: str, send=None) -> str
         gaps = "\n".join(f"• {g['requisito']}: {g['dica']}" for g in json.loads(vaga["lacunas_json"]))
         return (f"*{vaga['title']}* — {vaga['company']} · aderência {vaga['aderencia']}%\n{vaga['url']}\n\n"
                 f"{vaga['curriculo_md']}\n\n*Carta*\n{vaga['carta']}" + (f"\n\n*O que estudar*\n{gaps}" if gaps else ""))
-    perfil = alfaiate.profile()
+    perfil = alfaiate.profile(conn)
     if mentor is None or perfil is None:
         return "O Treinador não está disponível agora (sem conexão com o mentor ou sem perfil)."
     if match := re.fullmatch(r"(treinar|entrevista) #?(\d+)", plain):
