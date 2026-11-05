@@ -27,6 +27,7 @@ MIGRATIONS = (
     (14, APP_DIR / "migrations" / "014_lab.sql"),
     (15, APP_DIR / "migrations" / "015_carreira.sql"),
     (16, APP_DIR / "migrations" / "016_carreira_candidaturas.sql"),
+    (17, APP_DIR / "migrations" / "017_carreira_envios.sql"),
 )
 LATEST_VERSION = MIGRATIONS[-1][0]
 

@@ -19,6 +19,7 @@ class Capabilities:
     """O que um agente enxerga. Navegador livre e dados do dono nunca convivem na mesma sessão."""
     data: bool = True                 # ferramentas /v1/me/* (retratos, diagnóstico, metas, decisões)
     browser: str | None = None        # None | "owner" (hosts exatos, sem query) | "research" (allowlist inteira)
+                                      # | "aplicador" (candidatura: envia formulários; nunca com `data`)
     quiet: bool = False               # sem_novidade (só rotinas)
     facts: bool = False               # memória financeira confirmada (leitura)
     market: bool = False              # séries de dados externos já coletadas (leitura)
@@ -166,6 +167,12 @@ AGENTS: dict[str, AgentSpec] = {a.id: a for a in (
         prompt="carteiro.md", icon="inbox", max_turns=1, effort="low",
         caps=Capabilities(data=False),
         summary="Sessão interna da Carreira que classifica e-mails de processos seletivos e alertas de vagas."),
+    AgentSpec(
+        id="aplicador", name="Aplicador", handle="aplicador", title="Candidatura a vagas (interna)", kind="internal",
+        prompt="aplicador.md", icon="inbox", max_turns=70, effort="medium",
+        # Navegador próprio que envia formulários (mentor/aplicador.py); nenhum dado financeiro do dono.
+        caps=Capabilities(data=False, browser="aplicador"),
+        summary="Sessão interna da Carreira que se candidata a uma vaga pelo navegador, com o currículo sob medida."),
     AgentSpec(
         id="auditor", name="Cora", handle="cora", title="Auditora · verificação independente", kind="auditor",
         prompt="auditor.md", chat_prompt="auditor_conversa.md", icon="shieldCheck", color="var(--agent-auditor)", max_turns=6,

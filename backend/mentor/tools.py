@@ -356,10 +356,14 @@ def browser_tool(browser, frame_sink=None, *, owner_context: bool = False):
     return ler_pagina_oficial
 
 
-def tools_for(caps: Capabilities, browser=None, frame_sink=None, research=None) -> list[ToolSpec]:
+def tools_for(caps: Capabilities, browser=None, frame_sink=None, research=None, aplicador=None) -> list[ToolSpec]:
     """As ferramentas que um papel recebe. É a concessão: o runtime recusa qualquer outra."""
     if caps.web and caps.data:
         raise ValueError("pesquisa aberta e dados do dono nunca na mesma sessão")
+    if caps.browser == "aplicador":  # candidatura (Carreira): só o navegador do aplicador, nada do dono
+        if caps.data:
+            raise ValueError("navegador que envia formulários e dados do dono nunca na mesma sessão")
+        return aplicador.tools() if aplicador is not None else []
     tools = (list(DATA_TOOLS) if caps.data else []) + _team_tools(caps)
     if caps.web and research is not None:
         tools += research.tools()

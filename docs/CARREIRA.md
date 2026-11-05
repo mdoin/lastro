@@ -8,12 +8,12 @@ faz a candidatura, acompanha o processo e treina para a entrevista.
 |---|---|---|
 | 1. Caçador | Busca vagas públicas, avalia pelas regras e manda um resumo no WhatsApp | feito |
 | 2. Alfaiate | Currículo por vaga a partir do currículo base, sem inventar experiência | feito |
-| 3. Aplicador | Candidatura pelo navegador próprio do agente, com logins guardados em cofre | planejado |
+| 3. Aplicador | Candidatura pelo navegador próprio do agente, com logins guardados em cofre | feito |
 | 4. Carteiro | Lê o e-mail de candidaturas, detecta avanços e testes e avisa | feito |
 | 5. Treinador | Entrevista simulada pelo WhatsApp sobre uma vaga | feito |
 
-As fases 3 e 4 guardam senhas e navegam em sites quaisquer com login: rodam num serviço e usuário próprios, sem
-acesso aos dados financeiros, e só vão ao ar depois de uma nova auditoria de segurança.
+As fases 3 e 4 guardam senhas e usam contas do dono. Nenhuma das sessões delas tem ferramenta de dados financeiros;
+a auditoria de segurança completa (run-2) continua pendente e deve cobrir a Carreira.
 
 ## Fase 1: caçador (`backend/carreira/`, serviço `lastro-carreira`)
 - **Fontes, sem login:** Gupy, Catho e Programathor (páginas de busca), LinkedIn (busca pública, sem conta),
@@ -74,3 +74,20 @@ saem no primeiro aviso possível.
 - Convite, recusa, proposta e andamento: aviso imediato no WhatsApp (com `treinar N` quando é entrevista de uma
   candidatura conhecida) e o status da candidatura avança. Alertas (Indeed, LinkedIn...) viram vagas do caçador.
 - Primeira execução: últimos 7 dias; depois, só o que chegou desde o cursor (UID). Até 20 e-mails por ciclo.
+
+## Fase 3: aplicador (`backend/mentor/aplicador.py`, `backend/carreira/candidatura.py`, agente interno `aplicador`)
+- Seleção (serviço `lastro-carreira`, das 8 h às 21 h): candidaturas com currículo pronto e aderência ≥ 60, até 3 por
+  ciclo, 10 tentativas por dia e 2 por vaga. Cada tentativa fica em `carreira_envios` (migração 017).
+- O worker abre uma sessão do agente `aplicador` (até 70 passos, prazo de 15 min) cujas ÚNICAS ferramentas são as do
+  navegador do aplicador: abrir, clicar, digitar, rolar, ler, anexar currículo e login. `tools_for` recusa juntar esse
+  navegador com dados do dono.
+- Navegador: o mesmo Chrome do worker (sandbox e AppArmor aprovados), perfil persistente em
+  `/var/lib/mentor/carreira/chrome` (logins das plataformas ficam salvos), uma candidatura por vez. Envia formulários;
+  redes privadas seguem bloqueadas pelo systemd do worker.
+- Cofre: `/var/lib/mentor/carreira/cofre.json` (0600 mentor), `{"gupy": {"usuario", "senha", "dominios"}}`. O modelo
+  nunca vê a senha: `aplicador_login` digita usuário e senha no campo, só se o site aberto é um dos `dominios` daquela
+  credencial e o campo indicado é mesmo de senha.
+- Currículo: o Markdown do Alfaiate vira PDF A4 na hora (`markdown_html` + impressão do Chrome) e é anexado.
+- Respostas de formulário: `/var/lib/patrimonio/carreira/respostas.md` (0600, fora do repositório), junto com o perfil.
+  Campo obrigatório sem resposta conhecida, CAPTCHA, código de verificação, teste/avaliação ou cadastro novo: o
+  agente para com `precisa_de_voce` e o dono recebe o aviso no WhatsApp com o link.

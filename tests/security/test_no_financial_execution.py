@@ -39,6 +39,9 @@ IMPORT_ALLOWLIST = {
     "carreira/hunter.py": {"httpx"},
     "carreira/conversa.py": {"httpx"},
     "carreira/carteiro.py": {"imaplib"},  # só imap.gmail.com:993 (TLS), INBOX em modo leitura, BODY.PEEK  # só a Evolution do dono (mesma configuração do aviso)
+    # Aplicador (Carreira): navegador que envia formulários de candidatura, só na sessão do agente `aplicador`,
+    # que não tem ferramenta de dados do dono (tools_for recusa a combinação); senhas só no domínio cadastrado
+    "mentor/aplicador.py": {"playwright"},
     "ledger/ocr.py": {"subprocess"},  # só o binário local tesseract, argumentos fixos, stdin, prazo; sem shell nem rede
 }
 

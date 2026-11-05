@@ -330,7 +330,8 @@ def test_every_role_has_a_turn_cap(tmp_path):
     from mentor.session import ROLES, mentor_options
 
     for role in ROLES:
-        assert 0 < mentor_options(role=role, workdir=tmp_path).max_turns <= 25, role
+        cap = 80 if role == "aplicador" else 25  # candidatura: cada campo do formulário é uma ida e volta
+        assert 0 < mentor_options(role=role, workdir=tmp_path).max_turns <= cap, role
 
 
 def test_max_turns_result_is_reported(tmp_path):

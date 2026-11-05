@@ -20,7 +20,7 @@ MAX_TURNS = {"coordenador": 25, "pesquisa": 8, "rotina": 12, "sintese": 4,
 DEFAULT_MAX_TURNS = 8
 RESEARCH_TURNS = 16  # busca → abrir → localizar → conferir outra fonte: precisa de mais idas e voltas
 CHAT_MODES = ("direto", "grupo", "conversa")  # conversa com a pessoa (não reunião, auditoria ou rotina)
-CAREER_ROLES = ("alfaiate", "treinador", "carteiro")
+CAREER_ROLES = ("alfaiate", "treinador", "carteiro", "aplicador")
 ROLES = ("coordenador", "diagnostico", "simulacao", "educacao", "pesquisa", "sintese", "rotina", *AGENTS)
 
 
@@ -55,12 +55,12 @@ def team_roster(role: str) -> str:
 def session_spec(*, role: str = "coordenador", workdir: Path, session_id: str | None = None,
                  resume: str | None = None, model: str | None = None, effort: str = "high",
                  ephemeral: bool = False, browser=None, frame_sink=None, mode: str | None = None,
-                 research=None, lab: dict | None = None) -> SessionSpec:
+                 research=None, lab: dict | None = None, aplicador=None) -> SessionSpec:
     # Pesquisa: mesma persona, mas só as ferramentas de internet (sem dados do dono, sem delegar, sem memória).
     caps = RESEARCH_CAPS if mode == "pesquisa_web" else lab_caps(bool(lab.get("research"))) if lab \
         else ROLE_CAPABILITIES[role]
     return SessionSpec(role=role, system_prompt=load_prompt(role, mode),
-                       tools=tools_for(caps, browser, frame_sink, research), workdir=workdir, model=model,
+                       tools=tools_for(caps, browser, frame_sink, research, aplicador), workdir=workdir, model=model,
                        max_turns=RESEARCH_TURNS if mode == "pesquisa_web" else MAX_TURNS.get(role, DEFAULT_MAX_TURNS),
                        effort=effort, ephemeral=ephemeral,
                        session_id=session_id, resume=resume)

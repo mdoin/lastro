@@ -316,3 +316,100 @@ def test_carteiro_filtro_parse_e_avisos(monkeypatch, tmp_path):
     assert conn.execute("SELECT status FROM carreira_candidaturas").fetchone()[0] == "entrevista"
     assert conn.execute("SELECT verdict FROM carreira_vagas WHERE source = 'email-indeed'").fetchone()[0] == "compativel"
     assert conn.execute("SELECT valor FROM carreira_estado WHERE chave = 'gmail_cursor'").fetchone()[0] == "7:12"
+
+
+def test_candidatura_escolhe_melhores_registra_e_avisa(monkeypatch, tmp_path):
+    from carreira import candidatura
+
+    conn = setup_conversa(monkeypatch, tmp_path)  # 1 candidatura com aderência 100
+    hunter.store(conn, [job("Engenheiro de Dados Júnior", description="python sql")])
+    v2 = conn.execute("SELECT id FROM carreira_vagas WHERE title LIKE 'Engenheiro%'").fetchone()[0]
+    conn.execute("INSERT INTO carreira_candidaturas (vaga_id, aderencia, resumo, lacunas_json, idioma, curriculo_md, carta,"
+                 " created_at, updated_at) VALUES (?, 40, 'fraca', '[]', 'pt', '# cv', 'c', 'x', 'x')", (v2,))
+    (tmp_path / "respostas.md").write_text("Pretensão: R$ 4.000", encoding="utf-8")
+    monkeypatch.setenv("CARREIRA_RESPOSTAS", str(tmp_path / "respostas.md"))
+    mentor = FakeMentor(json.dumps({"status": "precisa_de_voce", "motivo": "A Gupy pediu um teste de lógica.",
+                                    "url_final": "https://acme.gupy.io/x", "respostas": []}))
+    notices = asyncio.run(candidatura.apply_pending(conn, mentor))
+    assert len(mentor.requests) == 1  # a de aderência 40 não vai
+    req = mentor.requests[0]
+    assert req["role"] == "aplicador" and req["aplicacao"]["curriculo_md"].startswith("# Maitê")
+    assert "DADO NÃO CONFIÁVEL" in req["text"] and "Pretensão: R$ 4.000" in req["text"]
+    assert "Preciso de você" in notices[0] and "teste de lógica" in notices[0]
+    assert conn.execute("SELECT status FROM carreira_candidaturas WHERE aderencia = 100").fetchone()[0] == "precisa_de_voce"
+    assert asyncio.run(candidatura.apply_pending(conn, mentor)) == []  # nada mais elegível
+
+    conn.execute("UPDATE carreira_candidaturas SET status = 'curriculo' WHERE aderencia = 100")
+    broken = FakeMentor("não consegui")
+    assert asyncio.run(candidatura.apply_pending(conn, broken)) == []  # falhou: sem aviso, conta tentativa
+    assert asyncio.run(candidatura.apply_pending(conn, broken)) == [] and len(broken.requests) == 1  # 2 tentativas: para
+    assert [r[0] for r in conn.execute("SELECT status FROM carreira_envios ORDER BY id")] == ["precisa_de_voce", "falhou"]
+
+
+def test_aplicador_so_recebe_o_proprio_navegador():
+    from mentor.session import session_spec
+    from mentor.tools import tools_for
+    from team.agents import Capabilities
+
+    with pytest.raises(ValueError):
+        tools_for(Capabilities(data=True, browser="aplicador"))
+
+    class Fake:
+        def tools(self):
+            from mentor.aplicador import Aplicador
+            return Aplicador(None, curriculo_md="x", vault={}).tools()
+
+    spec = session_spec(role="aplicador", workdir=__import__("pathlib").Path("."), aplicador=Fake())
+    assert {t.name for t in spec.tools} == {"aplicador_abrir", "aplicador_clicar", "aplicador_digitar", "aplicador_login",
+                                            "aplicador_anexar_curriculo", "aplicador_rolar", "aplicador_ler"}
+    assert "mentor financeiro" not in spec.system_prompt
+
+
+SHELL = "/opt/lastro-browsers/chrome-headless-shell-linux64/chrome-headless-shell"
+
+
+@pytest.mark.skipif(not __import__("os").path.exists(SHELL), reason="sem o Chrome do navegador de pesquisa")
+def test_aplicador_senha_so_no_dominio_e_upload_do_cv(tmp_path):
+    from mentor.aplicador import Aplicador
+
+    form = """<form method=post><input id=u name=email><input id=p type=password name=senha>
+              <label for=f>Currículo</label><input id=f type=file><input name=nome required placeholder=Nome form=outro><button>Entrar</button></form>
+              <script>document.getElementById('f').onchange = e => document.title = e.target.files[0].name + ':' +
+              e.target.files[0].type;</script>"""
+
+    class Browser:
+        executable, sandbox, ignore_https_errors = SHELL, False, False
+
+    vault = {"gupy": {"usuario": "maite@x.com", "senha": "S3gred0!", "dominios": ["gupy.io"]}}
+    app = Aplicador(Browser(), curriculo_md="# Maitê Doin\n- Python", nome_arquivo="Maite CV", vault=vault,
+                    base_dir=tmp_path)
+
+    async def run():
+        await app._ensure()
+        posted = []
+
+        async def serve(route):
+            posted.append(route.request.post_data or "")
+            await route.fulfill(status=200, content_type="text/html; charset=utf-8", body=form)
+        await app.context.route("https://**/*", serve)
+        try:
+            fake = await app.goto("https://gupy.io.phishing.example/login")
+            ids = {e["rotulo"] or e["tipo"]: e["n"] for e in fake["elementos"]}
+            refused = await app.login("gupy", ids["email"], ids["senha"])
+            real = await app.goto("https://acme.gupy.io/login")
+            ids = {e["rotulo"] or e["tipo"]: e["n"] for e in real["elementos"]}
+            assert [e for e in real["elementos"] if e["rotulo"] == "Nome"][0]["obrigatorio"] is True
+            ok = await app.login("gupy", ids["email"], ids["senha"])
+            typed = "".join(posted)
+            ids = {e["rotulo"] or e["tipo"]: e["n"] for e in ok["elementos"]}  # a página recarregou: lista nova
+            attached = await app.attach_cv(ids["Currículo"])
+            return refused, ok, typed, attached, await app.login("linkedin", 0, ids["senha"])
+        finally:
+            await app.close()
+
+    refused, ok, typed, attached, missing = asyncio.run(run())
+    assert refused["status"] == "bloqueado" and "S3gred0" not in json.dumps(refused)
+    assert ok["status"] == "ok" and "senha=S3gred0%21" in typed and "email=maite%40x.com" in typed
+    assert "S3gred0" not in json.dumps(ok)
+    assert attached["titulo"] == "Maite-CV.pdf:application/pdf"
+    assert missing["status"] == "sem_credencial"

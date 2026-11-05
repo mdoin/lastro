@@ -56,6 +56,7 @@ MAX_LIMIT_WAIT_SECONDS = 24 * 3600
 # Prazo de cada tentativa de turno (sem contar a espera por vaga ou pelo limite do provedor).
 CHAT_DEADLINE_SECONDS = 600
 EPHEMERAL_DEADLINE_SECONDS = 420
+APLICADOR_DEADLINE_SECONDS = 900  # candidatura: login, formulário em várias etapas e upload do currículo
 PANEL_ROLES = {"diagnostico": "Diagnóstico e orçamento", "simulacao": "Simulação de futuro",
                "riscos": "Riscos e diversificação", "educacao": "Educação financeira"}
 OPTIONAL_ROLES = {"pesquisa": "Pesquisa em fontes oficiais"}
@@ -255,11 +256,12 @@ class MentorWorker:
             async def frames(image: str, url: str) -> None:  # tela ao vivo do navegador desta pesquisa
                 await emit({"type": "browser_frame", "image": image, "url": url})
             research = ResearchSession(self.browser, frame_sink=frames) if mode == "pesquisa_web" else None
+            aplicador = self._aplicador(req or {}, frames) if role == "aplicador" else None
             try:
                 lab = (req or {}).get("lab")
                 session = await self._open_session(lambda: emit, conn_id, model, role=role,
                                                    session_id=str(uuid.uuid4()), ephemeral=True, effort=effort,
-                                                   mode=mode, research=research,
+                                                   mode=mode, research=research, aplicador=aplicador,
                                                    lab={"research": bool(lab.get("research"))} if isinstance(lab, dict) else None)
                 try:
                     outcome = await session.send(context_header() + text, emit)
@@ -268,10 +270,22 @@ class MentorWorker:
             finally:
                 if research is not None:
                     await research.close()
+                if aplicador is not None:
+                    await aplicador.close()
             if research is not None:  # as fontes que as ferramentas de fato consultaram, para o orquestrador
                 outcome.tools = list(outcome.tools) + research.records()
             return outcome
-        return await self._run_with_limit_retry(emit, attempt, conn_id=conn_id)
+        deadline = APLICADOR_DEADLINE_SECONDS if role == "aplicador" else None
+        return await self._run_with_limit_retry(emit, attempt, deadline=deadline, conn_id=conn_id)
+
+    def _aplicador(self, req: dict, frames):
+        from .aplicador import Aplicador
+
+        if self.browser is None:
+            raise ProviderError("not_configured", "O navegador do worker não está configurado.")
+        job = req.get("aplicacao") or {}
+        return Aplicador(self.browser, curriculo_md=str(job.get("curriculo_md", ""))[:20000],
+                         nome_arquivo=str(job.get("nome_arquivo") or "curriculo"), frame_sink=frames)
 
     async def panel(self, req: dict, emit: Emit) -> None:
         question = str(req["question"])[:8000]

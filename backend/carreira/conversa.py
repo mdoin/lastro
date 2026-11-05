@@ -112,12 +112,12 @@ async def handle(conn, mentor: MentorClient | None, text: str) -> str:
         return HELP
     if plain == "vagas":
         rows = conn.execute(
-            "SELECT v.rowid AS n, v.title, v.company, c.aderencia FROM carreira_candidaturas c "
+            "SELECT v.rowid AS n, v.title, v.company, c.aderencia, c.status FROM carreira_candidaturas c "
             "JOIN carreira_vagas v ON v.id = c.vaga_id ORDER BY c.aderencia DESC, c.created_at DESC LIMIT 10").fetchall()
         if not rows:
             return "Ainda não há currículos prontos. Eles saem a cada ciclo, para as vagas compatíveis."
         return "*Candidaturas prontas*\n" + "\n".join(
-            f"#{r['n']} {r['title'][:80]} — {r['company'][:40]} · {r['aderencia']}%" for r in rows)
+            f"#{r['n']} {r['title'][:80]} — {r['company'][:40]} · {r['aderencia']}% · {r['status']}" for r in rows)
     if match := re.fullmatch(r"cv #?(\d+)", plain):
         vaga = _vaga(conn, match.group(1))
         if not vaga or vaga["curriculo_md"] is None:

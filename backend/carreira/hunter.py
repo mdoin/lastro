@@ -23,7 +23,7 @@ from app import db
 
 from app.mentor_client import MentorClient
 
-from . import alfaiate, carteiro, conversa, match, sources
+from . import alfaiate, candidatura, carteiro, conversa, match, sources
 
 log = logging.getLogger("lastro.carreira")
 INTERVAL_SECONDS = 6 * 3600
@@ -117,8 +117,15 @@ async def send_whatsapp(client: httpx.AsyncClient, cfg: dict, message: str) -> N
 async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None, mentor: MentorClient | None = None) -> dict:
     jobs, errors = await fetch_all(client)
     summary = {"vistas": len(jobs), "novas": store(conn, jobs), "erros": errors, "aviso": "sem novidade"}
+    applied = []
     if mentor is not None:
         summary["curriculos"] = len(await alfaiate.tailor_pending(conn, mentor))
+        if (now or datetime.now(TZ)).hour in NOTIFY_HOURS:  # candidatura de dia: o aviso de "preciso de você" chega a tempo
+            applied = await candidatura.apply_pending(conn, mentor)
+            summary["candidaturas"] = len(applied)
+    if applied and (cfg := evolution_config()):
+        for text in applied:
+            await send_whatsapp(client, cfg, text)
     digest = pending_digest(conn)
     if digest is None:
         return summary
