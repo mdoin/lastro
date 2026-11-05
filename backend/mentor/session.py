@@ -20,6 +20,7 @@ MAX_TURNS = {"coordenador": 25, "pesquisa": 8, "rotina": 12, "sintese": 4,
 DEFAULT_MAX_TURNS = 8
 RESEARCH_TURNS = 16  # busca → abrir → localizar → conferir outra fonte: precisa de mais idas e voltas
 CHAT_MODES = ("direto", "grupo", "conversa")  # conversa com a pessoa (não reunião, auditoria ou rotina)
+CAREER_ROLES = ("alfaiate",)
 ROLES = ("coordenador", "diagnostico", "simulacao", "educacao", "pesquisa", "sintese", "rotina", *AGENTS)
 
 
@@ -32,6 +33,8 @@ def load_prompt(role: str, mode: str | None = None) -> str:
     file = spec.prompt if spec else f"{role}.md"
     if spec and spec.chat_prompt and (mode in CHAT_MODES or mode == "pesquisa_web"):
         file = spec.chat_prompt
+    if role in CAREER_ROLES:  # Carreira não é mentoria financeira: só as próprias regras, sem _base nem equipe
+        return (PROMPTS / file).read_text(encoding="utf-8")
     # Camadas: regras comuns (_base), quem é você (equipe + identidade), seu papel e a situação (modo).
     identity = PROMPTS / "identidades" / f"{role}.md"
     parts = [PROMPTS / "_base.md", *([identity] if identity.exists() else []), PROMPTS / file] \

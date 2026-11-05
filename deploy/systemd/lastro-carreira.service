@@ -8,7 +8,11 @@ Wants=network-online.target
 [Service]
 User=patrimonio
 Group=patrimonio
+# Fala com o worker do mentor (agente alfaiate) pelo mesmo socket do web app.
+SupplementaryGroups=lastro-sock
 Environment=LASTRO_DB=/var/lib/patrimonio/lastro.db
+Environment=LASTRO_MENTOR_SOCKET=/run/lastro-mentor/mentor.sock
+Environment=CARREIRA_PERFIL=/var/lib/patrimonio/carreira/perfil.md
 # CARREIRA_EVOLUTION_URL (https), _KEY, _INSTANCE e CARREIRA_WHATSAPP_TO; arquivo 0640 root:patrimonio.
 EnvironmentFile=-/etc/meu-patrimonio/carreira.env
 WorkingDirectory=/opt/meu-patrimonio/backend

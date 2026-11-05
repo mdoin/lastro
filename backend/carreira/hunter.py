@@ -21,7 +21,9 @@ import httpx
 
 from app import db
 
-from . import match, sources
+from app.mentor_client import MentorClient
+
+from . import alfaiate, match, sources
 
 log = logging.getLogger("lastro.carreira")
 INTERVAL_SECONDS = 6 * 3600
@@ -71,7 +73,8 @@ def pending_digest(conn) -> tuple[str, list[str]] | None:
     picked = []
     for verdict, limit in zip(("compativel", "talvez"), MAX_PER_DIGEST):
         picked += conn.execute(
-            "SELECT * FROM carreira_vagas WHERE status = 'nova' AND verdict = ? ORDER BY score DESC, first_seen "
+            "SELECT v.*, c.aderencia, c.resumo FROM carreira_vagas v LEFT JOIN carreira_candidaturas c "
+            "ON c.vaga_id = v.id WHERE v.status = 'nova' AND v.verdict = ? ORDER BY v.score DESC, v.first_seen "
             "LIMIT ?", (verdict, limit)).fetchall()
     if not picked:
         return None
@@ -81,8 +84,10 @@ def pending_digest(conn) -> tuple[str, list[str]] | None:
         if rows:
             lines.append(f"\n*{header}*")
         for n, row in enumerate(rows, 1):
+            fit = (f"\n   Aderência {row['aderencia']}%, currículo sob medida pronto: {row['resumo'][:200]}"
+                   if row["aderencia"] is not None else "")
             lines.append(f"{n}. {row['title'][:120]} — {row['company'][:60] or 'empresa não informada'}\n"
-                         f"   {'; '.join(json.loads(row['reasons_json']))}\n   {row['url']}")
+                         f"   {'; '.join(json.loads(row['reasons_json']))}{fit}\n   {row['url']}")
     return "\n".join(lines), [r["id"] for r in picked]
 
 
@@ -109,9 +114,11 @@ async def send_whatsapp(client: httpx.AsyncClient, cfg: dict, message: str) -> N
     response.raise_for_status()
 
 
-async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None) -> dict:
+async def run_once(conn, client: httpx.AsyncClient, now: datetime | None = None, mentor: MentorClient | None = None) -> dict:
     jobs, errors = await fetch_all(client)
     summary = {"vistas": len(jobs), "novas": store(conn, jobs), "erros": errors, "aviso": "sem novidade"}
+    if mentor is not None:
+        summary["curriculos"] = len(await alfaiate.tailor_pending(conn, mentor))
     digest = pending_digest(conn)
     if digest is None:
         return summary
@@ -138,10 +145,12 @@ async def main() -> None:
     args = parser.parse_args()
     conn = db.connect(Path(os.environ.get("LASTRO_DB", "/var/lib/patrimonio/lastro.db")))
     db.migrate(conn)
+    socket = os.environ.get("LASTRO_MENTOR_SOCKET")
+    mentor = MentorClient(Path(socket)) if socket else None  # sem o worker, só caça e avisa
     while True:
         async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), follow_redirects=False) as client:
             try:
-                log.info("ciclo: %s", await run_once(conn, client))
+                log.info("ciclo: %s", await run_once(conn, client, mentor=mentor))
             except Exception:  # noqa: BLE001 — o serviço segue; o próximo ciclo tenta de novo
                 log.exception("ciclo falhou")
         if not args.loop:

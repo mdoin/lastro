@@ -7,7 +7,7 @@ faz a candidatura, acompanha o processo e treina para a entrevista.
 | Fase | O que faz | Estado |
 |---|---|---|
 | 1. Caçador | Busca vagas públicas, avalia pelas regras e manda um resumo no WhatsApp | feito |
-| 2. Alfaiate | Currículo por vaga a partir do currículo base, sem inventar experiência | planejado |
+| 2. Alfaiate | Currículo por vaga a partir do currículo base, sem inventar experiência | feito |
 | 3. Aplicador | Candidatura pelo navegador próprio do agente, com logins guardados em cofre | planejado |
 | 4. Carteiro | Lê o e-mail de candidaturas, detecta avanços e testes e avisa | planejado |
 | 5. Treinador | Entrevista simulada sobre a vaga que avançou | planejado |
@@ -42,3 +42,12 @@ A URL precisa ser HTTPS (a chave da Evolution não pode trafegar aberta), exceto
 roda neste servidor. Na instância de referência ela fica em `/opt/evolution` (Docker Compose, v2.3.7, Postgres e
 Redis, porta 8081 só no loopback) e o arquivo usa o token da instância `lastro`, não a chave global. Sem o arquivo, as vagas ficam guardadas e
 saem no primeiro aviso possível.
+
+## Fase 2: alfaiate (`backend/carreira/alfaiate.py`, agente interno `alfaiate`)
+- A cada ciclo, até 3 vagas compatíveis sem candidatura vão para o agente `alfaiate` no worker do mentor (operação
+  `ephemeral`, sem ferramentas, prompt próprio sem as regras financeiras do Lastro).
+- Entrada: o perfil do dono (`/var/lib/patrimonio/carreira/perfil.md`, 0600, fora do repositório: a única fonte
+  sobre a pessoa) e o texto da vaga marcado como dado não confiável.
+- Saída conferida antes de gravar em `carreira_candidaturas` (migração 016): aderência 0–100, resumo, até 5
+  lacunas com dica de estudo, idioma, currículo em Markdown e carta curta. Resposta inválida não grava e a vaga
+  volta no próximo ciclo. O aviso no WhatsApp mostra a aderência das vagas já adaptadas.

@@ -33,6 +33,10 @@ IMPORT_ALLOWLIST = {
     # só GET em https público, IP conferido e fixado (sem loopback/privado/metadados), só na sessão de pesquisa sem
     # dados do dono; garantido por tests/integration/test_research.py
     "mentor/research.py": {"httpx", "socket"},
+    # Carreira: serviço próprio (lastro-carreira), sem modelo e sem dados financeiros; só GET em sites públicos de
+    # vagas (https, sem seguir redirecionamento) e POST na Evolution do dono (https, ou 127.0.0.1 no mesmo servidor)
+    "carreira/sources.py": {"httpx"},
+    "carreira/hunter.py": {"httpx"},
     "ledger/ocr.py": {"subprocess"},  # só o binário local tesseract, argumentos fixos, stdin, prazo; sem shell nem rede
 }
 
