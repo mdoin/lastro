@@ -16,7 +16,8 @@ from urllib.parse import urlsplit
 from app import db
 
 # Prazo além do qual uma execução ainda "executando" é tratada como travada (o timeout de cada agente + folga).
-STALE_SECONDS = {"busca": 1800, "curriculo": 600, "candidatura": 1500, "perfil": 1500}
+STALE_SECONDS = {"busca": 1800, "curriculo": 600, "candidatura": 1500, "perfil": 1500, "avaliacao": 300,
+                 "revisao": 400, "analise": 120}
 # Envios que impedem nova tentativa na mesma vaga ou numa duplicata dela.
 BLOCKING = ("candidatada", "incerta", "precisa_de_voce")
 ETAPA_ORDEM = {"em_analise": 1, "teste": 2, "entrevista": 3, "proposta": 4}
