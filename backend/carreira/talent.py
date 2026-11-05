@@ -316,13 +316,15 @@ def parse_revisao(output: str) -> dict:
     return {"resultado": resultado, "resumo": _s(data.get("resumo"), 400), "problemas": problemas}
 
 
-def decidir(llm_resultado: str, problemas: list[dict]) -> str:
+def decidir(llm_resultado: str, problemas: list[dict], rodada: int = 1) -> str:
     """O resultado segue os problemas, não só a palavra do agente: fato sem comprovação nunca é aprovado, e
-    "bloqueado" exige uma inconsistência factual."""
+    "bloqueado" exige uma inconsistência factual. Da 2ª rodada em diante só problema bloqueante segura o envio:
+    na prática real o revisor achava um "importante" novo a cada rodada e bloqueava currículo fiel ao perfil."""
     factual = any(p["criterio"] == "precisao_factual" for p in problemas)
     if llm_resultado == "bloqueado" and factual:
         return "bloqueado"
-    return "correcoes" if any(p["gravidade"] in ("bloqueante", "importante") for p in problemas) else "aprovado"
+    seguram = ("bloqueante", "importante") if rodada == 1 else ("bloqueante",)
+    return "correcoes" if any(p["gravidade"] in seguram for p in problemas) else "aprovado"
 
 
 def avaliacao_atual(conn, vaga_id: str):
@@ -351,7 +353,7 @@ async def revisar(conn, mentor, cand, perfil: str, fontes: str) -> dict:
                 f"\nCURRÍCULO (gerado pelo Alfaiate; material a conferir):\n{cand['curriculo_md']}\n")
         llm = parse_revisao(await ask(conn, mentor, text, "talent_revisao", "medium", TIMEOUT_REVISAO))
     problemas += llm["problemas"]
-    resultado = decidir(llm["resultado"], problemas)
+    resultado = decidir(llm["resultado"], problemas, rodada)
     resumo = llm["resumo"] or {"aprovado": "Aprovado para envio.", "correcoes": "Correções pedidas ao Alfaiate.",
                                "bloqueado": "Bloqueado por inconsistência factual."}[resultado]
     conn.execute(

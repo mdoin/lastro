@@ -85,7 +85,8 @@ decisão. Fluxo de cada vaga, numa volta da fila:
 1. **Caçador** encontra e aplica as regras do dono (`match.py`): só "compatível" segue.
 2. **Talent avalia** (`talent_avaliacao`, esforço baixo): extrai requisitos da vaga e liga cada um a um trecho
    literal do perfil. Trecho que não está no perfil derruba o requisito para "ausente". O código aplica os
-   **filtros obrigatórios** (regras do dono e a mesma regra de senioridade lida na descrição) e calcula a
+   **filtros obrigatórios** (regras do dono e a mesma regra de senioridade lida na descrição — só a palavra
+   escrita, júnior/pleno/sênior; "2+ anos" não vira "pleno", vai para o critério de experiência) e calcula a
    **rubrica**; o agente não dá nota. Elegível = todos os filtros ok e compatibilidade ≥ 60. Não elegível fica
    registrado com o motivo e não vai ao Alfaiate.
 3. **Alfaiate** recebe a orientação do Talent (perfil de currículo, posicionamento, o que destacar e por quê,
@@ -96,7 +97,9 @@ decisão. Fluxo de cada vaga, numa volta da fila:
    contato. Se o código já achou fato sem comprovação, a correção sai sem chamar o modelo. Senão, o agente revisa
    precisão factual, relevância, clareza, realizações, competências, estrutura e ATS. Resultado: aprovado,
    correções (devolvidas ao Alfaiate com instruções executáveis) ou bloqueado por inconsistência factual.
-   Fato sem comprovação nunca é aprovado; problemas "menores" não seguram o envio.
+   Fato sem comprovação nunca é aprovado; problemas "menores" não seguram o envio, e da 2ª rodada em diante só
+   problema bloqueante (factual) segura: no teste com dados reais (2026-11-05) o revisor achava um "importante"
+   novo a cada rodada e chegou a bloquear um currículo que ele mesmo chamou de fiel ao perfil.
    **Limites:** até 3 revisões por vaga; a mesma afirmação sem comprovação repetida após a correção bloqueia na
    hora ("sem progresso"); 2 respostas inválidas do Talent ou do Alfaiate na mesma vaga bloqueiam. Bloqueada, a
    candidatura vira `falhou`, aparece em "Próximas ações" com o motivo e o dono recebe o aviso no WhatsApp.

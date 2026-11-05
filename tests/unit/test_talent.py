@@ -214,6 +214,10 @@ def test_decisao_nao_aprova_fato_sem_comprovacao_e_recusa_reprovacao_generica():
     assert talent.decidir("bloqueado", factual) == "bloqueado"
     menor = [{"criterio": "clareza", "gravidade": "menor", "trecho": "", "correcao": "x" * 30}]
     assert talent.decidir("correcoes", menor) == "aprovado"  # ajuste fino não segura o envio nem gera ciclo
+    importante = [{**menor[0], "gravidade": "importante"}]
+    assert talent.decidir("correcoes", importante) == "correcoes"
+    assert talent.decidir("correcoes", importante, rodada=2) == "aprovado"  # depois da 1ª correção, só fato segura
+    assert talent.decidir("aprovado", factual, rodada=3) == "correcoes"
     with pytest.raises(ValueError):
         talent.parse_revisao(json.dumps({"resultado": "correcoes", "resumo": "x", "problemas": [
             {"criterio": "clareza", "gravidade": "importante", "trecho": "", "correcao": "Melhorar o currículo"}]}))
@@ -264,8 +268,8 @@ def test_sem_progresso_bloqueia_e_avisa(tmp_path):
 def test_limite_de_rodadas(tmp_path):
     conn = preparar_candidatura(tmp_path, CV_OK)
     reprova = [json.dumps({"resultado": "correcoes", "resumo": f"rodada {i}", "problemas": [
-        {"criterio": "competencias", "gravidade": "importante", "trecho": f"trecho {i}",
-         "correcao": f"Subir FastAPI para a primeira linha do resumo (pedido {i})."}]}) for i in range(5)]
+        {"criterio": "precisao_factual", "gravidade": "bloqueante", "trecho": f"trecho {i}",
+         "correcao": f"Retirar a afirmação {i}: o perfil não mostra esse resultado."}]}) for i in range(5)]
     mentor = Mentor(alfaiate=[ALFAIATE(CV_OK + f"\n- versão {v}") for v in "abcde"], talent_revisao=reprova)
     avisos = run(talent.revisar_pendentes(conn, mentor))
     assert mentor.kinds().count("talent_revisao") == talent.MAX_RODADAS
