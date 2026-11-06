@@ -17,6 +17,7 @@ import html
 import json
 import os
 import re
+import secrets
 import time
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -40,6 +41,10 @@ GOOGLE_BLOCKED = ("mail.google.com", "inbox.google.com", "drive.google.com", "do
                   "payments.google.com", "pay.google.com", "passwords.google.com", "keep.google.com",
                   "chat.google.com", "meet.google.com", "admin.google.com", "gmail.com")
 VIEWPORT = {"width": 1280, "height": 900}
+# Pedidos de código de verificação por e-mail esperando resposta do serviço da Carreira (operação `codigo` do
+# worker). O worker não tem acesso ao e-mail: quem lê o Gmail, só do remetente da plataforma, é o lastro-carreira.
+CODIGOS: dict[str, asyncio.Future] = {}
+CODE_WAIT_SECONDS = 180
 
 # Como ELEMENTS_JS do navegador de pesquisa, mas com o rótulo (<label>), obrigatoriedade e valor dos campos.
 FORM_JS = """(max) => {
@@ -117,11 +122,12 @@ def markdown_html(md: str) -> str:
 class Aplicador:
     def __init__(self, browser, *, curriculo_md: str, nome_arquivo: str = "curriculo", frame_sink=None,
                  vault: dict | None = None, base_dir: Path | None = None, restrict_google: bool = True,
-                 arquivos: dict[str, bytes] | None = None):
+                 arquivos: dict[str, bytes] | None = None, code_request=None):
         self.browser, self.curriculo_md, self.frame_sink = browser, curriculo_md, frame_sink
         # Documento exato da versão (PDF/DOCX gerados e validados pela Carreira); sem ele, o Markdown vira PDF aqui.
         self.arquivos = arquivos or {}
         self.anexos: list[str] = []
+        self.code_request = code_request  # emite o pedido de código para quem abriu a sessão (lastro-carreira)
         self.restrict_google = restrict_google
         self.nome_arquivo = re.sub(r"[^A-Za-z0-9_-]+", "-", nome_arquivo)[:60] or "curriculo"
         self.vault = load_vault() if vault is None else vault
@@ -250,6 +256,24 @@ class Aplicador:
 
     async def scroll(self, down: bool = True) -> dict:
         return await self._act(lambda page: page.evaluate(f"window.scrollBy(0, {'' if down else '-'}innerHeight * 0.85)"))
+
+    async def email_code(self, platform: str) -> dict:
+        """Pede ao serviço da Carreira o código que a plataforma acabou de mandar por e-mail e espera a resposta."""
+        if self.code_request is None:
+            return {"status": "sem_codigo", "detalhe": "Esta sessão não recebe códigos por e-mail."}
+        request_id = secrets.token_hex(8)
+        future = CODIGOS[request_id] = asyncio.get_running_loop().create_future()
+        try:
+            await self.code_request({"type": "codigo_email", "id": request_id, "plataforma": platform[:40]})
+            code = await asyncio.wait_for(future, CODE_WAIT_SECONDS)
+        except TimeoutError:
+            code = ""
+        finally:
+            CODIGOS.pop(request_id, None)
+        if not code:
+            return {"status": "sem_codigo", "detalhe": "O código não chegou ao e-mail (ou o limite diário de logins por "
+                    "código desta plataforma acabou). Pare com precisa_de_voce."}
+        return {"status": "ok", "codigo": code, "detalhe": "Digite o código no campo da verificação e continue."}
 
     async def read(self) -> dict:
         async def nothing(_page):  # a ação é só ler: _act devolve o estado da página
@@ -470,8 +494,16 @@ class Aplicador:
         async def aplicador_ler(_args: dict) -> dict:
             return as_tool(await app.read())
 
+        @tool("aplicador_codigo_email", "Quando a plataforma pede o código de verificação que ACABOU de mandar para o "
+              "e-mail da pessoa: espera o e-mail chegar (até 3 min) e devolve o código para você digitar. Só para "
+              "códigos por e-mail (não SMS, app ou CAPTCHA); um por plataforma por dia.",
+              {"type": "object", "properties": {"plataforma": {"type": "string"}}, "required": ["plataforma"],
+               "additionalProperties": False}, open_world=True)
+        async def aplicador_codigo_email(args: dict) -> dict:
+            return as_tool(await app.email_code(str(args.get("plataforma", "")).lower()))
+
         return [aplicador_abrir, aplicador_clicar, aplicador_digitar, aplicador_login, aplicador_anexar_curriculo,
-                aplicador_rolar, aplicador_ler]
+                aplicador_rolar, aplicador_ler, aplicador_codigo_email]
 
 
 MANUAL_KEYS = ("Enter", "Backspace", "Tab", "Escape", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space")

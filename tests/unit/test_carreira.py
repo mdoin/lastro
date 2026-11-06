@@ -414,7 +414,8 @@ def test_aplicador_so_recebe_o_proprio_navegador():
 
     spec = session_spec(role="aplicador", workdir=__import__("pathlib").Path("."), aplicador=Fake())
     assert {t.name for t in spec.tools} == {"aplicador_abrir", "aplicador_clicar", "aplicador_digitar", "aplicador_login",
-                                            "aplicador_anexar_curriculo", "aplicador_rolar", "aplicador_ler"}
+                                            "aplicador_anexar_curriculo", "aplicador_rolar", "aplicador_ler",
+                                            "aplicador_codigo_email"}  # pede o código; o e-mail fica fora do worker
     assert "mentor financeiro" not in spec.system_prompt
 
 
@@ -724,3 +725,53 @@ def test_interacao_direta_clique_acento_backspace_e_ctrl_a(tmp_path):
             await app.close()                                                 # fecha no MESMO loop que abriu
 
     assert asyncio.run(run()) == ("café", "caf", "x")
+
+
+def test_codigo_por_email_so_assinado_pela_plataforma_e_um_por_dia(monkeypatch):
+    import email as email_lib
+
+    from carreira import candidatura, carteiro
+
+    def msg(dkim: str, body="Seu código de verificação é 482913. Ele expira em 15 minutos."):
+        return email_lib.message_from_string(f"Authentication-Results: mx.google.com; {dkim}\nFrom: LinkedIn "
+                                             f"<security-noreply@linkedin.com>\nSubject: Código\n\n{body}")
+    ok = msg("dkim=pass header.i=@linkedin.com header.s=x; spf=pass")
+    assert carteiro.extract_code(ok, ("linkedin.com",)) == "482913"
+    assert carteiro.extract_code(msg("dkim=pass header.i=@e.linkedin.com"), ("linkedin.com",)) == "482913"
+    for forged in ("dkim=fail header.i=@linkedin.com", "dkim=pass header.d=linkedin.com.evil.io",
+                   "dkim=pass header.i=@evil-linkedin.com", "spf=pass"):
+        assert carteiro.extract_code(msg(forged), ("linkedin.com",)) is None, forged
+    assert carteiro.extract_code(ok, ("gupy.io",)) is None  # código de outra plataforma não serve
+
+    calls, found = [], []
+    monkeypatch.setattr(carteiro, "gmail_config", lambda: ("eu@gmail.com", "senha-de-app"))
+    monkeypatch.setattr(carteiro, "fetch_code", lambda u, p, domains, since: found.append(domains) or "482913")
+    monkeypatch.setattr(candidatura, "_codes_used", {})
+
+    class Mentor:
+        async def call(self, request, timeout=15):
+            calls.append(request)
+            return {"type": "done"}
+
+    asyncio.run(candidatura.answer_code(Mentor(), {"id": "a1", "plataforma": "LinkedIn"}, poll_seconds=0))
+    asyncio.run(candidatura.answer_code(Mentor(), {"id": "a2", "plataforma": "linkedin"}, poll_seconds=0))
+    asyncio.run(candidatura.answer_code(Mentor(), {"id": "a3", "plataforma": "orkut"}, poll_seconds=0))
+    assert found == [("linkedin.com",)]  # o segundo do dia e a plataforma desconhecida nem leem o e-mail
+    assert [(c["op"], c["id"], c["codigo"]) for c in calls] == [("codigo", "a1", "482913"), ("codigo", "a2", ""),
+                                                                 ("codigo", "a3", "")]
+
+
+def test_ferramenta_de_codigo_espera_a_resposta_do_servico():
+    from mentor import aplicador
+
+    async def go():
+        async def request(event):  # o serviço da Carreira responde pela operação `codigo` do worker
+            assert event["type"] == "codigo_email" and event["plataforma"] == "gupy"
+            aplicador.CODIGOS[event["id"]].set_result("771204")
+        app = aplicador.Aplicador(None, curriculo_md="", vault={}, code_request=request)
+        sem = aplicador.Aplicador(None, curriculo_md="", vault={})
+        return await app.email_code("gupy"), await sem.email_code("gupy")
+
+    got, without = asyncio.run(go())
+    assert got["status"] == "ok" and got["codigo"] == "771204" and not aplicador.CODIGOS
+    assert without["status"] == "sem_codigo"

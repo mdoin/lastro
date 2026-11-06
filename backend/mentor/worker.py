@@ -259,7 +259,7 @@ class MentorWorker:
                 await emit({"type": "browser_frame", "image": image, "url": url})
             research = ResearchSession(self.browser, frame_sink=frames,
                                        computer=role if computador.enabled() else None) if mode == "pesquisa_web" else None
-            aplicador = self._aplicador(req or {}, frames) if role == "aplicador" else None
+            aplicador = self._aplicador(req or {}, frames, emit) if role == "aplicador" else None
             try:
                 lab = (req or {}).get("lab")
                 session = await self._open_session(lambda: emit, conn_id, model, role=role,
@@ -283,7 +283,7 @@ class MentorWorker:
         deadline = APLICADOR_DEADLINE_SECONDS if role == "aplicador" else None
         return await self._run_with_limit_retry(emit, attempt, deadline=deadline, conn_id=conn_id)
 
-    def _aplicador(self, req: dict, frames):
+    def _aplicador(self, req: dict, frames, emit: Emit):
         from .aplicador import Aplicador
 
         if self.browser is None:
@@ -291,7 +291,8 @@ class MentorWorker:
         job = req.get("aplicacao") or {}
         arquivos = {fmt: base64.b64decode(job[f"{fmt}_b64"]) for fmt in ("pdf", "docx") if job.get(f"{fmt}_b64")}
         return Aplicador(self.browser, curriculo_md=str(job.get("curriculo_md", ""))[:20000],
-                         nome_arquivo=str(job.get("nome_arquivo") or "curriculo"), frame_sink=frames, arquivos=arquivos)
+                         nome_arquivo=str(job.get("nome_arquivo") or "curriculo"), frame_sink=frames, arquivos=arquivos,
+                         code_request=emit)
 
     async def panel(self, req: dict, emit: Emit) -> None:
         question = str(req["question"])[:8000]
@@ -374,6 +375,15 @@ class MentorWorker:
         data = await asyncio.wait_for(self.browser.pdf(str(req["html"])[:200_000]), timeout=60)
         await emit({"type": "done", "pdf": base64.b64encode(data).decode()})
 
+    async def codigo(self, req: dict, emit: Emit) -> None:
+        """Resposta do serviço da Carreira a um pedido de código por e-mail do aplicador (o código não vai para log)."""
+        from .aplicador import CODIGOS
+
+        future = CODIGOS.get(str(req.get("id", "")))
+        if future is not None and not future.done():
+            future.set_result(re.sub(r"\D", "", str(req.get("codigo") or ""))[:10])
+        await emit({"type": "done", "entregue": future is not None})
+
     async def providers(self, req: dict, emit: Emit) -> None:
         await emit({"type": "done", **await self.admin.handle(req)})
 
@@ -432,7 +442,7 @@ class MentorWorker:
             req = json.loads(line)
             op = {"turn": self.turn, "ephemeral": self.ephemeral, "panel": self.panel, "interrupt": self.interrupt,
                   "status": self.status, "providers": self.providers, "navegador": self.navegador,
-                  "pdf": self.pdf}.get(req.get("op"))
+                  "pdf": self.pdf, "codigo": self.codigo}.get(req.get("op"))
             if op is None:
                 raise ValueError("operação desconhecida")
             await op(req, emit)

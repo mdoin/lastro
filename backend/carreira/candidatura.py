@@ -12,12 +12,13 @@ import json
 import logging
 import os
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app import db
 from app.mentor_client import MentorClient
 
-from . import alfaiate, curriculo, documento, registro, sources
+from . import alfaiate, carteiro, curriculo, documento, registro, sources
 
 log = logging.getLogger("lastro.carreira")
 MIN_ADERENCIA = 60
@@ -73,6 +74,29 @@ PLATFORMS = {"gupy": "https://www.gupy.io/", "linkedin": "https://www.linkedin.c
 
 
 base_cv = registro.curriculo_base_md
+CODES_PER_DAY = 1  # logins por código de e-mail por plataforma por dia (conta marcada como suspeita não insiste)
+_codes_used: dict[tuple[str, str], int] = {}  # shortcut: contagem em memória, zera se o serviço reiniciar
+
+
+async def answer_code(mentor: MentorClient, event: dict, poll_seconds: int = 15, tries: int = 10) -> None:
+    """Pedido do aplicador: acha no Gmail o código que a plataforma acabou de mandar e devolve ao worker."""
+    platform = str(event.get("plataforma", "")).lower()
+    domains, cfg = carteiro.CODE_SENDERS.get(platform), carteiro.gmail_config()
+    key = (platform, db.utcnow()[:10])
+    code = None
+    if domains and cfg and _codes_used.get(key, 0) < CODES_PER_DAY:
+        _codes_used[key] = _codes_used.get(key, 0) + 1
+        since = datetime.now(timezone.utc) - timedelta(minutes=5)  # o e-mail pode ter saído antes do pedido
+        for attempt in range(tries):
+            try:
+                code = await asyncio.to_thread(carteiro.fetch_code, *cfg, domains, since)
+            except Exception as exc:  # noqa: BLE001 — Gmail fora do ar: tenta na próxima volta da espera
+                log.warning("código de %s: Gmail falhou (%s)", platform, type(exc).__name__)
+            if code or attempt == tries - 1:
+                break
+            await asyncio.sleep(poll_seconds)
+    log.info("código de verificação de %s: %s", platform, "encontrado" if code else "não encontrado")  # nunca o código
+    await mentor.call({"op": "codigo", "id": event.get("id"), "codigo": code or ""}, timeout=15)
 
 
 def liberado(conn) -> bool:
@@ -117,16 +141,22 @@ async def run(mentor: MentorClient, text: str, curriculo_md: str, mode: str | No
                  **{f"{fmt}_b64": base64.b64encode(data).decode() for fmt, data in (arquivos or {}).items() if data}}
     request = {"op": "ephemeral", "role": "aplicador", "text": text, "effort": "medium", "aplicacao": aplicacao,
                **({"mode": mode} if mode else {})}
-    output, failed, seen, anexos = "", None, False, []
-    async for event in mentor.stream(request):
-        if event.get("type") == "done":
-            output = event.get("text") or ""
-            anexos = [t["anexo"] for t in event.get("tools") or [] if isinstance(t, dict) and t.get("anexo")]
-        elif event.get("type") == "error":
-            if not seen and event.get("kind") == "network":  # worker fora do ar (o cliente não lança): nada foi feito
-                raise ConnectionRefusedError(event.get("message") or "worker indisponível")
-            failed = event.get("message") or "falha"
-        seen = True
+    output, failed, seen, pending_codes, anexos = "", None, False, [], []
+    try:
+        async for event in mentor.stream(request):
+            if event.get("type") == "codigo_email":  # responde em paralelo: o stream segue com a tela ao vivo
+                pending_codes.append(asyncio.create_task(answer_code(mentor, event)))
+            elif event.get("type") == "done":
+                output = event.get("text") or ""
+                anexos = [t["anexo"] for t in event.get("tools") or [] if isinstance(t, dict) and t.get("anexo")]
+            elif event.get("type") == "error":
+                if not seen and event.get("kind") == "network":  # worker fora do ar (o cliente não lança): nada feito
+                    raise ConnectionRefusedError(event.get("message") or "worker indisponível")
+                failed = event.get("message") or "falha"
+            seen = True
+    finally:
+        for task in pending_codes:  # a sessão acabou: ninguém mais espera o código
+            task.cancel()
     if failed or not output:
         raise RuntimeError(failed or "resposta vazia")
     result = parse(output, require_evidence=mode is None)  # atualizar perfil não é candidatura

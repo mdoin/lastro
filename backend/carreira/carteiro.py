@@ -78,6 +78,52 @@ def relevant(sender: str, subject: str, companies: list[str]) -> bool:
                 or any(c and len(c) > 3 and c.lower() in head.lower() for c in companies))
 
 
+# Domínios que assinam (DKIM) os e-mails de código de cada plataforma: remetente forjado não passa.
+CODE_SENDERS = {"linkedin": ("linkedin.com",), "gupy": ("gupy.io", "gupy.com.br"), "indeed": ("indeed.com",),
+                "catho": ("catho.com.br",), "infojobs": ("infojobs.com.br",), "vagas": ("vagas.com.br",),
+                "programathor": ("programathor.com.br",)}
+_CODE = re.compile(r"(?:c[óo]digo|code|pin|verifica\w*)\D{0,80}?\b(\d{4,8})\b", re.I | re.S)
+
+
+def extract_code(msg: email.message.Message, domains: tuple[str, ...]) -> str | None:
+    """Código de verificação de um e-mail assinado (DKIM) por um dos domínios; senão None."""
+    auth = " ".join(msg.get_all("Authentication-Results") or [])
+    if not any(re.search(rf"dkim=pass[^;]*header\.(?:i|d)=@?(?:[\w-]+\.)*{re.escape(d)}(?![\w.-])", auth, re.I) for d in domains):
+        return None
+    found = _CODE.search(f"{_header(msg.get('Subject'))}\n{body_text(msg)}")
+    return found.group(1) if found else None
+
+
+def fetch_code(user: str, password: str, domains: tuple[str, ...], since: datetime) -> str | None:
+    """Código mais novo das plataformas `domains` chegado depois de `since`. Bloqueante: rode em thread.
+    Só lê (BODY.PEEK); nada é guardado nem registrado além de "achou ou não"."""
+    imap = imaplib.IMAP4_SSL("imap.gmail.com", 993, timeout=30)
+    try:
+        imap.login(user, password)
+        imap.select("INBOX", readonly=True)
+        uids = set()
+        for domain in domains:
+            _, data = imap.uid("SEARCH", None, "SINCE", since.strftime("%d-%b-%Y"), "FROM", domain)
+            uids.update(int(u) for u in data[0].split())
+        for uid in sorted(uids, reverse=True)[:5]:
+            _, parts = imap.uid("FETCH", str(uid), "(BODY.PEEK[])")
+            raw = next((p[1] for p in parts if isinstance(p, tuple)), None)
+            msg = email.message_from_bytes(raw) if raw else None
+            sent = email.utils.parsedate_to_datetime(msg.get("Date")) if msg and msg.get("Date") else None
+            if sent is not None and sent.tzinfo is None:
+                sent = sent.replace(tzinfo=timezone.utc)
+            if sent is None or sent < since:
+                continue
+            if code := extract_code(msg, domains):
+                return code
+        return None
+    finally:
+        try:
+            imap.logout()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def fetch_new(user: str, password: str, cursor: str | None) -> tuple[list[dict], str]:
     """E-mails novos do INBOX desde o cursor ("<uidvalidity>:<uid>"). Bloqueante: rode em thread."""
     imap = imaplib.IMAP4_SSL("imap.gmail.com", 993, timeout=30)
