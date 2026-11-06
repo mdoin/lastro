@@ -17,6 +17,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from typing import Literal
 
@@ -33,7 +34,7 @@ from radar.engine import Radar
 
 from crypto.service import Monitor as CryptoMonitor
 
-from . import (admin, auth, carreira_web, computador_web, curriculos_web, convictions, crypto_web, db, diary_web, lab_web, ledger_web, providers_web, radar_web, routines,
+from . import (admin, auth, carreira_web, computador_web, contas_web, curriculos_web, convictions, crypto_web, db, diary_web, lab_web, ledger_web, providers_web, radar_web, routines,
                setup, store, views)
 from .orchestrator import Orchestrator
 from .mentor_client import MentorClient
@@ -229,6 +230,12 @@ def create_app(settings: Settings) -> FastAPI:
     app.state.conn, app.state.turns, app.state.scheduler = conn, turns, scheduler
     app.state.orchestrator, app.state.radar, app.state.crypto = orchestrator, radar, crypto_monitor
     app.state.lab = lab
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_body(_request: Request, exc: RequestValidationError):
+        # o 422 padrão devolve o valor enviado (`input`): uma senha ou chave voltaria na resposta
+        return JSONResponse({"detail": [{"loc": e.get("loc"), "msg": e.get("msg"), "type": e.get("type")}
+                                        for e in exc.errors()]}, status_code=422)
 
     @app.middleware("http")
     async def security(request: Request, call_next):
@@ -708,6 +715,7 @@ def create_app(settings: Settings) -> FastAPI:
     # --- Carreira: vagas, candidaturas, currículos, agente e navegador do aplicador ---
     carreira_web.register(app, conn, mentor=mentor, current_user=current_user, log_access=log_access)
     curriculos_web.register(app, conn, mentor=mentor, current_user=current_user, log_access=log_access)
+    contas_web.register(app, conn, mentor=mentor, current_user=current_user, log_access=log_access)
     computador_web.register(app, current_user=current_user, log_access=log_access,
                             session_ok=lambda cookies: auth.session_is_valid(conn, cookies.get(auth.SESSION_COOKIE)))
 

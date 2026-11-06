@@ -101,10 +101,14 @@ def global_delay(conn: sqlite3.Connection) -> float:
     return min(MAX_GLOBAL_DELAY_SECONDS, 0.1 * (failures - GLOBAL_SLOWDOWN_AFTER + 1))
 
 
+def owner_password_ok(conn: sqlite3.Connection, password: str) -> bool:
+    row = conn.execute("SELECT password_hash FROM credentials WHERE user_id = ?", (OWNER,)).fetchone()
+    return bool(row) and verify_password(password, row["password_hash"])
+
+
 def attempt_login(conn: sqlite3.Connection, password: str, client: str) -> str | None:
     """Retorna um token de sessão novo, ou None se a senha estiver errada."""
-    row = conn.execute("SELECT password_hash FROM credentials WHERE user_id = ?", (OWNER,)).fetchone()
-    ok = bool(row) and verify_password(password, row["password_hash"])
+    ok = owner_password_ok(conn, password)
     prune_attempts(conn)
     conn.execute("INSERT INTO login_attempts (at, success, client) VALUES (?, ?, ?)", (utcnow(), 1 if ok else 0, client))
     if not ok:

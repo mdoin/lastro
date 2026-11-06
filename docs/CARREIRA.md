@@ -196,7 +196,9 @@ resultados. Só mostra o que foi gravado; vazio aparece como vazio.
 - Navegador: o mesmo Chrome do worker (sandbox e AppArmor aprovados), perfil persistente em
   `/var/lib/mentor/carreira/chrome` (logins das plataformas ficam salvos), uma candidatura por vez. Envia formulários;
   redes privadas seguem bloqueadas pelo systemd do worker.
-- Cofre: `/var/lib/mentor/carreira/cofre.json` (0600 mentor), `{"gupy": {"usuario", "senha", "dominios"}}`. O modelo
+- Cofre: `/var/lib/mentor/carreira/cofre.enc` (AES-256-GCM, chave na credencial do systemd; gerido pela tela
+  Contas e acessos, ver [CONTAS.md](CONTAS.md)). Falta de acesso vira `sem_acesso` e pendência, sem parar as outras
+  plataformas. O modelo
   nunca vê a senha: `aplicador_login` digita usuário e senha no campo, só se o site aberto é um dos `dominios` daquela
   credencial e o campo indicado é mesmo de senha.
 - Currículo: o Markdown do Alfaiate vira PDF A4 na hora (`markdown_html` + impressão do Chrome) e é anexado.

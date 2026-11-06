@@ -19,7 +19,7 @@ from app import db
 STALE_SECONDS = {"busca": 1800, "curriculo": 600, "candidatura": 1500, "perfil": 1500, "avaliacao": 300,
                  "revisao": 400, "analise": 120}
 # Envios que impedem nova tentativa na mesma vaga ou numa duplicata dela.
-BLOCKING = ("candidatada", "incerta", "precisa_de_voce")
+BLOCKING = ("candidatada", "incerta", "precisa_de_voce", "aguardando_acesso")
 ETAPA_ORDEM = {"em_analise": 1, "teste": 2, "entrevista": 3, "proposta": 4}
 
 

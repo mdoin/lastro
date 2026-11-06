@@ -26,6 +26,7 @@ export const COLUMNS: { key: Column; label: string; hint: string }[] = [
 export const STATUS: Record<ApplicationStatus, { label: string; tone: Tone }> = {
   curriculo: { label: "Currículo pronto", tone: "neutral" },
   precisa_de_voce: { label: "Aguardando você", tone: "warning" },
+  aguardando_acesso: { label: "Aguardando acesso", tone: "warning" },
   incerta: { label: "Envio não confirmado", tone: "serious" },
   falhou: { label: "Falhou", tone: "critical" },
   candidatada: { label: "Enviada", tone: "good" },
@@ -123,13 +124,16 @@ export function eventText(e: { tipo: string; detalhe: Record<string, unknown> })
     case "envio_confirmado": return "Envio confirmado";
     case "envio_negado": return "Marcada como não enviada";
     case "retirada": return "Candidatura retirada";
+    case "acesso_necessario": return `Em espera: falta acesso${d.plataforma ? ` à plataforma ${d.plataforma}` : ""} (Contas e acessos)`;
+    case "retomada": return "Retomada após você resolver o acesso";
+    case "acesso_descartado": return "Pendência de acesso descartada";
     default: return e.tipo.replace(/_/g, " ");
   }
 }
 
 export function eventTone(tipo: string): Tone {
   if (["candidatura_falhou", "resultado_desconhecido"].includes(tipo)) return "serious";
-  if (["intervencao_solicitada", "duplicata_bloqueada", "revisao_correcoes"].includes(tipo)) return "warning";
+  if (["intervencao_solicitada", "duplicata_bloqueada", "revisao_correcoes", "acesso_necessario"].includes(tipo)) return "warning";
   if (["revisao_bloqueado", "revisao_bloqueada"].includes(tipo)) return "serious";
   if (tipo === "revisao_aprovado") return "good";
   if (["candidatura_enviada", "envio_confirmado"].includes(tipo)) return "good";

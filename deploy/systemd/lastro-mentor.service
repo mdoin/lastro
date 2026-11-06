@@ -29,6 +29,9 @@ Environment=LASTRO_BROWSER_SANDBOX=1
 # Pesquisa na internet (docs/PESQUISA.md): buscadores e chaves opcionais ficam em /etc/meu-patrimonio/pesquisa.env
 # (LASTRO_SEARXNG_URL=…, LASTRO_BRAVE_API_KEY_FILE=…); sem o arquivo, valem Wikipédia e GDELT.
 EnvironmentFile=-/etc/meu-patrimonio/pesquisa.env
+# Chave do cofre de credenciais (docs/CONTAS.md): cifrada com a chave do host, separada dos dados (/var/lib/mentor);
+# o worker a lê só em $CREDENTIALS_DIRECTORY. Criada pelo scripts/deploy.sh.
+LoadCredentialEncrypted=lastro-cofre:/etc/credstore.encrypted/lastro-cofre
 WorkingDirectory=/opt/meu-patrimonio/backend
 ExecStart=/opt/meu-patrimonio/.venv/bin/python -m mentor.worker
 RuntimeDirectory=lastro-mentor

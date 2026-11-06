@@ -4,8 +4,8 @@
 Diferente do navegador de pesquisa, este preenche e envia formulários, num perfil persistente do Chrome (os logins
 das plataformas ficam salvos entre candidaturas). Barreiras no código:
 - só a sessão do agente `aplicador`, que não tem nenhuma ferramenta de dados financeiros do dono;
-- senhas ficam no cofre (arquivo 0600 do worker) e o modelo nunca as vê: `aplicador_login` digita usuário e
-  senha direto no campo, e só se o site aberto for um dos domínios cadastrados para aquela credencial;
+- senhas ficam no cofre cifrado do worker (mentor/cofre.py) e o modelo nunca as vê: `aplicador_login` digita
+  usuário e senha direto no campo, e só se o site aberto for um dos domínios cadastrados para aquela credencial;
 - redes privadas e metadados continuam bloqueados pelo systemd do worker (IPAddressDeny);
 - uma candidatura por vez (o perfil não abre duas vezes), teto de ações e prazo por ação;
 - texto de página é dado não confiável.
@@ -76,10 +76,11 @@ FORM_JS = """(max) => {
 }"""
 
 
-def load_vault(path: Path | None = None) -> dict:
-    """{"gupy": {"usuario": "...", "senha": "...", "dominios": ["gupy.io"]}, ...}; ausente = cofre vazio."""
-    path = path or BASE_DIR / "cofre.json"
-    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+def load_vault() -> dict:
+    """{"gupy": {"usuario": "...", "senha": "...", "dominios": ["gupy.io"]}, ...}: só o que o aplicador pode usar."""
+    from . import cofre
+
+    return cofre.default().for_agent("aplicador")
 
 
 def host_matches(host: str, domains: list[str]) -> bool:
@@ -575,3 +576,63 @@ class Controle:
 
 
 CONTROLE = Controle()
+
+
+# Página de login ou de checagem no caminho: a plataforma mandou entrar (ou confirmar algo) em vez de abrir a conta.
+LOGIN_PATH = re.compile(r"log-?in|sign-?in|sign_in|signup|entrar|authwall|checkpoint|challenge|/auth|/sso|cadastr",
+                        re.IGNORECASE)
+
+
+def parece_logado(url: str, dominios: list[str], tem_campo_senha: bool) -> bool:
+    parts = urlsplit(url)
+    return (parts.scheme == "https" and host_matches(parts.hostname or "", dominios) and not tem_campo_senha
+            and not LOGIN_PATH.search(f"{parts.path}?{parts.query}"))
+
+
+async def sessao(browser, acao: str, dominios: list[str], url: str = "") -> dict:
+    """Central de Contas: `verificar` abre `url` (página que só existe logado) no perfil do aplicador e diz se a
+    sessão vale; `desconectar` apaga os cookies dos `dominios`. Usa a sessão manual aberta pelo dono, se houver
+    (o perfil não abre duas vezes). Devolve só host e caminho, nunca a URL inteira (pode levar token)."""
+    if browser is None:
+        return {"estado": "erro", "detalhe": "O navegador do worker não está configurado."}
+    if acao == "verificar" and not (urlsplit(url).scheme == "https" and host_matches(urlsplit(url).hostname or "",
+                                                                                     dominios)):
+        return {"estado": "erro", "detalhe": "Endereço de verificação fora dos domínios da plataforma."}
+    app, temp = CONTROLE.app, CONTROLE.app is None
+    if temp:
+        app = Aplicador(browser, curriculo_md="", vault={}, restrict_google=False)
+    try:
+        try:
+            await app._ensure()
+        except TimeoutError:
+            return {"estado": "ocupado", "detalhe": "O agente está usando o navegador agora; tente em alguns minutos."}
+        if acao == "desconectar":
+            for d in dominios:
+                await app.context.clear_cookies(domain=re.compile(rf"(^|\.){re.escape(d)}$"))
+            if app._cookie_file.is_file():
+                kept = [c for c in json.loads(app._cookie_file.read_text(encoding="utf-8"))
+                        if not host_matches(str(c.get("domain", "")).lstrip("."), dominios)]
+                app._cookie_file.write_text(json.dumps(kept), encoding="utf-8")
+            return {"estado": "nao_configurada"}
+        app._making_pdf = True  # aba à parte: não vira a aba de trabalho nem fecha a do dono
+        try:
+            page = app._pdf_page = await app.context.new_page()
+        finally:
+            app._making_pdf = False
+        try:
+            async with asyncio.timeout(40):
+                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                await page.wait_for_timeout(2500)  # redirecionamento para o login costuma vir por script
+                senha = await page.locator("input[type=password]:visible").count() > 0
+                final = page.url
+        finally:
+            await page.close()
+            app._pdf_page = None
+        parts = urlsplit(final)
+        return {"estado": "conectada" if parece_logado(final, dominios, senha) else "aguardando_autenticacao",
+                "pagina": f"{parts.hostname or ''}{parts.path}"[:200]}
+    except Exception as exc:  # noqa: BLE001 — falha de página vira estado, não derruba o worker
+        return {"estado": "erro", "detalhe": f"{type(exc).__name__}"}
+    finally:
+        if temp:
+            await app.close()

@@ -117,7 +117,7 @@ def metricas(conn) -> dict:
         " COUNT(*) FILTER (WHERE etapa = 'recusada') AS rejeicoes,"
         " COUNT(*) FILTER (WHERE status = 'falhou') AS falhas,"
         " COUNT(*) FILTER (WHERE status = 'incerta') AS incertas,"
-        " COUNT(*) FILTER (WHERE status = 'precisa_de_voce') AS intervencao,"
+        " COUNT(*) FILTER (WHERE status IN ('precisa_de_voce', 'aguardando_acesso')) AS intervencao,"
         " COUNT(*) FILTER (WHERE status = 'curriculo') AS preparando,"
         " COUNT(*) FILTER (WHERE status = 'candidatada' AND etapa IS NOT NULL) AS respondidas"
         " FROM carreira_candidaturas").fetchone()
@@ -143,7 +143,7 @@ def agente(conn) -> dict:
                            "ORDER BY x.started_at DESC").fetchall()
     recent = conn.execute(f"SELECT {cols} FROM carreira_execucoes x {title} ORDER BY x.id DESC LIMIT 30").fetchall()
     last = next((r for r in recent if r["estado"] != "executando"), None)
-    waiting = conn.execute("SELECT COUNT(*) FROM carreira_candidaturas WHERE status = 'precisa_de_voce'").fetchone()[0]
+    waiting = conn.execute("SELECT COUNT(*) FROM carreira_candidaturas WHERE status IN ('precisa_de_voce', 'aguardando_acesso')").fetchone()[0]
     live = [r for r in running if not _stale(r, now)]
     if live:
         estado = AGENT_STATE[live[0]["tipo"]]
@@ -195,9 +195,10 @@ def proximas(conn) -> list[dict]:
         " (SELECT json_extract(detalhe_json, '$.prazo') FROM carreira_eventos x WHERE x.vaga_id = v.id"
         "  AND x.tipo = 'resposta' ORDER BY x.id DESC LIMIT 1) AS prazo"
         " FROM carreira_candidaturas c JOIN carreira_vagas v ON v.id = c.vaga_id"
-        " WHERE c.status IN ('precisa_de_voce', 'incerta', 'falhou') OR c.etapa IN ('entrevista', 'teste', 'proposta')"
+        " WHERE c.status IN ('precisa_de_voce', 'aguardando_acesso', 'incerta', 'falhou') OR c.etapa IN ('entrevista', 'teste', 'proposta')"
         " ORDER BY c.updated_at DESC").fetchall()
-    kind = {"precisa_de_voce": "intervencao", "incerta": "verificar_envio", "falhou": "falha"}
+    kind = {"precisa_de_voce": "intervencao", "aguardando_acesso": "intervencao", "incerta": "verificar_envio",
+            "falhou": "falha"}
     out = [{"tipo": r["etapa"] if r["etapa"] in ("entrevista", "teste", "proposta") else kind[r["status"]],
             "n": r["n"], "title": r["title"], "company": r["company"], "motivo": r["motivo"] or "",
             "url": r["url_final"] or "", "prazo": r["prazo"] or "", "desde": r["updated_at"]} for r in rows]

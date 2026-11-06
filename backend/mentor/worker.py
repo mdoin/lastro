@@ -367,6 +367,12 @@ class MentorWorker:
 
         await emit({"type": "done", **await CONTROLE.handle(self.browser, req)})
 
+    async def contas(self, req: dict, emit: Emit) -> None:
+        """Central de Contas e Acessos: cofre cifrado e sessões do navegador do aplicador (mentor/cofre.py)."""
+        from . import cofre
+
+        await emit({"type": "done", **await cofre.handle(self.browser, req)})
+
     async def pdf(self, req: dict, emit: Emit) -> None:
         """Currículo da Carreira: o HTML montado pelo serviço vira PDF no Chrome do worker (sem JS e sem rede)."""
         if self.browser is None:
@@ -442,7 +448,7 @@ class MentorWorker:
             req = json.loads(line)
             op = {"turn": self.turn, "ephemeral": self.ephemeral, "panel": self.panel, "interrupt": self.interrupt,
                   "status": self.status, "providers": self.providers, "navegador": self.navegador,
-                  "pdf": self.pdf, "codigo": self.codigo}.get(req.get("op"))
+                  "contas": self.contas, "pdf": self.pdf, "codigo": self.codigo}.get(req.get("op"))
             if op is None:
                 raise ValueError("operação desconhecida")
             await op(req, emit)

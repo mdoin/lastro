@@ -15,6 +15,21 @@ manda no pedido; o worker resolve a conexão, aplica a mesma concessão de ferra
 sessão com o histórico do Lastro quando o provedor muda. Conexões e segredos ficam num arquivo 0600 do worker
 (`LASTRO_PROVIDERS_FILE`); logins de Claude Code e Codex ficam com os próprios CLIs, no HOME do worker.
 
+## Módulos e serviços compartilhados
+Dois módulos de produto, **Finanças** e **Carreira**, cada um com navegação e agentes próprios, sobre serviços
+compartilhados: login/auditoria, Notificações, Computadores dos agentes e a **Central de Contas e Acessos**
+([CONTAS.md](CONTAS.md)). A Central guarda metadados no banco e segredos só no cofre cifrado do worker; cada agente
+recebe apenas a capacidade da sua função:
+
+| Agente | Módulo | Acesso a contas |
+|---|---|---|
+| `aplicador` | Carreira | sessões do perfil do Chrome do aplicador; senha do cofre só pela ferramenta de login, só nas plataformas que o autorizam e só no domínio delas |
+| Carteiro (`lastro-carreira`) | Carreira | Gmail por `carreira.env` (migração para o cofre planejada) |
+| Mentor, especialistas, Conselho, Radar | Finanças | nenhum: só leitura de dados do dono |
+
+Um módulo novo entra registrando suas plataformas em `contas_plataformas` (com `modulo`) e abrindo pendências por
+`app/contas.abrir_pendencia`; nunca ganha leitura do cofre.
+
 ## Instalação systemd (referência)
 
 ```

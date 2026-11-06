@@ -21,7 +21,7 @@ export const getBrowserFrame = () => api.get<BrowserFrame>("/api/carreira/navega
 export const browserAction = (body: BrowserAction) => api.post<BrowserFrame>("/api/carreira/navegador", body);
 
 /** Estado do envio (o que o agente/dono fez) — nunca confundir com a etapa informada pela empresa. */
-export type ApplicationStatus = "curriculo" | "precisa_de_voce" | "incerta" | "falhou" | "candidatada" | "encerrada" | "retirada";
+export type ApplicationStatus = "curriculo" | "precisa_de_voce" | "aguardando_acesso" | "incerta" | "falhou" | "candidatada" | "encerrada" | "retirada";
 export type Stage = "em_analise" | "teste" | "entrevista" | "proposta" | "recusada";
 export type Column = "preparando" | "enviada" | "em_analise" | "entrevista" | "proposta" | "encerrada";
 export type Verdict = "compativel" | "talvez" | "fora";

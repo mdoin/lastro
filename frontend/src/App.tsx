@@ -37,6 +37,7 @@ const CareerResumePage = lazy(() => import("./pages/CareerResumes").then((m) => 
 const CareerResumeBasePage = lazy(() => import("./pages/CareerResumes").then((m) => ({ default: m.CareerResumeBasePage })));
 const CareerTalentPage = lazy(() => import("./pages/CareerTalent").then((m) => ({ default: m.CareerTalentPage })));
 const CareerAgentPage = lazy(() => import("./pages/CareerAgent").then((m) => ({ default: m.CareerAgentPage })));
+const AccountsPage = lazy(() => import("./pages/Accounts").then((m) => ({ default: m.AccountsPage })));
 const SettingsPage = lazy(() => import("./pages/Settings").then((m) => ({ default: m.SettingsPage })));
 
 // Galeria dos mascotes: só no `npm run dev` (import.meta.env.DEV vira false no build e o módulo some do pacote).
@@ -170,6 +171,7 @@ export function App() {
         <Route path="oportunidades/:opportunityId" element={page(<OpportunityPage />)} />
         <Route path="diario" element={page(<DecisionsPage />)} />
         <Route path="configuracoes" element={page(<SettingsPage />)} />
+        <Route path="configuracoes/contas" element={page(<AccountsPage />)} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

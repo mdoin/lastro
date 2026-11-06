@@ -6,6 +6,8 @@ requires-python = ">=3.12"
 license = "AGPL-3.0-or-later"
 dependencies = [
     "anthropic>=1.0",
+    # Cofre de credenciais (AES-GCM). Já vinha pelo claude-code (pyjwt[crypto]); agora direta: o cofre não depende dele.
+    "cryptography>=50.0",
     "fastapi>=0.115",
     "httpx>=0.27",
     "openai>=2.0",

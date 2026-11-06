@@ -82,6 +82,17 @@ Exceção consciente no teste de imports: `crypto/sources.py` pode usar `httpx` 
 | Tomada de uma instalação nova | Primeira senha pela web só com o token de instalação (arquivo 0600 no servidor), limitado como o login |
 | Provedor fora do ar ou em limite | Erros normalizados; limite segura só a fila daquela conexão |
 
+## 4d. Central de Contas e Acessos (docs/CONTAS.md)
+
+| Ameaça | Controle |
+|---|---|
+| Senha de plataforma lida do disco | Cofre AES-256-GCM no worker; chave em credencial cifrada do systemd (`LoadCredentialEncrypted`), separada dos dados |
+| Modelo ou agente ver a senha | Nenhuma ferramenta devolve segredo; `aplicador_login` digita no campo; só agentes listados na credencial a recebem |
+| Página maliciosa capturar a senha | Digitada só no domínio da credencial; trocar domínio exige reenviar a senha |
+| Sessão roubada do dono trocar credenciais | Gravar, revogar e desconectar pedem a senha do Lastro de novo, com o limitador do login |
+| Eco de segredo em erro | Handler global de 422 sem `input`; respostas e logs só com plataforma e dica do usuário |
+| Agente criar conta ou assumir "sem cadastro" | Não há ferramenta de cadastro; `cadastro` com registro existente vira `login`; o dono decide |
+
 ## 5. Atualizações
 
 - Python: alterar `exclude-newer` só após ler os changelogs; `uv lock`; rodar a suíte.

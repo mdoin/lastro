@@ -47,6 +47,7 @@ const CAREER_NAV: NavItem[] = [
 const SHARED_NAV: NavItem[] = [
   { to: "/computadores", label: "Computadores", short: "Computadores", icon: "monitor", group: "Sistema" },
   { to: "/notificacoes", label: "Notificações", short: "Avisos", icon: "inbox", group: "Sistema" },
+  { to: "/configuracoes/contas", label: "Contas e acessos", short: "Contas", icon: "lock", group: "Sistema" },
   { to: "/configuracoes", label: "Configurações e auditoria", short: "Ajustes", icon: "settings", group: "Sistema" },
 ];
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { EXPORT_URL, getAuthState, getProfile, getStatus, logout, putProfile } from "../api/endpoints";
 import { Icon } from "../components/Icon";
@@ -60,6 +60,11 @@ export function SettingsPage() {
             </li>
           ))}
         </ul>
+      </Card>
+
+      <Card title="Contas e acessos" eyebrow="Plataformas dos agentes" aside={<Icon name="lock" />}>
+        <p className="small">Conecte plataformas, guarde senhas no cofre cifrado e resolva os pedidos de acesso dos agentes, sem editar arquivos no servidor.</p>
+        <Link className="btn btn-secondary btn-sm" to="/configuracoes/contas">Abrir Contas e acessos</Link>
       </Card>
 
       <ProfileCard />

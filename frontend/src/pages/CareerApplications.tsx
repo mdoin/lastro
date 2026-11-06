@@ -29,6 +29,7 @@ function readView(): View {
 export function nextStep(a: Pick<Application, "candidatura_status" | "etapa" | "coluna" | "aderencia">): string {
   switch (a.candidatura_status) {
     case "precisa_de_voce": return "Resolver o que o agente pediu";
+    case "aguardando_acesso": return "Resolver o acesso em Contas e acessos";
     case "incerta": return "Verificar se o envio aconteceu";
     case "falhou": return "Enviar manualmente ou retirar";
     case "curriculo": return a.aderencia != null && a.aderencia < 60 ? "Abaixo de 60%: envio manual, se quiser" : "Aguardando o Aplicador";

@@ -20,7 +20,8 @@ export function AgentBrowserPage() {
   const [busy, setBusy] = useState(false);
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState("");
-  const [url, setUrl] = useState("");
+  // ?abrir= vem da Central de Contas (endereço oficial da plataforma): só preenche, quem abre é o dono
+  const [url, setUrl] = useState(() => new URLSearchParams(window.location.search).get("abrir") ?? "");
   const capture = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);

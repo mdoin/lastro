@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from app import db
+from app import contas, db
 
 from app.mentor_client import MentorClient
 
@@ -213,7 +213,16 @@ async def fila_forever(conn, mentor: MentorClient) -> None:
             log.exception("fila falhou")
         interval = int(os.environ.get("CARREIRA_FILA_INTERVAL", FILA_SECONDS))
         _estado(conn, "proxima_fila", (datetime.now(timezone.utc) + timedelta(seconds=interval)).isoformat(timespec="seconds"))
-        await asyncio.sleep(interval)
+        await esperar_fila(conn, interval)
+
+
+async def esperar_fila(conn, interval: int, tick: int = 60) -> None:
+    """Dorme até a próxima volta, mas acorda antes se o dono resolveu uma pendência (sinal 'retomar' da Central)."""
+    for _ in range(max(1, interval // tick)):
+        if conn.execute("DELETE FROM carreira_estado WHERE chave = 'retomar'").rowcount:
+            log.info("pendência resolvida: retomando a fila agora")
+            return
+        await asyncio.sleep(tick)
 
 
 async def chat_forever(conn, mentor: MentorClient | None) -> None:
@@ -259,6 +268,9 @@ async def main() -> None:
     registro.preencher_chaves(conn)
     if base_id := curriculo.importar_arquivo(conn):
         log.info("currículo-base estruturado importado (v%d)", base_id)
+    # Contas configuradas no servidor (env): a Central mostra se existem, nunca o valor
+    contas.marcar(conn, "gmail", "conectada" if carteiro.gmail_config() else "nao_configurada", "arquivo de ambiente do serviço")
+    contas.marcar(conn, "whatsapp", "conectada" if evolution_config() else "nao_configurada", "arquivo de ambiente do serviço")
     log.info("regras: %d vaga(s) reavaliada(s)", reavaliar(conn))
     socket = os.environ.get("LASTRO_MENTOR_SOCKET")
     mentor = MentorClient(Path(socket)) if socket else None  # sem o worker, só caça e avisa

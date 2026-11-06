@@ -2,8 +2,10 @@
 """Candidatura automática (fase 3): manda as melhores vagas ao agente `aplicador` do worker e registra o resultado.
 
 Só vagas com currículo sob medida e aderência ≥ MIN_ADERENCIA, até DAILY_LIMIT tentativas por dia e
-MAX_ATTEMPTS por vaga. O Aplicador para e devolve `precisa_de_voce` diante de CAPTCHA, código de verificação,
-teste ou campo obrigatório sem resposta conhecida; o dono recebe o aviso no WhatsApp.
+MAX_ATTEMPTS por vaga. O Aplicador para e devolve `precisa_de_voce` diante de CAPTCHA, teste ou campo obrigatório
+sem resposta conhecida; o dono recebe o aviso no WhatsApp. Falta de acesso (login, cadastro, sessão expirada, 2FA)
+volta como `sem_acesso`: vira pendência na Central de Contas (app/contas.py), a vaga espera sem gastar tentativa e
+as vagas das outras plataformas seguem.
 """
 
 import asyncio
@@ -15,7 +17,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from app import db
+from app import contas, db
 from app.mentor_client import MentorClient
 
 from . import alfaiate, carteiro, curriculo, documento, registro, sources
@@ -41,7 +43,9 @@ def answers() -> str | None:
 def parse(output: str, require_evidence: bool = True) -> dict:
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", output.strip())
     data = json.loads(text[text.find("{"):text.rfind("}") + 1])
-    status = data.get("status") if data.get("status") in ("enviada", "precisa_de_voce", "nao_aplicavel") else "falhou"
+    status = data.get("status") if data.get("status") in ("enviada", "precisa_de_voce", "nao_aplicavel",
+                                                            "sem_acesso") else "falhou"
+    acesso = "" if status != "sem_acesso" else data.get("acesso") if data.get("acesso") in contas.ACESSO else "login"
     url = str(data.get("url_final") or "")
     evidencia = sources.text(data.get("evidencia"))[:300]
     if status == "enviada" and not evidencia and require_evidence:  # clicar em "enviar" não basta: sem confirmação da plataforma, é incerto
@@ -49,12 +53,15 @@ def parse(output: str, require_evidence: bool = True) -> dict:
     return {"status": status, "motivo": sources.text(data.get("motivo"))[:400] or "sem motivo informado",
             "evidencia": evidencia,
             "url_final": url[:500] if url.startswith("https://") else "",
+            "plataforma": sources.text(data.get("plataforma"))[:40], "acesso": acesso,
             "documento": sources.text(data.get("documento"))[:200],
+            "informacao_ausente": status == "precisa_de_voce" and data.get("tipo") == "informacao_ausente",
             "respostas": [{"pergunta": sources.text(r.get("pergunta"))[:200], "resposta": sources.text(r.get("resposta"))[:500]}
                           for r in (data.get("respostas") or [])[:40] if isinstance(r, dict)]}
 
 
 def pending(conn, limit: int):
+    blocked = sorted(contas.bloqueadas(conn))  # plataforma esperando o dono: as vagas dela não entram na volta
     return conn.execute(
         "SELECT v.rowid AS n, v.*, c.curriculo_md, c.carta, c.aderencia, c.curriculo_id, k.pdf, k.docx "
         "FROM carreira_candidaturas c JOIN carreira_vagas v ON v.id = c.vaga_id "
@@ -64,7 +71,8 @@ def pending(conn, limit: int):
         f"AND (SELECT COUNT(*) FROM carreira_envios e WHERE e.vaga_id = v.id AND e.{ATTEMPT}) < ? "
         # só a versão do currículo aprovada pelo Talent (talent.py) vai para envio
         "AND EXISTS (SELECT 1 FROM talent_revisoes r WHERE r.curriculo_id = c.curriculo_id AND r.resultado = 'aprovado') "
-        "ORDER BY c.aderencia DESC, c.created_at LIMIT ?", (MIN_ADERENCIA, MAX_ATTEMPTS, limit)).fetchall()
+        f"AND replace(v.source, 'email-', '') NOT IN ({','.join('?' * len(blocked))}) "
+        "ORDER BY c.aderencia DESC, c.created_at LIMIT ?", (MIN_ADERENCIA, MAX_ATTEMPTS, *blocked, limit)).fetchall()
 
 
 PLATFORMS = {"gupy": "https://www.gupy.io/", "linkedin": "https://www.linkedin.com/in/me/",
@@ -175,6 +183,9 @@ def notice(vaga, result: dict) -> str:
                 f"antes de tentar de novo: {result['url_final'] or vaga['url']}")
     if result["status"] == "precisa_de_voce":
         return f"*Preciso de você* na candidatura\n{head}\n{result['motivo']}\n{result['url_final'] or vaga['url']}"
+    if result["status"] == "sem_acesso":
+        return (f"*Preciso de acesso* — {result['plataforma']}: {contas.ACAO[result['acesso']]}\n{result['motivo']}\n"
+                f"A vaga {head} está em espera; as outras seguem. Resolva em Lastro → Contas e acessos.")
     return f"*Candidatura não feita*\n{head}\n{result['motivo']}"
 
 
@@ -185,8 +196,10 @@ async def apply_pending(conn, mentor: MentorClient) -> list[str]:
         return []
     today = db.utcnow()[:10]
     used = conn.execute("SELECT COUNT(*) FROM carreira_envios WHERE substr(created_at, 1, 10) = ?", (today,)).fetchone()[0]
-    notices = []
+    notices, blocked = [], set()
     for vaga in pending(conn, min(PER_CYCLE, DAILY_LIMIT - used)):
+        if contas.plataforma_id(vaga["source"]) in blocked:  # travou nesta volta: espera junto com a pendência
+            continue
         if prior := registro.candidatura_anterior(conn, vaga["id"]):  # mesma vaga por outra fonte: não repete
             conn.execute("UPDATE carreira_candidaturas SET status = 'encerrada', updated_at = ? WHERE vaga_id = ?",
                          (db.utcnow(), vaga["id"]))
@@ -204,8 +217,22 @@ async def apply_pending(conn, mentor: MentorClient) -> list[str]:
                 log.warning("aplicador falhou em %s: %s", vaga["id"], type(exc).__name__)
                 result = {"status": "incerta", "motivo": f"o agente não concluiu ({type(exc).__name__}); pode ter "
                           "enviado antes de parar"}
-            result = {"url_final": "", "respostas": [], "evidencia": "", "anexo": "", **result}
+            result = {"url_final": "", "respostas": [], "evidencia": "", "plataforma": "", "acesso": "", "anexo": "",
+                      "informacao_ausente": False, **result}
             now = db.utcnow()
+            if result["status"] == "sem_acesso":  # nada foi enviado: sem envio, sem tentativa gasta
+                platform = contas.plataforma_id(result["plataforma"] or vaga["source"])
+                pend_id, new = contas.abrir_pendencia(conn, plataforma_nome=platform, tipo=result["acesso"],
+                                                      agente="aplicador", motivo=result["motivo"])
+                conn.execute("UPDATE carreira_candidaturas SET status = 'aguardando_acesso', pendencia_id = ?, "
+                             "updated_at = ? WHERE vaga_id = ?", (pend_id, now, vaga["id"]))
+                registro.evento(conn, vaga["id"], "acesso_necessario", "aplicador", plataforma=platform,
+                                acesso=result["acesso"], pendencia_id=pend_id, motivo=result["motivo"])
+                run["resultado"] = "sem_acesso"
+                blocked.update({platform, contas.plataforma_id(vaga["source"])})
+                if new:
+                    notices.append(notice(vaga, {**result, "plataforma": platform}))
+                continue
             envio_id = conn.execute(
                 "INSERT INTO carreira_envios (vaga_id, status, motivo, url_final, respostas_json, evidencia, curriculo_id,"
                 " execucao_id, anexo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
@@ -220,6 +247,11 @@ async def apply_pending(conn, mentor: MentorClient) -> list[str]:
             if status:
                 conn.execute("UPDATE carreira_candidaturas SET status = ?, updated_at = ? WHERE vaga_id = ?",
                              (status, now, vaga["id"]))
+            if result["informacao_ausente"]:  # aparece na Central; resolvida, a vaga volta à fila se houver tentativa
+                pend_id, _ = contas.abrir_pendencia(conn, plataforma_nome=result["plataforma"] or vaga["source"],
+                                                    tipo="informacao_ausente", agente="aplicador",
+                                                    motivo=result["motivo"], chave=vaga["id"])
+                conn.execute("UPDATE carreira_candidaturas SET pendencia_id = ? WHERE vaga_id = ?", (pend_id, vaga["id"]))
             registro.evento(conn, vaga["id"], EVENT[result["status"]], "aplicador", envio_id=envio_id,
                             motivo=result["motivo"], tentativa=attempts)
             run["resultado"] = result["status"]

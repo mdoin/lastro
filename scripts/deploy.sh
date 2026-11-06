@@ -45,6 +45,16 @@ install -d -m 0755 -o root -g root /etc/meu-patrimonio
 [ -f /etc/meu-patrimonio/mentor-token ] && chown root:mentor /etc/meu-patrimonio/mentor-token \
   && chmod 0640 /etc/meu-patrimonio/mentor-token
 
+# Chave do cofre de credenciais (docs/CONTAS.md): gerada uma vez e cifrada pela chave do host (systemd-creds) sem
+# passar pelo disco em claro. Sem ela (ou sem /var/lib/systemd/credential.secret), o cofre não abre: inclua as duas
+# no backup do servidor.
+install -d -m 0700 -o root -g root /etc/credstore.encrypted
+if [ ! -f /etc/credstore.encrypted/lastro-cofre ]; then
+  python3 -c "import secrets; print(secrets.token_hex(32))" \
+    | systemd-creds encrypt --name=lastro-cofre - /etc/credstore.encrypted/lastro-cofre
+fi
+chmod 0600 /etc/credstore.encrypted/lastro-cofre
+
 # Banco: aplica migrações como o dono do banco.
 sudo -u patrimonio env LASTRO_DB=/var/lib/patrimonio/lastro.db sh -c \
   "cd $DEST/backend && $DEST/.venv/bin/python -m app.admin migrate"

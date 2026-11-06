@@ -31,6 +31,7 @@ MIGRATIONS = (
     (18, APP_DIR / "migrations" / "018_carreira_modulo.sql"),
     (19, APP_DIR / "migrations" / "019_carreira_tentativas_esgotadas.sql"),
     (20, APP_DIR / "migrations" / "020_carreira_documentos.sql"),
+    (21, APP_DIR / "migrations" / "021_contas.sql"),
     (22, APP_DIR / "migrations" / "022_talent.sql"),
 )
 LATEST_VERSION = MIGRATIONS[-1][0]
@@ -72,8 +73,10 @@ def current_version(conn: sqlite3.Connection) -> int:
 def migrate(conn: sqlite3.Connection) -> int:
     """Aplica as migrações pendentes, cada uma numa transação. Retorna a versão final."""
     version = current_version(conn)
+    # Pelo registro, não só pelo máximo: duas frentes podem numerar migrações em paralelo (020 chega depois da 021).
+    applied = {r[0] for r in conn.execute("SELECT version FROM schema_version")} if version else set()
     for number, path in MIGRATIONS:
-        if number <= version:
+        if number in applied:
             continue
         script = path.read_text(encoding="utf-8")
         conn.execute("BEGIN")
@@ -87,7 +90,7 @@ def migrate(conn: sqlite3.Connection) -> int:
         except Exception:
             conn.execute("ROLLBACK")
             raise
-        version = number
+        version = max(version, number)
     return version
 
 
