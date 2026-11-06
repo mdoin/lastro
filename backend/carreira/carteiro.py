@@ -103,7 +103,9 @@ def fetch_code(user: str, password: str, domains: tuple[str, ...], since: dateti
         imap.select("INBOX", readonly=True)
         uids = set()
         for domain in domains:
-            _, data = imap.uid("SEARCH", None, "SINCE", since.strftime("%d-%b-%Y"), "FROM", domain)
+            # SINCE é só data, no fuso do Gmail (Califórnia): busca desde a véspera; a hora vem do cabeçalho Date
+            day = (since - timedelta(days=1)).strftime("%d-%b-%Y")
+            _, data = imap.uid("SEARCH", None, "SINCE", day, "FROM", domain)
             uids.update(int(u) for u in data[0].split())
         for uid in sorted(uids, reverse=True)[:5]:
             _, parts = imap.uid("FETCH", str(uid), "(BODY.PEEK[])")
